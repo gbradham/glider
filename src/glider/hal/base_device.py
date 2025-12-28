@@ -1,0 +1,552 @@
+"""
+Abstract Base Class for hardware devices.
+
+Devices represent higher-level components attached to boards
+(e.g., "Stepper Motor", "Temperature Sensor"). They wrap BaseBoard
+methods into semantic actions.
+"""
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+import uuid
+
+if TYPE_CHECKING:
+    from glider.hal.base_board import BaseBoard
+
+
+@dataclass
+class DeviceConfig:
+    """Configuration for a device including pin assignments."""
+    pins: Dict[str, int] = field(default_factory=dict)
+    settings: Dict[str, Any] = field(default_factory=dict)
+
+
+class BaseDevice(ABC):
+    """
+    Abstract Base Class for hardware devices.
+
+    Devices are logical entities that abstract pin numbers into functionality.
+    They wrap the BaseBoard methods into semantic actions.
+    """
+
+    def __init__(
+        self,
+        board: "BaseBoard",
+        config: DeviceConfig,
+        name: Optional[str] = None,
+    ):
+        """
+        Initialize the device.
+
+        Args:
+            board: The board this device is connected to
+            config: Device configuration including pin assignments
+            name: Optional human-readable name for this device instance
+        """
+        self._id = str(uuid.uuid4())
+        self._board = board
+        self._config = config
+        self._name = name or self.device_type
+        self._initialized = False
+        self._enabled = True
+
+    @property
+    def id(self) -> str:
+        """Unique identifier for this device instance."""
+        return self._id
+
+    @property
+    @abstractmethod
+    def device_type(self) -> str:
+        """Type name for this device (e.g., 'LED', 'DHT22')."""
+        ...
+
+    @property
+    def name(self) -> str:
+        """Human-readable name for this device instance."""
+        return self._name
+
+    @name.setter
+    def name(self, value: str) -> None:
+        self._name = value
+
+    @property
+    def board(self) -> "BaseBoard":
+        """The board this device is connected to."""
+        return self._board
+
+    @property
+    def config(self) -> DeviceConfig:
+        """Device configuration including pin assignments."""
+        return self._config
+
+    @property
+    def pins(self) -> Dict[str, int]:
+        """Pin assignments for this device."""
+        return self._config.pins
+
+    @property
+    def is_initialized(self) -> bool:
+        """Whether the device has been initialized."""
+        return self._initialized
+
+    @property
+    def is_enabled(self) -> bool:
+        """Whether the device is enabled."""
+        return self._enabled
+
+    @property
+    @abstractmethod
+    def actions(self) -> Dict[str, Callable]:
+        """
+        Dictionary mapping command strings to methods.
+
+        This structure allows the Flow Engine to trigger device actions
+        generically without needing to know the specific class type.
+
+        Example:
+            {'activate': self.turn_on, 'deactivate': self.turn_off}
+        """
+        ...
+
+    @property
+    def required_pins(self) -> List[str]:
+        """
+        List of required pin names for this device.
+
+        Override in subclass to specify which pins must be configured.
+        """
+        return []
+
+    @abstractmethod
+    async def initialize(self) -> None:
+        """
+        Initialize the device hardware.
+
+        This should configure pin modes and set initial states.
+        Called after the board connection is established.
+        """
+        ...
+
+    @abstractmethod
+    async def shutdown(self) -> None:
+        """
+        Shutdown the device safely.
+
+        This should set the device to a safe state (e.g., motors stopped,
+        heaters off). Called during emergency stop or normal shutdown.
+        """
+        ...
+
+    async def enable(self) -> None:
+        """Enable the device for operation."""
+        self._enabled = True
+
+    async def disable(self) -> None:
+        """Disable the device (stops responding to commands)."""
+        self._enabled = False
+
+    def validate_config(self) -> List[str]:
+        """
+        Validate the device configuration.
+
+        Returns:
+            List of validation error messages (empty if valid)
+        """
+        errors = []
+        for pin_name in self.required_pins:
+            if pin_name not in self._config.pins:
+                errors.append(f"Missing required pin: {pin_name}")
+        return errors
+
+    async def execute_action(self, action_name: str, *args, **kwargs) -> Any:
+        """
+        Execute a named action on this device.
+
+        Args:
+            action_name: Name of the action to execute
+            *args: Positional arguments for the action
+            **kwargs: Keyword arguments for the action
+
+        Returns:
+            Result of the action
+        """
+        if not self._enabled:
+            raise RuntimeError(f"Device {self._name} is disabled")
+
+        if action_name not in self.actions:
+            raise ValueError(f"Unknown action: {action_name}")
+
+        action = self.actions[action_name]
+        return await action(*args, **kwargs)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize device configuration to dictionary."""
+        return {
+            "id": self._id,
+            "device_type": self.device_type,
+            "name": self._name,
+            "board_id": self._board.id,
+            "config": {
+                "pins": self._config.pins,
+                "settings": self._config.settings,
+            },
+        }
+
+    @classmethod
+    @abstractmethod
+    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "BaseDevice":
+        """Create device instance from dictionary configuration."""
+        ...
+
+
+class DigitalOutputDevice(BaseDevice):
+    """Simple digital output device (e.g., LED, Relay)."""
+
+    @property
+    def device_type(self) -> str:
+        return "DigitalOutput"
+
+    @property
+    def required_pins(self) -> List[str]:
+        return ["output"]
+
+    @property
+    def actions(self) -> Dict[str, Callable]:
+        return {
+            "on": self.turn_on,
+            "off": self.turn_off,
+            "toggle": self.toggle,
+            "set": self.set_state,
+        }
+
+    def __init__(self, board: "BaseBoard", config: DeviceConfig, name: Optional[str] = None):
+        super().__init__(board, config, name)
+        self._state = False
+
+    @property
+    def state(self) -> bool:
+        """Current output state."""
+        return self._state
+
+    async def initialize(self) -> None:
+        from glider.hal.base_board import PinMode, PinType
+        pin = self._config.pins["output"]
+        await self._board.set_pin_mode(pin, PinMode.OUTPUT, PinType.DIGITAL)
+        await self._board.write_digital(pin, False)
+        self._state = False
+        self._initialized = True
+
+    async def shutdown(self) -> None:
+        if self._initialized:
+            pin = self._config.pins["output"]
+            await self._board.write_digital(pin, False)
+            self._state = False
+
+    async def turn_on(self) -> None:
+        """Turn the output on."""
+        pin = self._config.pins["output"]
+        await self._board.write_digital(pin, True)
+        self._state = True
+
+    async def turn_off(self) -> None:
+        """Turn the output off."""
+        pin = self._config.pins["output"]
+        await self._board.write_digital(pin, False)
+        self._state = False
+
+    async def toggle(self) -> None:
+        """Toggle the output state."""
+        if self._state:
+            await self.turn_off()
+        else:
+            await self.turn_on()
+
+    async def set_state(self, state: bool) -> None:
+        """Set the output to a specific state."""
+        if state:
+            await self.turn_on()
+        else:
+            await self.turn_off()
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "DigitalOutputDevice":
+        config = DeviceConfig(
+            pins=data["config"]["pins"],
+            settings=data["config"].get("settings", {}),
+        )
+        instance = cls(board, config, data.get("name"))
+        instance._id = data.get("id", instance._id)
+        return instance
+
+
+class DigitalInputDevice(BaseDevice):
+    """Simple digital input device (e.g., Button, Beam Break Sensor)."""
+
+    @property
+    def device_type(self) -> str:
+        return "DigitalInput"
+
+    @property
+    def required_pins(self) -> List[str]:
+        return ["input"]
+
+    @property
+    def actions(self) -> Dict[str, Callable]:
+        return {
+            "read": self.read,
+        }
+
+    def __init__(self, board: "BaseBoard", config: DeviceConfig, name: Optional[str] = None):
+        super().__init__(board, config, name)
+        self._last_value: Optional[bool] = None
+        self._on_change_callbacks: List[Callable[[bool], None]] = []
+
+    @property
+    def last_value(self) -> Optional[bool]:
+        """Last read value."""
+        return self._last_value
+
+    async def initialize(self) -> None:
+        from glider.hal.base_board import PinMode, PinType
+        pin = self._config.pins["input"]
+        pullup = self._config.settings.get("pullup", False)
+        mode = PinMode.INPUT_PULLUP if pullup else PinMode.INPUT
+        await self._board.set_pin_mode(pin, mode, PinType.DIGITAL)
+        self._initialized = True
+
+    async def shutdown(self) -> None:
+        pass  # No shutdown needed for input
+
+    async def read(self) -> bool:
+        """Read the current input state."""
+        pin = self._config.pins["input"]
+        value = await self._board.read_digital(pin)
+        if value != self._last_value:
+            self._last_value = value
+            for callback in self._on_change_callbacks:
+                try:
+                    callback(value)
+                except Exception:
+                    pass
+        return value
+
+    def on_change(self, callback: Callable[[bool], None]) -> None:
+        """Register a callback for value changes."""
+        self._on_change_callbacks.append(callback)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "DigitalInputDevice":
+        config = DeviceConfig(
+            pins=data["config"]["pins"],
+            settings=data["config"].get("settings", {}),
+        )
+        instance = cls(board, config, data.get("name"))
+        instance._id = data.get("id", instance._id)
+        return instance
+
+
+class AnalogInputDevice(BaseDevice):
+    """Analog input device (e.g., Potentiometer, Light Sensor)."""
+
+    @property
+    def device_type(self) -> str:
+        return "AnalogInput"
+
+    @property
+    def required_pins(self) -> List[str]:
+        return ["input"]
+
+    @property
+    def actions(self) -> Dict[str, Callable]:
+        return {
+            "read": self.read,
+            "read_voltage": self.read_voltage,
+        }
+
+    def __init__(self, board: "BaseBoard", config: DeviceConfig, name: Optional[str] = None):
+        super().__init__(board, config, name)
+        self._last_value: Optional[int] = None
+        self._reference_voltage = config.settings.get("reference_voltage", 5.0)
+
+    async def initialize(self) -> None:
+        from glider.hal.base_board import PinMode, PinType
+        pin = self._config.pins["input"]
+        await self._board.set_pin_mode(pin, PinMode.INPUT, PinType.ANALOG)
+        self._initialized = True
+
+    async def shutdown(self) -> None:
+        pass
+
+    async def read(self) -> int:
+        """Read the raw analog value."""
+        pin = self._config.pins["input"]
+        value = await self._board.read_analog(pin)
+        self._last_value = value
+        return value
+
+    async def read_voltage(self) -> float:
+        """Read the analog value as voltage."""
+        raw = await self.read()
+        max_value = 2 ** self._board.capabilities.analog_resolution - 1
+        return (raw / max_value) * self._reference_voltage
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "AnalogInputDevice":
+        config = DeviceConfig(
+            pins=data["config"]["pins"],
+            settings=data["config"].get("settings", {}),
+        )
+        instance = cls(board, config, data.get("name"))
+        instance._id = data.get("id", instance._id)
+        return instance
+
+
+class PWMOutputDevice(BaseDevice):
+    """PWM output device (e.g., LED with brightness, Motor speed)."""
+
+    @property
+    def device_type(self) -> str:
+        return "PWMOutput"
+
+    @property
+    def required_pins(self) -> List[str]:
+        return ["output"]
+
+    @property
+    def actions(self) -> Dict[str, Callable]:
+        return {
+            "set": self.set_value,
+            "set_percent": self.set_percent,
+            "off": self.off,
+        }
+
+    def __init__(self, board: "BaseBoard", config: DeviceConfig, name: Optional[str] = None):
+        super().__init__(board, config, name)
+        self._value = 0
+
+    @property
+    def value(self) -> int:
+        """Current PWM value."""
+        return self._value
+
+    async def initialize(self) -> None:
+        from glider.hal.base_board import PinMode, PinType
+        pin = self._config.pins["output"]
+        await self._board.set_pin_mode(pin, PinMode.OUTPUT, PinType.PWM)
+        await self._board.write_analog(pin, 0)
+        self._value = 0
+        self._initialized = True
+
+    async def shutdown(self) -> None:
+        if self._initialized:
+            await self.off()
+
+    async def set_value(self, value: int) -> None:
+        """Set the raw PWM value."""
+        max_value = 2 ** self._board.capabilities.pwm_resolution - 1
+        value = max(0, min(value, max_value))
+        pin = self._config.pins["output"]
+        await self._board.write_analog(pin, value)
+        self._value = value
+
+    async def set_percent(self, percent: float) -> None:
+        """Set the PWM value as a percentage (0-100)."""
+        max_value = 2 ** self._board.capabilities.pwm_resolution - 1
+        value = int((percent / 100.0) * max_value)
+        await self.set_value(value)
+
+    async def off(self) -> None:
+        """Turn off the PWM output."""
+        await self.set_value(0)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "PWMOutputDevice":
+        config = DeviceConfig(
+            pins=data["config"]["pins"],
+            settings=data["config"].get("settings", {}),
+        )
+        instance = cls(board, config, data.get("name"))
+        instance._id = data.get("id", instance._id)
+        return instance
+
+
+class ServoDevice(BaseDevice):
+    """Servo motor device."""
+
+    @property
+    def device_type(self) -> str:
+        return "Servo"
+
+    @property
+    def required_pins(self) -> List[str]:
+        return ["signal"]
+
+    @property
+    def actions(self) -> Dict[str, Callable]:
+        return {
+            "set_angle": self.set_angle,
+            "center": self.center,
+        }
+
+    def __init__(self, board: "BaseBoard", config: DeviceConfig, name: Optional[str] = None):
+        super().__init__(board, config, name)
+        self._angle = 90
+        self._min_angle = config.settings.get("min_angle", 0)
+        self._max_angle = config.settings.get("max_angle", 180)
+
+    @property
+    def angle(self) -> int:
+        """Current servo angle."""
+        return self._angle
+
+    async def initialize(self) -> None:
+        from glider.hal.base_board import PinMode, PinType
+        pin = self._config.pins["signal"]
+        await self._board.set_pin_mode(pin, PinMode.OUTPUT, PinType.SERVO)
+        await self.center()
+        self._initialized = True
+
+    async def shutdown(self) -> None:
+        pass  # Servos typically hold position
+
+    async def set_angle(self, angle: int) -> None:
+        """Set the servo angle."""
+        angle = max(self._min_angle, min(angle, self._max_angle))
+        pin = self._config.pins["signal"]
+        await self._board.write_servo(pin, angle)
+        self._angle = angle
+
+    async def center(self) -> None:
+        """Center the servo."""
+        center = (self._min_angle + self._max_angle) // 2
+        await self.set_angle(center)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "ServoDevice":
+        config = DeviceConfig(
+            pins=data["config"]["pins"],
+            settings=data["config"].get("settings", {}),
+        )
+        instance = cls(board, config, data.get("name"))
+        instance._id = data.get("id", instance._id)
+        return instance
+
+
+# Registry of built-in device types
+DEVICE_REGISTRY: Dict[str, type] = {
+    "DigitalOutput": DigitalOutputDevice,
+    "DigitalInput": DigitalInputDevice,
+    "AnalogInput": AnalogInputDevice,
+    "PWMOutput": PWMOutputDevice,
+    "Servo": ServoDevice,
+}
+
+
+def create_device_from_dict(data: Dict[str, Any], board: "BaseBoard") -> BaseDevice:
+    """Factory function to create a device from dictionary configuration."""
+    device_type = data.get("device_type")
+    if device_type not in DEVICE_REGISTRY:
+        raise ValueError(f"Unknown device type: {device_type}")
+    return DEVICE_REGISTRY[device_type].from_dict(data, board)

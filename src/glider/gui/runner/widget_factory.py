@@ -1,0 +1,58 @@
+"""
+Widget Factory - Creates dashboard widgets for interface nodes.
+"""
+
+from typing import Optional, TYPE_CHECKING
+
+from PyQt6.QtWidgets import QWidget
+
+if TYPE_CHECKING:
+    from glider.nodes.base_node import GliderNode
+
+
+class WidgetFactory:
+    """Factory for creating dashboard widgets from interface nodes."""
+
+    @staticmethod
+    def create_widget(node: "GliderNode") -> Optional[QWidget]:
+        """
+        Create a dashboard widget for a node.
+
+        Args:
+            node: The node to create a widget for
+
+        Returns:
+            Created widget or None if not supported
+        """
+        from glider.gui.widgets.touch_widgets import (
+            TouchLabel,
+            TouchButton,
+            TouchToggle,
+            TouchSlider,
+            TouchGauge,
+            TouchChart,
+            TouchLED,
+            TouchNumericInput,
+        )
+
+        node_type = type(node).__name__
+
+        # Map node types to widget classes
+        widget_map = {
+            "LabelNode": TouchLabel,
+            "ButtonNode": TouchButton,
+            "ToggleSwitchNode": TouchToggle,
+            "SliderNode": TouchSlider,
+            "GaugeNode": TouchGauge,
+            "ChartNode": TouchChart,
+            "LEDIndicatorNode": TouchLED,
+            "NumericInputNode": TouchNumericInput,
+        }
+
+        widget_class = widget_map.get(node_type)
+        if widget_class:
+            widget = widget_class()
+            widget.bind_node(node)
+            return widget
+
+        return None

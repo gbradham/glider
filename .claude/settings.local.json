@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(dir /s /b \"C:\\\\Users\\\\Garrett\\\\LaingLab\\\\glider\\\\src\\\\*.py\")",
+      "Bash(python -m glider:*)",
+      "Bash(timeout:*)",
+      "Bash(python -c:*)",
+      "Bash(cd:*)",
+      "Bash(python -m py_compile:*)"
+    ]
+  }
+}

@@ -1,0 +1,268 @@
+{
+  "metadata": {
+    "id": "b28f29cd-cfe9-400e-95d8-a13872a497fb",
+    "name": "Untitled Experiment",
+    "description": "",
+    "author": "",
+    "version": "1.0.0",
+    "created_at": "2025-12-26T21:54:32.095174",
+    "modified_at": "2025-12-27T13:38:36.973244",
+    "glider_version": "1.0.0"
+  },
+  "hardware": {
+    "boards": [
+      {
+        "id": "ard",
+        "driver_type": "arduino",
+        "port": "COM3",
+        "board_type": "uno",
+        "auto_reconnect": false,
+        "settings": {}
+      }
+    ],
+    "devices": [
+      {
+        "id": "led",
+        "device_type": "DigitalOutput",
+        "name": "led",
+        "board_id": "ard",
+        "pins": {
+          "output": 13
+        },
+        "settings": {}
+      },
+      {
+        "id": "wire",
+        "device_type": "DigitalInput",
+        "name": "wire",
+        "board_id": "ard",
+        "pins": {
+          "input": 8
+        },
+        "settings": {}
+      },
+      {
+        "id": "touch_led",
+        "device_type": "DigitalOutput",
+        "name": "touch_led",
+        "board_id": "ard",
+        "pins": {
+          "output": 11
+        },
+        "settings": {}
+      }
+    ]
+  },
+  "flow": {
+    "nodes": [
+      {
+        "id": "startexperiment_369448f3",
+        "node_type": "StartExperiment",
+        "position": [
+          -153.10801250000006,
+          -159.8727499999999
+        ],
+        "state": {},
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "output_74012c0b",
+        "node_type": "Output",
+        "position": [
+          318.5917500000002,
+          -39.35000000000001
+        ],
+        "state": {},
+        "device_id": "led",
+        "visible_in_runner": false
+      },
+      {
+        "id": "delay_a1c479ee",
+        "node_type": "Delay",
+        "position": [
+          517.9938749999999,
+          -31.1165
+        ],
+        "state": {
+          "duration": 2
+        },
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "output_88f950b8",
+        "node_type": "Output",
+        "position": [
+          740.2707905297118,
+          -30.040194789183854
+        ],
+        "state": {
+          "value": 0
+        },
+        "device_id": "led",
+        "visible_in_runner": false
+      },
+      {
+        "id": "endexperiment_69a67ee8",
+        "node_type": "EndExperiment",
+        "position": [
+          308.4760568902547,
+          101.93682076568662
+        ],
+        "state": {},
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "waitforinput_1855776c",
+        "node_type": "WaitForInput",
+        "position": [
+          93.9840000000001,
+          214.74812499999996
+        ],
+        "state": {},
+        "device_id": "wire",
+        "visible_in_runner": true
+      },
+      {
+        "id": "loop_d3f99e44",
+        "node_type": "Loop",
+        "position": [
+          80.0302233763857,
+          -53.77605703637819
+        ],
+        "state": {
+          "count": 6,
+          "delay": 5.0
+        },
+        "device_id": null,
+        "visible_in_runner": true
+      },
+      {
+        "id": "output_bd97e569",
+        "node_type": "Output",
+        "position": [
+          301.8509937499999,
+          209.89900624999999
+        ],
+        "state": {},
+        "device_id": "touch_led",
+        "visible_in_runner": false
+      },
+      {
+        "id": "delay_df9e7759",
+        "node_type": "Delay",
+        "position": [
+          520.1690062499997,
+          211.5999999999999
+        ],
+        "state": {
+          "duration": 2
+        },
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "output_26296cb0",
+        "node_type": "Output",
+        "position": [
+          761.94825651352,
+          213.60241883783985
+        ],
+        "state": {
+          "value": 0
+        },
+        "device_id": "touch_led",
+        "visible_in_runner": false
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn_7f6d8543",
+        "from_node": "waitforinput_446015a2",
+        "from_output": 0,
+        "to_node": "output_74012c0b",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_990f2078",
+        "from_node": "output_74012c0b",
+        "from_output": 0,
+        "to_node": "delay_a1c479ee",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_df67b76a",
+        "from_node": "delay_a1c479ee",
+        "from_output": 0,
+        "to_node": "output_88f950b8",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_bec35aee",
+        "from_node": "startexperiment_369448f3",
+        "from_output": 0,
+        "to_node": "waitforinput_446015a2",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_5fbee735",
+        "from_node": "startexperiment_369448f3",
+        "from_output": 0,
+        "to_node": "loop_d3f99e44",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_adef0356",
+        "from_node": "output_bd97e569",
+        "from_output": 0,
+        "to_node": "delay_df9e7759",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_c2d8e97c",
+        "from_node": "delay_df9e7759",
+        "from_output": 0,
+        "to_node": "output_26296cb0",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_32ee6586",
+        "from_node": "waitforinput_1855776c",
+        "from_output": 0,
+        "to_node": "output_bd97e569",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_e92d1dea",
+        "from_node": "loop_d3f99e44",
+        "from_output": 1,
+        "to_node": "endexperiment_69a67ee8",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_af81e285",
+        "from_node": "loop_d3f99e44",
+        "from_output": 0,
+        "to_node": "output_74012c0b",
+        "to_input": 0,
+        "connection_type": "exec"
+      }
+    ]
+  },
+  "dashboard": {
+    "widgets": [],
+    "layout": "vertical",
+    "columns": 1
+  }
+}

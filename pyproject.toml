@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glider"
+version = "1.0.0"
+description = "General Laboratory Interface for Design, Experimentation, and Recording"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "LaingLab"}
+]
+keywords = ["laboratory", "automation", "hardware", "orchestration", "experiment"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
+
+dependencies = [
+    "PyQt6>=6.4.0",
+    "qasync>=0.24.0",
+    "telemetrix-aio>=1.0.0",
+    "pyserial>=3.5",
+    "jsonschema>=4.0.0",
+    "pyqtgraph>=0.13.0",
+    "numpy>=1.21.0",
+]
+
+[project.optional-dependencies]
+rpi = [
+    "gpiozero>=2.0",
+    "lgpio>=0.2.0",
+]
+ryven = [
+    "ryvencore>=0.4.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-qt>=4.2.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+glider = "glider.__main__:main"
+
+[project.entry-points."glider.driver"]
+# Built-in drivers are registered here
+arduino = "glider.hal.boards.telemetrix_board:TelemetrixBoard"
+raspberry_pi = "glider.hal.boards.pi_gpio_board:PiGPIOBoard"
+
+[project.urls]
+Homepage = "https://github.com/LaingLab/glider"
+Documentation = "https://github.com/LaingLab/glider#readme"
+Repository = "https://github.com/LaingLab/glider"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+glider = ["schema/*.json", "gui/styles/*.qss"]
+
+[tool.black]
+line-length = 100
+target-version = ["py38", "py39", "py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
+ignore = ["E501"]

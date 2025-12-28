@@ -1,0 +1,41 @@
+Metadata-Version: 2.4
+Name: glider
+Version: 1.0.0
+Summary: General Laboratory Interface for Design, Experimentation, and Recording
+Author: LaingLab
+License: MIT
+Project-URL: Homepage, https://github.com/LaingLab/glider
+Project-URL: Documentation, https://github.com/LaingLab/glider#readme
+Project-URL: Repository, https://github.com/LaingLab/glider
+Keywords: laboratory,automation,hardware,orchestration,experiment
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Topic :: Scientific/Engineering
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: PyQt6>=6.4.0
+Requires-Dist: qasync>=0.24.0
+Requires-Dist: telemetrix-aio>=1.0.0
+Requires-Dist: pyserial>=3.5
+Requires-Dist: jsonschema>=4.0.0
+Requires-Dist: pyqtgraph>=0.13.0
+Requires-Dist: numpy>=1.21.0
+Provides-Extra: rpi
+Requires-Dist: gpiozero>=2.0; extra == "rpi"
+Requires-Dist: lgpio>=0.2.0; extra == "rpi"
+Provides-Extra: ryven
+Requires-Dist: ryvencore>=0.4.0; extra == "ryven"
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"
+Requires-Dist: pytest-qt>=4.2.0; extra == "dev"
+Requires-Dist: black>=23.0.0; extra == "dev"
+Requires-Dist: ruff>=0.1.0; extra == "dev"

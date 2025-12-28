@@ -1,0 +1,575 @@
+"""
+Flow Engine - Manages the logic graph execution.
+
+Wraps the ryvencore session and handles the execution of the experiment
+flow. Supports both Data Flow (reactive) and Execution Flow (imperative).
+"""
+
+import asyncio
+import logging
+from enum import Enum, auto
+from typing import Any, Callable, Dict, List, Optional, Set, Type, TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
+
+
+class FlowState(Enum):
+    """State of the flow engine."""
+    STOPPED = auto()
+    RUNNING = auto()
+    PAUSED = auto()
+    ERROR = auto()
+
+
+class FlowEngine:
+    """
+    Manages the execution of the experiment flow graph.
+
+    Uses ryvencore for graph state management. Supports:
+    - Data Flow: Reactive propagation when values change
+    - Execution Flow: Imperative sequence of actions
+    """
+
+    # Registry of available node types
+    _node_registry: Dict[str, Type] = {}
+
+    def __init__(self, hardware_manager=None):
+        """
+        Initialize the flow engine.
+
+        Args:
+            hardware_manager: HardwareManager instance for device access
+        """
+        self._hardware_manager = hardware_manager
+        self._session = None  # ryvencore Session
+        self._flow = None  # Current flow
+        self._state = FlowState.STOPPED
+        self._nodes: Dict[str, Any] = {}  # node_id -> node instance
+        self._connections: List[Dict[str, Any]] = []  # Connection list for standalone mode
+        self._running_tasks: Set[asyncio.Task] = set()
+
+        # Callbacks
+        self._state_callbacks: List[Callable[[FlowState], None]] = []
+        self._node_update_callbacks: List[Callable[[str, str, Any], None]] = []
+        self._error_callbacks: List[Callable[[str, Exception], None]] = []
+        self._complete_callbacks: List[Callable[[], None]] = []
+
+        # Try to import ryvencore
+        self._ryvencore_available = False
+        try:
+            import ryvencore
+            self._ryvencore_available = True
+            self._ryvencore = ryvencore
+        except ImportError:
+            logger.warning("ryvencore not available - flow engine will operate in limited mode")
+
+    @classmethod
+    def register_node(cls, node_type: str, node_class: Type) -> None:
+        """Register a node type."""
+        cls._node_registry[node_type] = node_class
+        logger.debug(f"Registered node type: {node_type}")
+
+    @classmethod
+    def get_available_nodes(cls) -> List[str]:
+        """Get list of available node type names."""
+        return list(cls._node_registry.keys())
+
+    @classmethod
+    def get_node_class(cls, node_type: str) -> Optional[Type]:
+        """Get a node class by type name."""
+        return cls._node_registry.get(node_type)
+
+    @property
+    def state(self) -> FlowState:
+        """Current flow state."""
+        return self._state
+
+    @state.setter
+    def state(self, value: FlowState) -> None:
+        if value != self._state:
+            old_state = self._state
+            self._state = value
+            logger.debug(f"Flow state changed: {old_state} -> {value}")
+            for callback in self._state_callbacks:
+                try:
+                    callback(value)
+                except Exception as e:
+                    logger.error(f"State callback error: {e}")
+
+    @property
+    def is_running(self) -> bool:
+        """Whether the flow is currently running."""
+        return self._state == FlowState.RUNNING
+
+    @property
+    def nodes(self) -> Dict[str, Any]:
+        """Dictionary of node instances."""
+        return self._nodes.copy()
+
+    def on_state_change(self, callback: Callable[[FlowState], None]) -> None:
+        """Register callback for state changes."""
+        self._state_callbacks.append(callback)
+
+    def on_node_update(self, callback: Callable[[str, str, Any], None]) -> None:
+        """Register callback for node output updates (node_id, output_name, value)."""
+        self._node_update_callbacks.append(callback)
+
+    def on_error(self, callback: Callable[[str, Exception], None]) -> None:
+        """Register callback for errors."""
+        self._error_callbacks.append(callback)
+
+    def on_flow_complete(self, callback: Callable[[], None]) -> None:
+        """Register callback for flow completion (EndExperiment reached)."""
+        self._complete_callbacks.append(callback)
+
+    def _notify_node_update(self, node_id: str, output_name: str, value: Any) -> None:
+        """Notify node update callbacks."""
+        for callback in self._node_update_callbacks:
+            try:
+                callback(node_id, output_name, value)
+            except Exception as e:
+                logger.error(f"Node update callback error: {e}")
+
+    def _notify_error(self, source: str, error: Exception) -> None:
+        """Notify error callbacks."""
+        for callback in self._error_callbacks:
+            try:
+                callback(source, error)
+            except Exception as e:
+                logger.error(f"Error callback failed: {e}")
+
+    def _notify_complete(self) -> None:
+        """Notify flow completion callbacks."""
+        logger.info("Flow completed - EndExperiment reached")
+        for callback in self._complete_callbacks:
+            try:
+                callback()
+            except Exception as e:
+                logger.error(f"Complete callback failed: {e}")
+
+    def initialize(self) -> None:
+        """Initialize the flow engine with ryvencore."""
+        if self._ryvencore_available:
+            self._session = self._ryvencore.Session()
+            # Register our custom nodes with ryvencore
+            self._register_nodes_with_ryvencore()
+            # Create a new flow
+            self._flow = self._session.create_flow("Main Flow")
+            logger.info("Flow engine initialized with ryvencore")
+        else:
+            logger.info("Flow engine initialized in standalone mode")
+
+    def _register_nodes_with_ryvencore(self) -> None:
+        """Register node types with ryvencore session."""
+        if not self._session:
+            return
+
+        for node_type, node_class in self._node_registry.items():
+            try:
+                self._session.register_node_type(node_class)
+            except Exception as e:
+                logger.warning(f"Failed to register node type {node_type}: {e}")
+
+    def create_node(
+        self,
+        node_id: str,
+        node_type: str,
+        position: tuple = (0, 0),
+        state: Optional[Dict[str, Any]] = None,
+        device_id: Optional[str] = None,
+    ) -> Any:
+        """
+        Create a node instance.
+
+        Args:
+            node_id: Unique node ID
+            node_type: Type of node to create
+            position: (x, y) position in the graph
+            state: Initial state data
+            device_id: Associated device ID (for hardware nodes)
+
+        Returns:
+            Created node instance
+        """
+        node_class = self._node_registry.get(node_type)
+        if node_class is None:
+            raise ValueError(f"Unknown node type: {node_type}")
+
+        # Create node instance
+        if self._ryvencore_available and self._flow:
+            # Create through ryvencore
+            node = self._flow.create_node(node_class)
+            node._glider_id = node_id
+        else:
+            # Create standalone node
+            node = node_class()
+            node._glider_id = node_id
+
+        # Apply initial state
+        if state:
+            if hasattr(node, 'set_state'):
+                node.set_state(state)
+            elif hasattr(node, '_state'):
+                node._state = state
+            logger.info(f"Applied state to node {node_id}: {state}")
+
+        # Bind to device if specified
+        if device_id and self._hardware_manager:
+            device = self._hardware_manager.get_device(device_id)
+            if device and hasattr(node, 'bind_device'):
+                node.bind_device(device)
+                logger.info(f"Bound device '{device_id}' to node {node_id}")
+            else:
+                logger.warning(f"Could not bind device '{device_id}' to node {node_id} (device={device})")
+
+        # Register update callback
+        if hasattr(node, 'on_output_update'):
+            node.on_output_update(
+                lambda output, value, n=node: self._notify_node_update(n._glider_id, output, value)
+            )
+
+        self._nodes[node_id] = node
+        logger.debug(f"Created node: {node_type} (ID: {node_id})")
+        return node
+
+    def remove_node(self, node_id: str) -> None:
+        """Remove a node from the flow."""
+        node = self._nodes.pop(node_id, None)
+        if node is None:
+            return
+
+        if self._ryvencore_available and self._flow:
+            try:
+                self._flow.remove_node(node)
+            except Exception as e:
+                logger.warning(f"Error removing node from ryvencore: {e}")
+
+        logger.debug(f"Removed node: {node_id}")
+
+    def create_connection(
+        self,
+        connection_id: str,
+        from_node_id: str,
+        from_output: int,
+        to_node_id: str,
+        to_input: int,
+        connection_type: str = "data",
+    ) -> None:
+        """
+        Create a connection between nodes.
+
+        Args:
+            connection_id: Unique connection ID
+            from_node_id: Source node ID
+            from_output: Source output index
+            to_node_id: Target node ID
+            to_input: Target input index
+            connection_type: "data" or "exec"
+        """
+        from_node = self._nodes.get(from_node_id)
+        to_node = self._nodes.get(to_node_id)
+
+        if from_node is None:
+            raise ValueError(f"Source node not found: {from_node_id}")
+        if to_node is None:
+            raise ValueError(f"Target node not found: {to_node_id}")
+
+        # Store connection for standalone execution
+        self._connections.append({
+            "id": connection_id,
+            "from_node": from_node_id,
+            "from_output": from_output,
+            "to_node": to_node_id,
+            "to_input": to_input,
+            "type": connection_type,
+        })
+
+        # Wire up the execution flow callback on the source node
+        # Map output index to expected output name for filtering
+        from_node_obj = self._nodes.get(from_node_id)
+        expected_output_name = None
+        if hasattr(from_node_obj, 'definition') and hasattr(from_node_obj.definition, 'outputs'):
+            outputs = from_node_obj.definition.outputs
+            if from_output < len(outputs):
+                expected_output_name = outputs[from_output].name
+                logger.debug(f"Connection {from_node_id}:{from_output} expects output name: '{expected_output_name}'")
+
+        def on_exec_output(output_name, value, fn=from_node_id, fo=from_output, tn=to_node_id, expected=expected_output_name):
+            # Only propagate if this is the correct output for this connection
+            if expected is not None and output_name != expected:
+                logger.debug(f"Skipping callback - output '{output_name}' != expected '{expected}'")
+                return None
+            logger.debug(f"Exec callback fired: {fn}:{fo} -> {tn}, flow state: {self._state}")
+            if self._state == FlowState.RUNNING:
+                logger.info(f"Propagating execution: {fn} -> {tn}")
+                # Return the task so callers can await it if needed
+                return asyncio.create_task(self._propagate_execution(fn, fo, tn))
+            else:
+                logger.warning(f"Skipping propagation - flow not running (state: {self._state})")
+                return None
+
+        if hasattr(from_node, '_update_callbacks'):
+            from_node._update_callbacks.append(on_exec_output)
+            logger.debug(f"Registered exec callback on {from_node_id}, total callbacks: {len(from_node._update_callbacks)}")
+
+        if self._ryvencore_available and self._flow:
+            try:
+                # Get output and input ports
+                output_port = from_node.outputs[from_output]
+                input_port = to_node.inputs[to_input]
+                self._flow.connect(output_port, input_port)
+            except Exception as e:
+                logger.warning(f"Error creating ryvencore connection: {e}")
+
+        logger.debug(f"Created connection: {from_node_id}:{from_output} -> {to_node_id}:{to_input}")
+
+    async def _propagate_execution(self, from_node_id: str, from_output: int, to_node_id: str) -> None:
+        """Propagate execution to the target node."""
+        logger.info(f"_propagate_execution called: {from_node_id}:{from_output} -> {to_node_id}")
+        to_node = self._nodes.get(to_node_id)
+        if to_node is None:
+            logger.error(f"Target node not found: {to_node_id}")
+            return
+
+        try:
+            if hasattr(to_node, 'execute') and callable(to_node.execute):
+                logger.info(f"Executing node: {to_node_id} (type: {type(to_node).__name__})")
+                if asyncio.iscoroutinefunction(to_node.execute):
+                    await to_node.execute()
+                else:
+                    to_node.execute()
+                logger.info(f"Node {to_node_id} execution complete")
+
+                # Check if this was EndExperiment - signal flow completion
+                if type(to_node).__name__ == "EndExperimentNode":
+                    self._notify_complete()
+            else:
+                logger.warning(f"Node {to_node_id} has no execute method")
+        except Exception as e:
+            logger.error(f"Error executing node {to_node_id}: {e}")
+            self._notify_error(to_node_id, e)
+
+    def remove_connection(self, connection_id: str) -> None:
+        """Remove a connection."""
+        # Connection removal is handled by ryvencore when nodes are connected
+        logger.debug(f"Removed connection: {connection_id}")
+
+    def get_node(self, node_id: str) -> Optional[Any]:
+        """Get a node by ID."""
+        return self._nodes.get(node_id)
+
+    def get_node_output(self, node_id: str, output_index: int) -> Any:
+        """Get the current value of a node output."""
+        node = self._nodes.get(node_id)
+        if node is None:
+            return None
+
+        if hasattr(node, 'outputs') and output_index < len(node.outputs):
+            return node.outputs[output_index].val
+        elif hasattr(node, 'get_output'):
+            return node.get_output(output_index)
+
+        return None
+
+    def set_node_input(self, node_id: str, input_index: int, value: Any) -> None:
+        """Set the value of a node input."""
+        node = self._nodes.get(node_id)
+        if node is None:
+            return
+
+        if hasattr(node, 'inputs') and input_index < len(node.inputs):
+            node.inputs[input_index].update(value)
+        elif hasattr(node, 'set_input'):
+            node.set_input(input_index, value)
+
+    async def start(self) -> None:
+        """Start flow execution."""
+        if self._state == FlowState.RUNNING:
+            return
+
+        logger.info("Starting flow execution")
+        self.state = FlowState.RUNNING
+
+        # Start any continuous nodes (timers, sensors, etc.)
+        for node_id, node in self._nodes.items():
+            if hasattr(node, 'start') and callable(node.start):
+                try:
+                    task = asyncio.create_task(self._run_node_start(node_id, node))
+                    self._running_tasks.add(task)
+                    task.add_done_callback(self._running_tasks.discard)
+                except Exception as e:
+                    logger.error(f"Error starting node {node_id}: {e}")
+                    self._notify_error(node_id, e)
+
+    async def _run_node_start(self, node_id: str, node: Any) -> None:
+        """Run a node's start method."""
+        try:
+            if asyncio.iscoroutinefunction(node.start):
+                await node.start()
+            else:
+                node.start()
+        except Exception as e:
+            logger.error(f"Error in node {node_id} start: {e}")
+            self._notify_error(node_id, e)
+
+    async def stop(self) -> None:
+        """Stop flow execution."""
+        if self._state == FlowState.STOPPED:
+            return
+
+        logger.info("Stopping flow execution")
+
+        # Cancel all running tasks
+        for task in self._running_tasks:
+            task.cancel()
+
+        # Wait for tasks to complete
+        if self._running_tasks:
+            await asyncio.gather(*self._running_tasks, return_exceptions=True)
+        self._running_tasks.clear()
+
+        # Stop all nodes
+        for node_id, node in self._nodes.items():
+            if hasattr(node, 'stop') and callable(node.stop):
+                try:
+                    if asyncio.iscoroutinefunction(node.stop):
+                        await node.stop()
+                    else:
+                        node.stop()
+                except Exception as e:
+                    logger.error(f"Error stopping node {node_id}: {e}")
+
+        self.state = FlowState.STOPPED
+
+    async def pause(self) -> None:
+        """Pause flow execution."""
+        if self._state != FlowState.RUNNING:
+            return
+
+        logger.info("Pausing flow execution")
+        self.state = FlowState.PAUSED
+
+        # Pause all nodes
+        for node_id, node in self._nodes.items():
+            if hasattr(node, 'pause') and callable(node.pause):
+                try:
+                    if asyncio.iscoroutinefunction(node.pause):
+                        await node.pause()
+                    else:
+                        node.pause()
+                except Exception as e:
+                    logger.error(f"Error pausing node {node_id}: {e}")
+
+    async def resume(self) -> None:
+        """Resume flow execution."""
+        if self._state != FlowState.PAUSED:
+            return
+
+        logger.info("Resuming flow execution")
+        self.state = FlowState.RUNNING
+
+        # Resume all nodes
+        for node_id, node in self._nodes.items():
+            if hasattr(node, 'resume') and callable(node.resume):
+                try:
+                    if asyncio.iscoroutinefunction(node.resume):
+                        await node.resume()
+                    else:
+                        node.resume()
+                except Exception as e:
+                    logger.error(f"Error resuming node {node_id}: {e}")
+
+    def trigger_exec(self, node_id: str, exec_output: int = 0) -> None:
+        """
+        Trigger an execution flow from a node.
+
+        Args:
+            node_id: Source node ID
+            exec_output: Execution output index
+        """
+        node = self._nodes.get(node_id)
+        if node is None:
+            return
+
+        if hasattr(node, 'exec_output'):
+            try:
+                node.exec_output(exec_output)
+            except Exception as e:
+                logger.error(f"Error triggering exec on node {node_id}: {e}")
+                self._notify_error(node_id, e)
+
+    def clear(self) -> None:
+        """Clear all nodes and connections and reset state."""
+        self._nodes.clear()
+        self._connections.clear()
+        self._running_tasks.clear()
+        self.state = FlowState.STOPPED
+
+        if self._ryvencore_available and self._session:
+            # Remove old flow and create new one
+            self._flow = self._session.create_flow("Main Flow")
+
+        logger.info("Flow cleared")
+
+    def shutdown(self) -> None:
+        """Shutdown the flow engine."""
+        logger.info("Shutting down flow engine")
+        asyncio.create_task(self.stop())
+        self._nodes.clear()
+        self._session = None
+        self._flow = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize flow state to dictionary."""
+        nodes = []
+        for node_id, node in self._nodes.items():
+            node_data = {
+                "id": node_id,
+                "node_type": type(node).__name__,
+            }
+            if hasattr(node, 'get_state'):
+                node_data["state"] = node.get_state()
+            nodes.append(node_data)
+
+        return {"nodes": nodes}
+
+    def load_from_session(self, session) -> None:
+        """
+        Load flow from an ExperimentSession.
+
+        Args:
+            session: ExperimentSession to load from
+        """
+        # Clear existing
+        self.clear()
+
+        # Create nodes
+        for node_config in session.flow.nodes:
+            try:
+                self.create_node(
+                    node_id=node_config.id,
+                    node_type=node_config.node_type,
+                    position=node_config.position,
+                    state=node_config.state,
+                    device_id=node_config.device_id,
+                )
+            except Exception as e:
+                logger.error(f"Error creating node {node_config.id}: {e}")
+
+        # Create connections
+        logger.info(f"Loading {len(session.flow.connections)} connections...")
+        for conn_config in session.flow.connections:
+            try:
+                logger.debug(f"Creating connection: {conn_config.from_node}:{conn_config.from_output} -> {conn_config.to_node}:{conn_config.to_input}")
+                self.create_connection(
+                    connection_id=conn_config.id,
+                    from_node_id=conn_config.from_node,
+                    from_output=conn_config.from_output,
+                    to_node_id=conn_config.to_node,
+                    to_input=conn_config.to_input,
+                    connection_type=conn_config.connection_type,
+                )
+            except Exception as e:
+                logger.error(f"Error creating connection {conn_config.id}: {e}")
+
+        logger.info(f"Loaded flow with {len(self._nodes)} nodes and {len(self._connections)} connections")

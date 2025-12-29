@@ -2033,12 +2033,12 @@ class MainWindow(QMainWindow):
             # Flow nodes
             "StartExperiment": ([], [">next"]),  # No inputs, one exec output
             "EndExperiment": ([">exec"], []),     # One exec input, no outputs
-            "Delay": ([">exec", "seconds"], [">next"]),  # Exec in, duration, exec out
+            "Delay": ([">exec"], [">next"]),  # Exec in, exec out (duration set via properties)
             # Control nodes (properties controlled via panel, not ports)
             "Loop": ([">exec"], [">body", ">done"]),  # Exec in, body and done exec outputs
-            "WaitForInput": ([">exec"], [">triggered", ">timeout"]),  # Exec in, triggered and timeout exec outputs
+            "WaitForInput": ([">exec"], [">triggered"]),  # Exec in, triggered exec output (timeout set via properties)
             # I/O nodes
-            "Output": ([">exec", "value"], [">next"]),  # Exec in, value to write, exec out
+            "Output": ([">exec"], [">next"]),  # Exec in, exec out (value set via properties)
             "Input": ([">exec"], ["value", ">next"]),   # Exec in, outputs value and exec
             # Script nodes
             "Script": ([">exec", "input"], ["output", ">next"]),  # Exec in, data input, data output, exec out

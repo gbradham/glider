@@ -1287,6 +1287,8 @@ class MainWindow(QMainWindow):
 
     def _set_window_size(self, width: int, height: int) -> None:
         """Set the window to a specific size."""
+        # Adjust minimum size to allow smaller dimensions (e.g., Pi display)
+        self.setMinimumSize(min(width, 480), min(height, 480))
         self.resize(width, height)
         self.statusBar().showMessage(f"Window resized to {width}x{height}", 2000)
 

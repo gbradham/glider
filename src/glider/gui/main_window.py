@@ -1911,7 +1911,7 @@ class MainWindow(QMainWindow):
         container = QWidget()
         layout = QVBoxLayout(container)
         layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(2)
+        layout.setSpacing(4)
 
         # Define available nodes by category
         node_categories = {
@@ -1933,26 +1933,81 @@ class MainWindow(QMainWindow):
             ],
         }
 
-        # Category colors
+        # Category colors for headers
         category_colors = {
-            "Flow": "#2d4a5a",  # Blue
-            "Control": "#5a4a2d",  # Orange/Brown
-            "I/O": "#2d5a2d",   # Green
-            "Script": "#4a2d5a",  # Purple
+            "Flow": "#2d5a7a",      # Blue
+            "Control": "#7a5a2d",   # Orange/Brown
+            "I/O": "#2d7a2d",       # Green
+            "Script": "#5a2d7a",    # Purple
         }
 
         for category, nodes in node_categories.items():
-            # Category header - uses Qt properties for styling (defined in desktop.qss)
-            header = QLabel(category)
-            header.setProperty("categoryHeader", category)
-            layout.addWidget(header)
+            color = category_colors.get(category, "#444")
+
+            # Collapsible category section
+            category_widget = QWidget()
+            category_layout = QVBoxLayout(category_widget)
+            category_layout.setContentsMargins(0, 0, 0, 0)
+            category_layout.setSpacing(2)
+
+            # Category header button (clickable to expand/collapse)
+            header_btn = QPushButton(f"▼  {category}")
+            header_btn.setCheckable(True)
+            header_btn.setChecked(True)
+            header_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            header_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {color};
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 8px 12px;
+                    font-size: 13px;
+                    font-weight: bold;
+                    text-align: left;
+                }}
+                QPushButton:hover {{
+                    background-color: {color}cc;
+                }}
+                QPushButton:checked {{
+                    border-bottom-left-radius: 0px;
+                    border-bottom-right-radius: 0px;
+                }}
+            """)
+            category_layout.addWidget(header_btn)
+
+            # Container for node items
+            nodes_container = QWidget()
+            nodes_container.setStyleSheet(f"""
+                QWidget {{
+                    background-color: {color}40;
+                    border-bottom-left-radius: 4px;
+                    border-bottom-right-radius: 4px;
+                }}
+            """)
+            nodes_layout = QVBoxLayout(nodes_container)
+            nodes_layout.setContentsMargins(4, 4, 4, 4)
+            nodes_layout.setSpacing(2)
 
             # Node items
             for node_type, node_name, tooltip in nodes:
                 node_btn = DraggableNodeButton(node_type, node_name, category)
                 node_btn.setToolTip(tooltip)
                 node_btn.clicked.connect(lambda checked, nt=node_type: self._add_node_to_center(nt))
-                layout.addWidget(node_btn)
+                nodes_layout.addWidget(node_btn)
+
+            category_layout.addWidget(nodes_container)
+
+            # Connect header button to toggle visibility
+            def make_toggle(btn, container):
+                def toggle(checked):
+                    container.setVisible(checked)
+                    btn.setText(f"▼  {btn.text()[3:]}" if checked else f"▶  {btn.text()[3:]}")
+                return toggle
+
+            header_btn.toggled.connect(make_toggle(header_btn, nodes_container))
+
+            layout.addWidget(category_widget)
 
         layout.addStretch()
         scroll_area.setWidget(container)

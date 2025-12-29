@@ -239,6 +239,149 @@ class InputNode(GliderNode):
             callback("next", True)
 
 
+class MotorGovernorNode(GliderNode):
+    """Control a motor governor device (up/down/stop)."""
+
+    definition = NodeDefinition(
+        name="MotorGovernor",
+        category=NodeCategory.HARDWARE,
+        description="Control a motor governor (up/down/stop)",
+        inputs=[
+            PortDefinition("exec", PortType.EXEC, description="Execution input"),
+        ],
+        outputs=[
+            PortDefinition("next", PortType.EXEC, description="Triggers after action"),
+        ],
+    )
+
+    def update_event(self) -> None:
+        """Called when inputs change."""
+        pass
+
+    async def execute(self) -> None:
+        """Execute the motor governor action."""
+        logger.info(f"MotorGovernorNode.execute() called, node ID: {self._glider_id}")
+        logger.info(f"  Node state: {self._state}")
+
+        # Get action from state (up, down, stop)
+        action = self._state.get("action", "stop")
+        logger.info(f"  Action: {action}")
+
+        if self._device is not None:
+            try:
+                if action == "up":
+                    logger.info("MotorGovernor: moving up")
+                    if hasattr(self._device, 'move_up'):
+                        await self._device.move_up()
+                elif action == "down":
+                    logger.info("MotorGovernor: moving down")
+                    if hasattr(self._device, 'move_down'):
+                        await self._device.move_down()
+                elif action == "stop":
+                    logger.info("MotorGovernor: stopping")
+                    if hasattr(self._device, 'stop'):
+                        await self._device.stop()
+                else:
+                    logger.warning(f"MotorGovernor: unknown action '{action}'")
+            except Exception as e:
+                logger.error(f"MotorGovernor error: {e}")
+                self._error = str(e)
+        else:
+            logger.warning("MotorGovernor: no device bound")
+
+        self.exec_output(0)
+
+    def exec_output(self, index: int = 0) -> None:
+        """Trigger execution output."""
+        logger.info(f"MotorGovernorNode.exec_output({index}) called")
+        for callback in self._update_callbacks:
+            callback("next", True)
+
+
+class CustomDeviceNode(GliderNode):
+    """
+    Operates on a specific pin of a custom device.
+
+    This node writes or reads from a pin on the custom device.
+    Configure the pin and value in the properties panel.
+    """
+
+    definition = NodeDefinition(
+        name="CustomDevice",
+        category=NodeCategory.HARDWARE,
+        description="Operate on a custom device pin",
+        inputs=[
+            PortDefinition("exec", PortType.EXEC, description="Execution input"),
+        ],
+        outputs=[
+            PortDefinition("value", PortType.DATA, description="Read value (for input pins)"),
+            PortDefinition("next", PortType.EXEC, description="Triggers next node"),
+        ],
+    )
+
+    def __init__(self):
+        super().__init__()
+        self._custom_device_runner = None
+        self._definition_id: Optional[str] = None
+
+    def update_event(self) -> None:
+        """Called when inputs change."""
+        pass
+
+    def set_custom_device_context(self, runner, definition_id: str) -> None:
+        """Set the custom device runner and definition ID."""
+        self._custom_device_runner = runner
+        self._definition_id = definition_id
+
+    async def execute(self) -> None:
+        """Execute the pin operation."""
+        logger.info(f"CustomDeviceNode.execute() called, node ID: {self._glider_id}")
+        logger.info(f"  Node state: {self._state}")
+
+        pin_name = self._state.get("pin", "")
+        value = self._state.get("value", 0)
+
+        if not pin_name:
+            logger.warning("CustomDeviceNode: no pin selected")
+            self.exec_output(0)
+            return
+
+        if self._custom_device_runner is not None:
+            try:
+                # Determine if this is an input or output pin
+                pin_def = self._custom_device_runner.definition.get_pin(pin_name)
+                if pin_def is None:
+                    logger.warning(f"CustomDeviceNode: pin '{pin_name}' not found")
+                else:
+                    from glider.core.custom_device import PinType
+                    if pin_def.pin_type in (PinType.DIGITAL_INPUT, PinType.ANALOG_INPUT):
+                        # Read from input pin
+                        read_value = await self._custom_device_runner.read_pin(pin_name)
+                        logger.info(f"CustomDeviceNode: read {read_value} from pin '{pin_name}'")
+                        # Set output value
+                        if len(self._outputs) > 0:
+                            self._outputs[0] = read_value
+                        for callback in self._update_callbacks:
+                            callback("value", read_value)
+                    else:
+                        # Write to output pin
+                        await self._custom_device_runner.write_pin(pin_name, value)
+                        logger.info(f"CustomDeviceNode: wrote {value} to pin '{pin_name}'")
+            except Exception as e:
+                logger.error(f"CustomDeviceNode error: {e}")
+                self._error = str(e)
+        else:
+            logger.warning("CustomDeviceNode: no device runner bound")
+
+        self.exec_output(0)
+
+    def exec_output(self, index: int = 0) -> None:
+        """Trigger execution output."""
+        logger.info(f"CustomDeviceNode.exec_output({index}) called")
+        for callback in self._update_callbacks:
+            callback("next", True)
+
+
 def register_experiment_nodes(flow_engine) -> None:
     """Register all experiment nodes with the flow engine."""
     flow_engine.register_node("StartExperiment", StartExperimentNode)
@@ -246,4 +389,8 @@ def register_experiment_nodes(flow_engine) -> None:
     flow_engine.register_node("Delay", DelayNode)
     flow_engine.register_node("Output", OutputNode)
     flow_engine.register_node("Input", InputNode)
+    flow_engine.register_node("MotorGovernor", MotorGovernorNode)
+    flow_engine.register_node("CustomDevice", CustomDeviceNode)
+    # Keep CustomDeviceAction as alias for backward compatibility
+    flow_engine.register_node("CustomDeviceAction", CustomDeviceNode)
     logger.info("Registered experiment nodes")

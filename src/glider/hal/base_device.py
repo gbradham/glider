@@ -534,6 +534,129 @@ class ServoDevice(BaseDevice):
         return instance
 
 
+class MotorGovernorDevice(BaseDevice):
+    """
+    Motor Governor device for controlling motorized positioning.
+
+    Uses three pins:
+    - up: Digital output to move the governor up
+    - down: Digital output to move the governor down
+    - signal: Analog input to read position feedback
+    """
+
+    @property
+    def device_type(self) -> str:
+        return "MotorGovernor"
+
+    @property
+    def required_pins(self) -> List[str]:
+        return ["up", "down", "signal"]
+
+    @property
+    def actions(self) -> Dict[str, Callable]:
+        return {
+            "up": self.move_up,
+            "down": self.move_down,
+            "stop": self.stop,
+            "read_position": self.read_position,
+        }
+
+    def __init__(self, board: "BaseBoard", config: DeviceConfig, name: Optional[str] = None):
+        super().__init__(board, config, name)
+        self._position: Optional[int] = None
+
+    @property
+    def position(self) -> Optional[int]:
+        """Last read position value from signal pin."""
+        return self._position
+
+    async def initialize(self) -> None:
+        from glider.hal.base_board import PinMode, PinType
+
+        # Configure up pin as digital output
+        up_pin = self._config.pins["up"]
+        await self._board.set_pin_mode(up_pin, PinMode.OUTPUT, PinType.DIGITAL)
+        await self._board.write_digital(up_pin, False)
+
+        # Configure down pin as digital output
+        down_pin = self._config.pins["down"]
+        await self._board.set_pin_mode(down_pin, PinMode.OUTPUT, PinType.DIGITAL)
+        await self._board.write_digital(down_pin, False)
+
+        # Configure signal pin as analog input
+        signal_pin = self._config.pins["signal"]
+        await self._board.set_pin_mode(signal_pin, PinMode.INPUT, PinType.ANALOG)
+
+        self._initialized = True
+
+    async def shutdown(self) -> None:
+        """Stop all movement on shutdown."""
+        if self._initialized:
+            await self.stop()
+
+    async def move_up(self) -> None:
+        """
+        Move the governor up by one increment.
+
+        Logic: Set DOWN high, then toggle UP high->low.
+        """
+        import asyncio
+
+        up_pin = self._config.pins["up"]
+        down_pin = self._config.pins["down"]
+
+        # Set DOWN high
+        await self._board.write_digital(down_pin, True)
+
+        # Toggle UP: high then low
+        await self._board.write_digital(up_pin, True)
+        await asyncio.sleep(0.05)  # Brief pulse
+        await self._board.write_digital(up_pin, False)
+
+    async def move_down(self) -> None:
+        """
+        Move the governor down by one increment.
+
+        Logic: Set UP high, then toggle DOWN high->low.
+        """
+        import asyncio
+
+        up_pin = self._config.pins["up"]
+        down_pin = self._config.pins["down"]
+
+        # Set UP high
+        await self._board.write_digital(up_pin, True)
+
+        # Toggle DOWN: high then low
+        await self._board.write_digital(down_pin, True)
+        await asyncio.sleep(0.05)  # Brief pulse
+        await self._board.write_digital(down_pin, False)
+
+    async def stop(self) -> None:
+        """Set both pins low (idle state)."""
+        up_pin = self._config.pins["up"]
+        down_pin = self._config.pins["down"]
+
+        await self._board.write_digital(up_pin, False)
+        await self._board.write_digital(down_pin, False)
+
+    async def read_position(self) -> int:
+        """Read the current position from the signal pin."""
+        signal_pin = self._config.pins["signal"]
+        self._position = await self._board.read_analog(signal_pin)
+        return self._position
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "MotorGovernorDevice":
+        config = DeviceConfig(
+            pins=data["config"]["pins"],
+            settings=data["config"].get("settings", {}),
+        )
+        instance = cls(board, config, data.get("name"))
+        instance._id = data.get("id", instance._id)
+        return instance
+
+
 # Registry of built-in device types
 DEVICE_REGISTRY: Dict[str, type] = {
     "DigitalOutput": DigitalOutputDevice,
@@ -541,6 +664,7 @@ DEVICE_REGISTRY: Dict[str, type] = {
     "AnalogInput": AnalogInputDevice,
     "PWMOutput": PWMOutputDevice,
     "Servo": ServoDevice,
+    "MotorGovernor": MotorGovernorDevice,
 }
 
 

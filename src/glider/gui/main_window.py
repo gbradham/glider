@@ -350,6 +350,56 @@ class DraggableNodeButton(QPushButton):
         self.setCursor(Qt.CursorShape.OpenHandCursor)
 
 
+class EditableDraggableButton(DraggableNodeButton):
+    """A draggable button with context menu for edit/delete."""
+
+    def __init__(
+        self,
+        node_type: str,
+        display_name: str,
+        category: str,
+        on_edit=None,
+        on_delete=None,
+        parent=None
+    ):
+        super().__init__(node_type, display_name, category, parent)
+        self._on_edit = on_edit
+        self._on_delete = on_delete
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
+
+    def _show_context_menu(self, pos):
+        """Show context menu with edit/delete options."""
+        from PyQt6.QtWidgets import QMenu
+        menu = QMenu(self)
+
+        edit_action = menu.addAction("Edit")
+        edit_action.triggered.connect(self._handle_edit)
+
+        delete_action = menu.addAction("Delete")
+        delete_action.triggered.connect(self._handle_delete)
+
+        menu.exec(self.mapToGlobal(pos))
+
+    def _handle_edit(self):
+        """Handle edit action."""
+        if self._on_edit:
+            self._on_edit()
+
+    def _handle_delete(self):
+        """Handle delete action."""
+        if self._on_delete:
+            self._on_delete()
+
+    def mouseDoubleClickEvent(self, event):
+        """Handle double-click to edit."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            if self._on_edit:
+                self._on_edit()
+        else:
+            super().mouseDoubleClickEvent(event)
+
+
 class MainWindow(QMainWindow):
     """
     Main application window for GLIDER.
@@ -1346,6 +1396,8 @@ class MainWindow(QMainWindow):
                 self._populate_graph_from_session()
                 self.session_changed.emit()
                 self._refresh_hardware_tree()
+                self._refresh_custom_devices()
+                self._refresh_flow_functions()
                 self.statusBar().showMessage(f"Opened: {file_path}")
             except Exception as e:
                 logger.exception(f"Failed to open file: {e}")
@@ -1408,12 +1460,31 @@ class MainWindow(QMainWindow):
             try:
                 x, y = node_config.position
                 node_type = node_config.node_type
+                display_name = node_type
+                definition_id = None
+
+                # Handle CustomDevice/CustomDeviceAction nodes - get display name from definition
+                if node_type in ("CustomDevice", "CustomDeviceAction"):
+                    definition_id = node_config.state.get("definition_id") if node_config.state else None
+                    if definition_id:
+                        def_dict = self._core.session.get_custom_device_definition(definition_id)
+                        if def_dict:
+                            display_name = def_dict.get("name", "Custom Device")
+
+                # Handle FlowFunctionCall nodes - get display name from definition
+                elif node_type == "FlowFunctionCall":
+                    definition_id = node_config.state.get("definition_id") if node_config.state else None
+                    if definition_id:
+                        def_dict = self._core.session.get_flow_function_definition(definition_id)
+                        if def_dict:
+                            display_name = def_dict.get("name", "Flow Function")
 
                 # Determine category from node type
                 category = "default"
                 flow_nodes = ["StartExperiment", "EndExperiment", "Delay"]
                 control_nodes = ["Loop", "WaitForInput"]
-                io_nodes = ["Output", "Input"]
+                io_nodes = ["Output", "Input", "MotorGovernor", "CustomDevice", "CustomDeviceAction"]
+                function_nodes = ["FlowFunctionCall"]
 
                 node_type_normalized = node_type.replace(" ", "")
                 if node_type_normalized in flow_nodes:
@@ -1422,11 +1493,17 @@ class MainWindow(QMainWindow):
                     category = "interface"  # Orange color for control nodes
                 elif node_type_normalized in io_nodes:
                     category = "hardware"
+                elif node_type_normalized in function_nodes:
+                    category = "logic"
 
-                # Add visual node to graph
-                node_item = self._graph_view.add_node(node_config.id, node_type, x, y)
+                # Add visual node to graph (use display_name for visual)
+                node_item = self._graph_view.add_node(node_config.id, display_name, x, y)
                 node_item._category = category
                 node_item._header_color = node_item.CATEGORY_COLORS.get(category, node_item.CATEGORY_COLORS["default"])
+
+                # Store actual node type and definition ID for custom nodes
+                node_item._actual_node_type = node_type
+                node_item._definition_id = definition_id
 
                 # Add ports based on node type
                 self._setup_node_ports(node_item, node_type)
@@ -1595,18 +1672,20 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "No Boards", "Please add a board first.")
             return
 
-        # Map UI names to registry types and pin names
+        # Map UI names to registry types and pin configurations
+        # Format: (registry_type, [list of pin names])
         device_type_map = {
-            "Digital Output (LED, Relay)": ("DigitalOutput", "output"),
-            "Digital Input (Button, Sensor)": ("DigitalInput", "input"),
-            "Analog Input (Potentiometer)": ("AnalogInput", "input"),
-            "PWM Output (Dimmable LED, Motor)": ("PWMOutput", "output"),
-            "Servo Motor": ("Servo", "signal"),
+            "Digital Output (LED, Relay)": ("DigitalOutput", ["output"]),
+            "Digital Input (Button, Sensor)": ("DigitalInput", ["input"]),
+            "Analog Input (Potentiometer)": ("AnalogInput", ["input"]),
+            "PWM Output (Dimmable LED, Motor)": ("PWMOutput", ["output"]),
+            "Servo Motor": ("Servo", ["signal"]),
+            "Motor Governor": ("MotorGovernor", ["up", "down", "signal"]),
         }
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Add Device")
-        dialog.setMinimumWidth(350)
+        dialog.setMinimumWidth(380)
 
         layout = QFormLayout(dialog)
 
@@ -1625,10 +1704,37 @@ class MainWindow(QMainWindow):
         board_combo.addItems(list(self._core.hardware_manager.boards.keys()))
         layout.addRow("Board:", board_combo)
 
-        # Pin number
-        pin_spin = QSpinBox()
-        pin_spin.setRange(0, 53)
-        layout.addRow("Pin:", pin_spin)
+        # Container for pin inputs (dynamic based on device type)
+        pin_container = QWidget()
+        pin_layout = QFormLayout(pin_container)
+        pin_layout.setContentsMargins(0, 0, 0, 0)
+        layout.addRow(pin_container)
+
+        # Dictionary to hold pin spinboxes
+        pin_spinboxes: Dict[str, QSpinBox] = {}
+
+        def update_pin_inputs():
+            """Update pin inputs based on selected device type."""
+            # Clear existing pin inputs
+            while pin_layout.rowCount() > 0:
+                pin_layout.removeRow(0)
+            pin_spinboxes.clear()
+
+            # Get pin names for selected device type
+            ui_type = type_combo.currentText()
+            _, pin_names = device_type_map[ui_type]
+
+            # Create spinbox for each pin
+            for pin_name in pin_names:
+                spin = QSpinBox()
+                spin.setRange(0, 53)
+                pin_spinboxes[pin_name] = spin
+                label = f"{pin_name.capitalize()} Pin:"
+                pin_layout.addRow(label, spin)
+
+        # Connect device type change to update pin inputs
+        type_combo.currentTextChanged.connect(lambda: update_pin_inputs())
+        update_pin_inputs()  # Initial setup
 
         # Name
         name_edit = QLineEdit()
@@ -1649,16 +1755,18 @@ class MainWindow(QMainWindow):
             device_id = id_edit.text().strip() or f"device_{len(self._core.hardware_manager.devices)}"
             ui_device_type = type_combo.currentText()
             board_id = board_combo.currentText()
-            pin = pin_spin.value()
             name = name_edit.text().strip() or device_id
 
-            # Get the actual device type and pin name from the map
-            device_type, pin_name = device_type_map[ui_device_type]
+            # Get the actual device type and pin configuration
+            device_type, pin_names = device_type_map[ui_device_type]
+
+            # Build pins dictionary from spinboxes
+            pins = {pin_name: pin_spinboxes[pin_name].value() for pin_name in pin_names}
 
             try:
                 # Add to hardware manager for runtime use
-                self._core.hardware_manager.add_device(
-                    device_id, device_type, board_id, pin, name=name, pin_name=pin_name
+                self._core.hardware_manager.add_device_multi_pin(
+                    device_id, device_type, board_id, pins, name=name
                 )
 
                 # Add to session for persistence
@@ -1668,7 +1776,7 @@ class MainWindow(QMainWindow):
                         device_type=device_type,
                         name=name,
                         board_id=board_id,
-                        pins={pin_name: pin},
+                        pins=pins,
                     )
                     self._core.session.add_device(device_config)
 
@@ -2009,9 +2117,377 @@ class MainWindow(QMainWindow):
 
             layout.addWidget(category_widget)
 
+        # Custom Devices section (dynamic)
+        self._custom_devices_container = QWidget()
+        self._custom_devices_layout = QVBoxLayout(self._custom_devices_container)
+        self._custom_devices_layout.setContentsMargins(0, 0, 0, 0)
+        self._custom_devices_layout.setSpacing(2)
+        self._setup_custom_category(
+            self._custom_devices_container,
+            self._custom_devices_layout,
+            "Custom Devices",
+            "#6a4a8a",  # Purple
+            layout,
+            add_new_callback=self._on_new_custom_device
+        )
+
+        # Flow Functions section (dynamic)
+        self._flow_functions_container = QWidget()
+        self._flow_functions_layout = QVBoxLayout(self._flow_functions_container)
+        self._flow_functions_layout.setContentsMargins(0, 0, 0, 0)
+        self._flow_functions_layout.setSpacing(2)
+        self._setup_custom_category(
+            self._flow_functions_container,
+            self._flow_functions_layout,
+            "Flow Functions",
+            "#4a6a8a",  # Steel blue
+            layout,
+            add_new_callback=self._on_new_flow_function
+        )
+
         layout.addStretch()
         scroll_area.setWidget(container)
+
+        # Store container reference for updates
+        self._node_library_container = container
+        self._node_library_layout = layout
+
         return scroll_area
+
+    def _setup_custom_category(
+        self,
+        nodes_container: QWidget,
+        nodes_layout: QVBoxLayout,
+        category_name: str,
+        color: str,
+        parent_layout: QVBoxLayout,
+        add_new_callback=None
+    ) -> None:
+        """Setup a custom category with a header and add button."""
+        category_widget = QWidget()
+        category_layout = QVBoxLayout(category_widget)
+        category_layout.setContentsMargins(0, 0, 0, 0)
+        category_layout.setSpacing(2)
+
+        # Category header with add button
+        header_widget = QWidget()
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(0)
+
+        header_btn = QPushButton(f"▼  {category_name}")
+        header_btn.setCheckable(True)
+        header_btn.setChecked(True)
+        header_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        header_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {color};
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 12px;
+                font-size: 13px;
+                font-weight: bold;
+                text-align: left;
+            }}
+            QPushButton:hover {{
+                background-color: {color}cc;
+            }}
+            QPushButton:checked {{
+                border-bottom-left-radius: 0px;
+                border-bottom-right-radius: 0px;
+            }}
+        """)
+        header_layout.addWidget(header_btn, 1)
+
+        if add_new_callback:
+            add_btn = QPushButton("+")
+            add_btn.setFixedWidth(30)
+            add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            add_btn.setToolTip(f"Add new {category_name.lower()[:-1]}")
+            add_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {color};
+                    color: white;
+                    border: none;
+                    border-top-right-radius: 4px;
+                    border-bottom-right-radius: 4px;
+                    padding: 8px;
+                    font-size: 16px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background-color: {color}cc;
+                }}
+            """)
+            add_btn.clicked.connect(add_new_callback)
+            header_layout.addWidget(add_btn)
+
+        category_layout.addWidget(header_widget)
+
+        # Style the nodes container
+        nodes_container.setStyleSheet(f"""
+            QWidget {{
+                background-color: {color}40;
+                border-bottom-left-radius: 4px;
+                border-bottom-right-radius: 4px;
+            }}
+        """)
+        nodes_layout.setContentsMargins(4, 4, 4, 4)
+
+        # Add placeholder label
+        placeholder = QLabel("No items defined")
+        placeholder.setStyleSheet("color: #888; padding: 8px;")
+        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        nodes_layout.addWidget(placeholder)
+
+        category_layout.addWidget(nodes_container)
+
+        # Connect toggle
+        def make_toggle(btn, container):
+            def toggle(checked):
+                container.setVisible(checked)
+                btn.setText(f"▼  {btn.text()[3:]}" if checked else f"▶  {btn.text()[3:]}")
+            return toggle
+
+        header_btn.toggled.connect(make_toggle(header_btn, nodes_container))
+
+        parent_layout.addWidget(category_widget)
+
+    def _on_new_custom_device(self) -> None:
+        """Open dialog to create a new custom device."""
+        try:
+            from glider.gui.dialogs.custom_device_dialog import CustomDeviceDialog
+            dialog = CustomDeviceDialog(parent=self)
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                definition = dialog.get_definition()
+                # Add to session
+                if self._core.session:
+                    self._core.session.add_custom_device_definition(definition.to_dict())
+                    self._refresh_custom_devices()
+                    logger.info(f"Created custom device: {definition.name}")
+        except ImportError as e:
+            logger.warning(f"Could not import CustomDeviceDialog: {e}")
+            QMessageBox.warning(self, "Not Available", "Custom device editor not available.")
+
+    def _on_new_flow_function(self) -> None:
+        """Open dialog to create a new flow function."""
+        try:
+            from glider.gui.dialogs.flow_function_dialog import FlowFunctionDialog
+            from glider.core.flow_engine import FlowEngine
+
+            # Get available node types
+            available_types = FlowEngine.get_available_nodes()
+            available_types.extend(["FlowFunctionEntry", "FlowFunctionExit", "Parameter"])
+
+            dialog = FlowFunctionDialog(available_node_types=available_types, parent=self)
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                definition = dialog.get_definition()
+                # Add to session
+                if self._core.session:
+                    self._core.session.add_flow_function_definition(definition.to_dict())
+                    self._refresh_flow_functions()
+                    logger.info(f"Created flow function: {definition.name}")
+        except ImportError as e:
+            logger.warning(f"Could not import FlowFunctionDialog: {e}")
+            QMessageBox.warning(self, "Not Available", "Flow function editor not available.")
+
+    def _refresh_custom_devices(self) -> None:
+        """Refresh the custom devices in the node library."""
+        if not hasattr(self, '_custom_devices_layout'):
+            return
+
+        # Clear existing items
+        while self._custom_devices_layout.count():
+            item = self._custom_devices_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        # Add devices from session
+        if self._core.session:
+            definitions = self._core.session.custom_device_definitions
+            if definitions:
+                for def_id, def_dict in definitions.items():
+                    name = def_dict.get("name", "Unknown")
+                    btn = EditableDraggableButton(
+                        f"CustomDevice:{def_id}",
+                        name,
+                        "Custom Devices",
+                        on_edit=lambda did=def_id: self._edit_custom_device(did),
+                        on_delete=lambda did=def_id: self._delete_custom_device(did)
+                    )
+                    btn.setToolTip(f"{def_dict.get('description', '')}\n(Right-click to edit/delete)")
+                    btn.clicked.connect(lambda checked, did=def_id: self._add_custom_device_node(did))
+                    self._custom_devices_layout.addWidget(btn)
+            else:
+                placeholder = QLabel("No devices defined")
+                placeholder.setStyleSheet("color: #888; padding: 8px;")
+                placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                self._custom_devices_layout.addWidget(placeholder)
+        else:
+            placeholder = QLabel("No devices defined")
+            placeholder.setStyleSheet("color: #888; padding: 8px;")
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._custom_devices_layout.addWidget(placeholder)
+
+    def _refresh_flow_functions(self) -> None:
+        """Refresh the flow functions in the node library."""
+        if not hasattr(self, '_flow_functions_layout'):
+            return
+
+        # Clear existing items
+        while self._flow_functions_layout.count():
+            item = self._flow_functions_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        # Add functions from session
+        if self._core.session:
+            definitions = self._core.session.flow_function_definitions
+            if definitions:
+                for def_id, def_dict in definitions.items():
+                    name = def_dict.get("name", "Unknown")
+                    btn = EditableDraggableButton(
+                        f"FlowFunction:{def_id}",
+                        name,
+                        "Flow Functions",
+                        on_edit=lambda fid=def_id: self._edit_flow_function(fid),
+                        on_delete=lambda fid=def_id: self._delete_flow_function(fid)
+                    )
+                    btn.setToolTip(f"{def_dict.get('description', '')}\n(Right-click to edit/delete)")
+                    btn.clicked.connect(lambda checked, fid=def_id: self._add_flow_function_node(fid))
+                    self._flow_functions_layout.addWidget(btn)
+            else:
+                placeholder = QLabel("No functions defined")
+                placeholder.setStyleSheet("color: #888; padding: 8px;")
+                placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                self._flow_functions_layout.addWidget(placeholder)
+        else:
+            placeholder = QLabel("No functions defined")
+            placeholder.setStyleSheet("color: #888; padding: 8px;")
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._flow_functions_layout.addWidget(placeholder)
+
+    def _add_custom_device_node(self, definition_id: str) -> None:
+        """Add a custom device action node to the graph."""
+        if hasattr(self, '_graph_view'):
+            center = self._graph_view.mapToScene(
+                self._graph_view.viewport().rect().center()
+            )
+            # Create node with custom device definition ID encoded in the type
+            self._graph_view.node_created.emit(f"CustomDevice:{definition_id}", center.x(), center.y())
+
+    def _add_flow_function_node(self, definition_id: str) -> None:
+        """Add a flow function node to the graph."""
+        if hasattr(self, '_graph_view'):
+            center = self._graph_view.mapToScene(
+                self._graph_view.viewport().rect().center()
+            )
+            self._graph_view.node_created.emit(f"FlowFunction:{definition_id}", center.x(), center.y())
+
+    def _edit_custom_device(self, definition_id: str) -> None:
+        """Edit an existing custom device definition."""
+        if not self._core.session:
+            return
+
+        def_dict = self._core.session.get_custom_device_definition(definition_id)
+        if not def_dict:
+            QMessageBox.warning(self, "Error", "Custom device not found.")
+            return
+
+        try:
+            from glider.gui.dialogs.custom_device_dialog import CustomDeviceDialog
+            from glider.core.custom_device import CustomDeviceDefinition
+
+            definition = CustomDeviceDefinition.from_dict(def_dict)
+            dialog = CustomDeviceDialog(definition=definition, parent=self)
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                updated_def = dialog.get_definition()
+                # Update in session (remove old, add new)
+                self._core.session.remove_custom_device_definition(definition_id)
+                self._core.session.add_custom_device_definition(updated_def.to_dict())
+                self._refresh_custom_devices()
+                logger.info(f"Updated custom device: {updated_def.name}")
+        except ImportError as e:
+            logger.warning(f"Could not import CustomDeviceDialog: {e}")
+            QMessageBox.warning(self, "Not Available", "Custom device editor not available.")
+
+    def _delete_custom_device(self, definition_id: str) -> None:
+        """Delete a custom device definition."""
+        if not self._core.session:
+            return
+
+        def_dict = self._core.session.get_custom_device_definition(definition_id)
+        name = def_dict.get("name", "Unknown") if def_dict else "Unknown"
+
+        result = QMessageBox.question(
+            self,
+            "Delete Custom Device",
+            f"Are you sure you want to delete '{name}'?\n\nThis cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if result == QMessageBox.StandardButton.Yes:
+            self._core.session.remove_custom_device_definition(definition_id)
+            self._refresh_custom_devices()
+            logger.info(f"Deleted custom device: {name}")
+
+    def _edit_flow_function(self, definition_id: str) -> None:
+        """Edit an existing flow function definition."""
+        if not self._core.session:
+            return
+
+        def_dict = self._core.session.get_flow_function_definition(definition_id)
+        if not def_dict:
+            QMessageBox.warning(self, "Error", "Flow function not found.")
+            return
+
+        try:
+            from glider.gui.dialogs.flow_function_dialog import FlowFunctionDialog
+            from glider.core.flow_function import FlowFunctionDefinition
+            from glider.core.flow_engine import FlowEngine
+
+            definition = FlowFunctionDefinition.from_dict(def_dict)
+            available_types = FlowEngine.get_available_nodes()
+            available_types.extend(["FlowFunctionEntry", "FlowFunctionExit", "Parameter"])
+
+            dialog = FlowFunctionDialog(
+                definition=definition,
+                available_node_types=available_types,
+                parent=self
+            )
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                updated_def = dialog.get_definition()
+                # Update in session (remove old, add new)
+                self._core.session.remove_flow_function_definition(definition_id)
+                self._core.session.add_flow_function_definition(updated_def.to_dict())
+                self._refresh_flow_functions()
+                logger.info(f"Updated flow function: {updated_def.name}")
+        except ImportError as e:
+            logger.warning(f"Could not import FlowFunctionDialog: {e}")
+            QMessageBox.warning(self, "Not Available", "Flow function editor not available.")
+
+    def _delete_flow_function(self, definition_id: str) -> None:
+        """Delete a flow function definition."""
+        if not self._core.session:
+            return
+
+        def_dict = self._core.session.get_flow_function_definition(definition_id)
+        name = def_dict.get("name", "Unknown") if def_dict else "Unknown"
+
+        result = QMessageBox.question(
+            self,
+            "Delete Flow Function",
+            f"Are you sure you want to delete '{name}'?\n\nThis cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if result == QMessageBox.StandardButton.Yes:
+            self._core.session.remove_flow_function_definition(definition_id)
+            self._refresh_flow_functions()
+            logger.info(f"Deleted flow function: {name}")
 
     def _add_node_to_center(self, node_type: str) -> None:
         """Add a node to the center of the graph view."""
@@ -2028,7 +2504,32 @@ class MainWindow(QMainWindow):
         import uuid
         from glider.core.experiment_session import NodeConfig
 
-        node_type_normalized = node_type.replace(" ", "")
+        # Handle CustomDevice: and FlowFunction: prefixed types
+        display_name = node_type
+        actual_node_type = node_type
+        definition_id = None
+        initial_state = {}
+
+        if node_type.startswith("CustomDevice:"):
+            definition_id = node_type.split(":", 1)[1]
+            actual_node_type = "CustomDevice"
+            # Get device name for display
+            if self._core.session:
+                def_dict = self._core.session.get_custom_device_definition(definition_id)
+                if def_dict:
+                    display_name = def_dict.get("name", "Custom Device")
+                    initial_state["definition_id"] = definition_id
+        elif node_type.startswith("FlowFunction:"):
+            definition_id = node_type.split(":", 1)[1]
+            actual_node_type = "FlowFunctionCall"
+            # Get function name for display
+            if self._core.session:
+                def_dict = self._core.session.get_flow_function_definition(definition_id)
+                if def_dict:
+                    display_name = def_dict.get("name", "Flow Function")
+                    initial_state["definition_id"] = definition_id
+
+        node_type_normalized = actual_node_type.replace(" ", "")
 
         # Show security warning for Script nodes
         if node_type_normalized == "Script":
@@ -2049,14 +2550,15 @@ class MainWindow(QMainWindow):
             if result != QMessageBox.StandardButton.Yes:
                 return
 
-        node_id = f"{node_type.lower()}_{uuid.uuid4().hex[:8]}"
+        node_id = f"{actual_node_type.lower()}_{uuid.uuid4().hex[:8]}"
 
         # Determine category from node type
         category = "default"
         flow_nodes = ["StartExperiment", "EndExperiment", "Delay"]
         control_nodes = ["Loop", "WaitForInput"]
-        io_nodes = ["Output", "Input"]
+        io_nodes = ["Output", "Input", "MotorGovernor", "CustomDeviceAction"]
         script_nodes = ["Script"]
+        function_nodes = ["FlowFunctionCall"]
 
         if node_type_normalized in flow_nodes:
             category = "logic"  # Use blue color
@@ -2066,14 +2568,19 @@ class MainWindow(QMainWindow):
             category = "hardware"  # Use green color
         elif node_type_normalized in script_nodes:
             category = "script"  # Use purple color
+        elif node_type_normalized in function_nodes:
+            category = "logic"  # Flow functions are logic nodes
 
-        # Add visual node to graph
-        node_item = self._graph_view.add_node(node_id, node_type, x, y)
+        # Add visual node to graph (use display_name for the visual)
+        node_item = self._graph_view.add_node(node_id, display_name, x, y)
         node_item._category = category
         node_item._header_color = node_item.CATEGORY_COLORS.get(category, node_item.CATEGORY_COLORS["default"])
+        # Store the actual node type and definition ID for later use
+        node_item._actual_node_type = actual_node_type
+        node_item._definition_id = definition_id
 
         # Add default ports based on node type
-        self._setup_node_ports(node_item, node_type)
+        self._setup_node_ports(node_item, actual_node_type)
 
         # Connect port signals for connection creation (after ports are added)
         self._graph_view._connect_port_signals(node_item)
@@ -2082,20 +2589,20 @@ class MainWindow(QMainWindow):
         if self._core.session:
             node_config = NodeConfig(
                 id=node_id,
-                node_type=node_type,
+                node_type=actual_node_type,
                 position=(x, y),
-                state={},
+                state=initial_state,
                 device_id=None,
                 visible_in_runner=category == "interface",
             )
             self._core.session.add_node(node_config)
 
         # Add to undo stack
-        command = CreateNodeCommand(self, node_id, node_type, x, y)
+        command = CreateNodeCommand(self, node_id, actual_node_type, x, y)
         self._undo_stack.push(command)
         self._update_undo_redo_actions()
 
-        self.statusBar().showMessage(f"Created node: {node_type}", 2000)
+        self.statusBar().showMessage(f"Created node: {display_name}", 2000)
 
     def _setup_node_ports(self, node_item, node_type: str) -> None:
         """Set up input/output ports for a node based on its type."""
@@ -2118,6 +2625,12 @@ class MainWindow(QMainWindow):
             # I/O nodes
             "Output": ([">exec"], [">next"]),  # Exec in, exec out (value set via properties)
             "Input": ([">exec"], ["value", ">next"]),   # Exec in, outputs value and exec
+            "MotorGovernor": ([">exec"], [">next"]),  # Exec in, exec out (action set via properties: up/down/stop)
+            # Custom device action node
+            "CustomDevice": ([">exec"], ["value", ">next"]),  # Exec in, value out, exec out
+            "CustomDeviceAction": ([">exec"], ["value", ">next"]),  # Alias for backward compatibility
+            # Flow function call node
+            "FlowFunctionCall": ([">exec"], [">next"]),  # Exec in, exec out
             # Script nodes
             "Script": ([">exec", "input"], ["output", ">next"]),  # Exec in, data input, data output, exec out
         }
@@ -2255,10 +2768,15 @@ class MainWindow(QMainWindow):
         props_layout.addRow("ID:", QLabel(node_id))
         props_layout.addRow("Type:", QLabel(node_item.node_type))
 
-        node_type = node_item.node_type.replace(" ", "")
+        # Use actual node type if available (for custom devices/flow functions)
+        # Otherwise use the display node type
+        if hasattr(node_item, '_actual_node_type') and node_item._actual_node_type:
+            node_type = node_item._actual_node_type.replace(" ", "")
+        else:
+            node_type = node_item.node_type.replace(" ", "")
 
-        # Add device selector for I/O nodes and WaitForInput
-        if node_type in ["Output", "Input", "WaitForInput"]:
+        # Add device selector for I/O nodes, WaitForInput, and MotorGovernor
+        if node_type in ["Output", "Input", "WaitForInput", "MotorGovernor"]:
             device_combo = QComboBox()
             device_combo.addItem("-- Select Device --", None)
             current_device_id = node_config.device_id if node_config else None
@@ -2317,6 +2835,29 @@ class MainWindow(QMainWindow):
             value_widget = QWidget()
             value_widget.setLayout(value_layout)
             props_layout.addRow("Value:", value_widget)
+
+        # Add action selector for MotorGovernor node
+        elif node_type == "MotorGovernor":
+            action_combo = QComboBox()
+            action_combo.addItem("Move Up", "up")
+            action_combo.addItem("Move Down", "down")
+            action_combo.addItem("Stop", "stop")
+
+            # Load saved action from session
+            saved_action = "stop"
+            if node_config and node_config.state:
+                saved_action = node_config.state.get("action", "stop")
+
+            # Set current index based on saved action
+            action_map = {"up": 0, "down": 1, "stop": 2}
+            action_combo.setCurrentIndex(action_map.get(saved_action, 2))
+
+            action_combo.currentIndexChanged.connect(
+                lambda idx, nid=node_id, combo=action_combo: self._on_node_property_changed(
+                    nid, "action", combo.currentData()
+                )
+            )
+            props_layout.addRow("Action:", action_combo)
 
         # Add properties for Loop node
         elif node_type == "Loop":
@@ -2408,6 +2949,138 @@ class MainWindow(QMainWindow):
             validate_btn = QPushButton("Validate Syntax")
             validate_btn.clicked.connect(lambda: self._validate_script_syntax(code_edit.toPlainText()))
             props_layout.addRow(validate_btn)
+
+        # Add properties for CustomDevice/CustomDeviceAction node (shows device info and pins)
+        elif node_type in ("CustomDevice", "CustomDeviceAction"):
+            # Get the definition ID from node state or node_item
+            definition_id = None
+            if node_config and node_config.state:
+                definition_id = node_config.state.get("definition_id")
+            if not definition_id and hasattr(node_item, '_definition_id'):
+                definition_id = node_item._definition_id
+
+            if definition_id and self._core.session:
+                def_dict = self._core.session.get_custom_device_definition(definition_id)
+                if def_dict:
+                    # Show device name
+                    device_name = def_dict.get("name", "Unknown")
+                    props_layout.addRow("Device:", QLabel(device_name))
+
+                    # Show description if any
+                    desc = def_dict.get("description", "")
+                    if desc:
+                        desc_label = QLabel(desc)
+                        desc_label.setWordWrap(True)
+                        props_layout.addRow("Description:", desc_label)
+
+                    # Pin selector dropdown
+                    pins = def_dict.get("pins", [])
+                    if pins:
+                        pin_combo = QComboBox()
+                        pin_combo.addItem("(Select a pin)", "")
+                        for pin in pins:
+                            pin_name = pin.get("name", "")
+                            pin_number = pin.get("pin_number")
+                            pin_type = pin.get("pin_type", "")
+                            pin_desc = pin.get("description", "")
+                            # Show pin number if available
+                            if pin_number is not None:
+                                display_text = f"{pin_name} [Pin {pin_number}] ({pin_type})"
+                            else:
+                                display_text = f"{pin_name} ({pin_type})"
+                            if pin_desc:
+                                display_text += f" - {pin_desc}"
+                            pin_combo.addItem(display_text, pin_name)
+
+                        # Load saved pin selection
+                        saved_pin = ""
+                        if node_config and node_config.state:
+                            saved_pin = node_config.state.get("pin", "")
+
+                        # Find and set current index
+                        for i in range(pin_combo.count()):
+                            if pin_combo.itemData(i) == saved_pin:
+                                pin_combo.setCurrentIndex(i)
+                                break
+
+                        pin_combo.currentIndexChanged.connect(
+                            lambda idx, nid=node_id, combo=pin_combo: self._on_node_property_changed(
+                                nid, "pin", combo.currentData()
+                            )
+                        )
+                        props_layout.addRow("Pin:", pin_combo)
+
+                        # Value control for output pins
+                        saved_pin_type = None
+                        for pin in pins:
+                            if pin.get("name") == saved_pin:
+                                saved_pin_type = pin.get("pin_type")
+                                break
+
+                        if saved_pin_type in ("digital_output",):
+                            value_combo = QComboBox()
+                            value_combo.addItem("LOW (0)", 0)
+                            value_combo.addItem("HIGH (1)", 1)
+
+                            saved_value = 0
+                            if node_config and node_config.state:
+                                saved_value = node_config.state.get("value", 0)
+                            value_combo.setCurrentIndex(1 if saved_value else 0)
+
+                            value_combo.currentIndexChanged.connect(
+                                lambda idx, nid=node_id, combo=value_combo: self._on_node_property_changed(
+                                    nid, "value", combo.currentData()
+                                )
+                            )
+                            props_layout.addRow("Value:", value_combo)
+
+                        elif saved_pin_type in ("analog_output", "pwm"):
+                            value_spin = QSpinBox()
+                            value_spin.setRange(0, 255)
+                            saved_value = 0
+                            if node_config and node_config.state:
+                                saved_value = node_config.state.get("value", 0)
+                            value_spin.setValue(int(saved_value))
+
+                            value_spin.valueChanged.connect(
+                                lambda val, nid=node_id: self._on_node_property_changed(nid, "value", val)
+                            )
+                            props_layout.addRow("Value:", value_spin)
+
+                    # Edit device button
+                    edit_btn = QPushButton("Edit Device Definition")
+                    edit_btn.clicked.connect(lambda checked, did=definition_id: self._edit_custom_device(did))
+                    props_layout.addRow(edit_btn)
+            else:
+                props_layout.addRow(QLabel("(Custom device not found)"))
+
+        # Add properties for FlowFunctionCall node
+        elif node_type == "FlowFunctionCall":
+            # Get the definition ID from node state
+            definition_id = None
+            if node_config and node_config.state:
+                definition_id = node_config.state.get("definition_id")
+
+            if definition_id and self._core.session:
+                def_dict = self._core.session.get_flow_function_definition(definition_id)
+                if def_dict:
+                    # Show function name
+                    func_name = def_dict.get("name", "Unknown")
+                    props_layout.addRow("Function:", QLabel(func_name))
+
+                    # Show description if any
+                    desc = def_dict.get("description", "")
+                    if desc:
+                        desc_label = QLabel(desc)
+                        desc_label.setWordWrap(True)
+                        props_layout.addRow("Description:", desc_label)
+
+                    # Edit function button
+                    edit_btn = QPushButton("Edit Flow Function")
+                    edit_btn.clicked.connect(lambda: self._edit_flow_function(definition_id))
+                    props_layout.addRow(edit_btn)
+            else:
+                props_layout.addRow(QLabel("(Flow function not found)"))
 
         self._properties_dock.setWidget(props_widget)
 

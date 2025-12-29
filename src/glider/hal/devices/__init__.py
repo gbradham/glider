@@ -13,6 +13,7 @@ from glider.hal.base_device import (
     AnalogInputDevice,
     PWMOutputDevice,
     ServoDevice,
+    MotorGovernorDevice,
     DEVICE_REGISTRY,
     create_device_from_dict,
 )
@@ -25,6 +26,7 @@ __all__ = [
     "AnalogInputDevice",
     "PWMOutputDevice",
     "ServoDevice",
+    "MotorGovernorDevice",
     "DEVICE_REGISTRY",
     "create_device_from_dict",
 ]

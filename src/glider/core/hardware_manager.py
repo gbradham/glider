@@ -443,6 +443,60 @@ class HardwareManager:
         self._devices[device_id] = device
         logger.info(f"Added device: {device_id} (type: {device_type}, pin: {pin})")
 
+    def add_device_multi_pin(
+        self,
+        device_id: str,
+        device_type: str,
+        board_id: str,
+        pins: Dict[str, int],
+        name: Optional[str] = None,
+        **kwargs
+    ) -> None:
+        """
+        Add a device with multiple pins to the manager.
+
+        Args:
+            device_id: Unique device identifier
+            device_type: Device type (e.g., "MotorGovernor")
+            board_id: ID of the board this device is on
+            pins: Dictionary mapping pin names to pin numbers
+            name: Optional display name
+            **kwargs: Additional device settings
+        """
+        board = self._boards.get(board_id)
+        if board is None:
+            raise BoardNotFoundError(f"Board not found: {board_id}")
+
+        # Create device data for factory
+        device_data = {
+            "id": device_id,
+            "device_type": device_type,
+            "name": name or device_id,
+            "board_id": board_id,
+            "config": {
+                "pins": pins,
+                "settings": kwargs,
+            },
+        }
+
+        # Create device instance
+        device = create_device_from_dict(device_data, board)
+
+        # Store pins list for the tree view
+        device._pins = list(pins.values())
+
+        # Allocate pins
+        pin_manager = self._pin_managers.get(board_id)
+        if pin_manager:
+            try:
+                pin_manager.allocate_device_pins(device)
+            except PinConflictError as e:
+                raise HardwareError(str(e))
+
+        self._devices[device_id] = device
+        pins_str = ", ".join(f"{k}={v}" for k, v in pins.items())
+        logger.info(f"Added device: {device_id} (type: {device_type}, pins: {pins_str})")
+
     def clear(self) -> None:
         """Clear all boards and devices."""
         self._devices.clear()

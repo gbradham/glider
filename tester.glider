@@ -6,7 +6,7 @@
     "author": "",
     "version": "1.0.0",
     "created_at": "2025-12-26T21:54:32.095174",
-    "modified_at": "2025-12-28T17:57:27.830399",
+    "modified_at": "2025-12-29T17:27:56.196354",
     "glider_version": "1.0.0"
   },
   "hardware": {
@@ -20,241 +20,128 @@
         "settings": {}
       }
     ],
-    "devices": [
-      {
-        "id": "led",
-        "device_type": "DigitalOutput",
-        "name": "led",
-        "board_id": "ard",
-        "pins": {
-          "output": 13
-        },
-        "settings": {}
-      },
-      {
-        "id": "wire",
-        "device_type": "DigitalInput",
-        "name": "wire",
-        "board_id": "ard",
-        "pins": {
-          "input": 8
-        },
-        "settings": {}
-      },
-      {
-        "id": "touch_led",
-        "device_type": "DigitalOutput",
-        "name": "touch_led",
-        "board_id": "ard",
-        "pins": {
-          "output": 11
-        },
-        "settings": {}
-      }
-    ]
+    "devices": []
   },
   "flow": {
     "nodes": [
       {
-        "id": "startexperiment_369448f3",
+        "id": "startexperiment_5e935a6e",
         "node_type": "StartExperiment",
         "position": [
-          -153.10801250000006,
-          -159.8727499999999
+          -168.50814000000008,
+          124.740504375
         ],
         "state": {},
         "device_id": null,
         "visible_in_runner": false
       },
       {
-        "id": "output_74012c0b",
-        "node_type": "Output",
-        "position": [
-          318.5917500000002,
-          -39.35000000000001
-        ],
-        "state": {},
-        "device_id": "led",
-        "visible_in_runner": false
-      },
-      {
-        "id": "delay_a1c479ee",
-        "node_type": "Delay",
-        "position": [
-          517.9938749999999,
-          -31.1165
-        ],
-        "state": {
-          "duration": 2
-        },
-        "device_id": null,
-        "visible_in_runner": false
-      },
-      {
-        "id": "output_88f950b8",
-        "node_type": "Output",
-        "position": [
-          740.2707905297118,
-          -30.040194789183854
-        ],
-        "state": {
-          "value": 0
-        },
-        "device_id": "led",
-        "visible_in_runner": false
-      },
-      {
-        "id": "endexperiment_69a67ee8",
+        "id": "endexperiment_6d20ab3d",
         "node_type": "EndExperiment",
         "position": [
-          318.82605689025473,
-          103.0868207656866
+          896.1149999999999,
+          321.1375
         ],
         "state": {},
         "device_id": null,
         "visible_in_runner": false
       },
       {
-        "id": "waitforinput_1855776c",
-        "node_type": "WaitForInput",
+        "id": "customdevice_420c4bca",
+        "node_type": "CustomDevice",
         "position": [
-          53.734000000000094,
-          185.99812499999996
-        ],
-        "state": {},
-        "device_id": "wire",
-        "visible_in_runner": true
-      },
-      {
-        "id": "loop_d3f99e44",
-        "node_type": "Loop",
-        "position": [
-          81.18022337638571,
-          -54.9260570363782
+          27.772499999999994,
+          231.43750000000014
         ],
         "state": {
-          "count": 6,
-          "delay": 5.0
+          "definition_id": "eeef3556-d07e-40a5-a7f1-5be201adb2dc",
+          "pin": "pin1",
+          "value": 1
         },
         "device_id": null,
-        "visible_in_runner": true
-      },
-      {
-        "id": "output_bd97e569",
-        "node_type": "Output",
-        "position": [
-          301.8509937499999,
-          209.89900624999999
-        ],
-        "state": {},
-        "device_id": "touch_led",
         "visible_in_runner": false
       },
       {
-        "id": "delay_df9e7759",
+        "id": "customdevice_8446b2cb",
+        "node_type": "CustomDevice",
+        "position": [
+          662.5724999999999,
+          322.69
+        ],
+        "state": {
+          "definition_id": "eeef3556-d07e-40a5-a7f1-5be201adb2dc",
+          "pin": "pin1"
+        },
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "customdevice_847d9dce",
+        "node_type": "CustomDevice",
+        "position": [
+          235.40499999999997,
+          379.5574999999999
+        ],
+        "state": {
+          "definition_id": "eeef3556-d07e-40a5-a7f1-5be201adb2dc",
+          "pin": "pin2",
+          "value": 1
+        },
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "delay_d7a0ac82",
         "node_type": "Delay",
         "position": [
-          520.1690062499997,
-          211.5999999999999
+          447.0050000000001,
+          398.07250000000005
         ],
         "state": {
-          "duration": 2
+          "duration": 5
         },
         "device_id": null,
-        "visible_in_runner": false
-      },
-      {
-        "id": "output_26296cb0",
-        "node_type": "Output",
-        "position": [
-          761.94825651352,
-          213.60241883783985
-        ],
-        "state": {
-          "value": 0
-        },
-        "device_id": "touch_led",
         "visible_in_runner": false
       }
     ],
     "connections": [
       {
-        "id": "conn_7f6d8543",
-        "from_node": "waitforinput_446015a2",
+        "id": "conn_b5b2e5da",
+        "from_node": "startexperiment_5e935a6e",
         "from_output": 0,
-        "to_node": "output_74012c0b",
+        "to_node": "customdevice_420c4bca",
         "to_input": 0,
         "connection_type": "exec"
       },
       {
-        "id": "conn_990f2078",
-        "from_node": "output_74012c0b",
-        "from_output": 0,
-        "to_node": "delay_a1c479ee",
-        "to_input": 0,
-        "connection_type": "exec"
-      },
-      {
-        "id": "conn_df67b76a",
-        "from_node": "delay_a1c479ee",
-        "from_output": 0,
-        "to_node": "output_88f950b8",
-        "to_input": 0,
-        "connection_type": "exec"
-      },
-      {
-        "id": "conn_bec35aee",
-        "from_node": "startexperiment_369448f3",
-        "from_output": 0,
-        "to_node": "waitforinput_446015a2",
-        "to_input": 0,
-        "connection_type": "exec"
-      },
-      {
-        "id": "conn_5fbee735",
-        "from_node": "startexperiment_369448f3",
-        "from_output": 0,
-        "to_node": "loop_d3f99e44",
-        "to_input": 0,
-        "connection_type": "exec"
-      },
-      {
-        "id": "conn_adef0356",
-        "from_node": "output_bd97e569",
-        "from_output": 0,
-        "to_node": "delay_df9e7759",
-        "to_input": 0,
-        "connection_type": "exec"
-      },
-      {
-        "id": "conn_c2d8e97c",
-        "from_node": "delay_df9e7759",
-        "from_output": 0,
-        "to_node": "output_26296cb0",
-        "to_input": 0,
-        "connection_type": "exec"
-      },
-      {
-        "id": "conn_32ee6586",
-        "from_node": "waitforinput_1855776c",
-        "from_output": 0,
-        "to_node": "output_bd97e569",
-        "to_input": 0,
-        "connection_type": "exec"
-      },
-      {
-        "id": "conn_e92d1dea",
-        "from_node": "loop_d3f99e44",
+        "id": "conn_c2e9697e",
+        "from_node": "customdevice_8446b2cb",
         "from_output": 1,
-        "to_node": "endexperiment_69a67ee8",
+        "to_node": "endexperiment_6d20ab3d",
         "to_input": 0,
         "connection_type": "exec"
       },
       {
-        "id": "conn_af81e285",
-        "from_node": "loop_d3f99e44",
+        "id": "conn_82900238",
+        "from_node": "customdevice_420c4bca",
+        "from_output": 1,
+        "to_node": "customdevice_847d9dce",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_995e4b9f",
+        "from_node": "customdevice_847d9dce",
+        "from_output": 1,
+        "to_node": "delay_d7a0ac82",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_b114b089",
+        "from_node": "delay_d7a0ac82",
         "from_output": 0,
-        "to_node": "output_74012c0b",
+        "to_node": "customdevice_8446b2cb",
         "to_input": 0,
         "connection_type": "exec"
       }
@@ -264,5 +151,28 @@
     "widgets": [],
     "layout": "vertical",
     "columns": 1
+  },
+  "custom_devices": {
+    "eeef3556-d07e-40a5-a7f1-5be201adb2dc": {
+      "id": "eeef3556-d07e-40a5-a7f1-5be201adb2dc",
+      "name": "Custom Device",
+      "description": "",
+      "pins": [
+        {
+          "name": "pin1",
+          "pin_type": "digital_output",
+          "pin_number": 13,
+          "default_value": null,
+          "description": ""
+        },
+        {
+          "name": "pin2",
+          "pin_type": "digital_output",
+          "pin_number": 11,
+          "default_value": null,
+          "description": ""
+        }
+      ]
+    }
   }
 }

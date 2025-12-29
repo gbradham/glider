@@ -8,7 +8,8 @@
       "Bash(python -c:*)",
       "Bash(cd:*)",
       "Bash(python -m py_compile:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(dir /s /b \"C:\\\\Users\\\\Garrett\\\\LaingLab\\\\glider\\\\docs\\\\*.md\")"
     ]
   }
 }

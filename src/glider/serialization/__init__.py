@@ -11,6 +11,7 @@ from glider.serialization.schema import (
     ConnectionSchema,
     HardwareConfigSchema,
     DashboardConfigSchema,
+    SchemaValidationError,
 )
 from glider.serialization.serializer import ExperimentSerializer, get_serializer
 
@@ -20,6 +21,7 @@ __all__ = [
     "ConnectionSchema",
     "HardwareConfigSchema",
     "DashboardConfigSchema",
+    "SchemaValidationError",
     "ExperimentSerializer",
     "get_serializer",
 ]

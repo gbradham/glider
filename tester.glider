@@ -6,7 +6,7 @@
     "author": "",
     "version": "1.0.0",
     "created_at": "2025-12-26T21:54:32.095174",
-    "modified_at": "2025-12-27T13:38:36.973244",
+    "modified_at": "2025-12-28T17:57:27.830399",
     "glider_version": "1.0.0"
   },
   "hardware": {
@@ -107,8 +107,8 @@
         "id": "endexperiment_69a67ee8",
         "node_type": "EndExperiment",
         "position": [
-          308.4760568902547,
-          101.93682076568662
+          318.82605689025473,
+          103.0868207656866
         ],
         "state": {},
         "device_id": null,
@@ -118,8 +118,8 @@
         "id": "waitforinput_1855776c",
         "node_type": "WaitForInput",
         "position": [
-          93.9840000000001,
-          214.74812499999996
+          53.734000000000094,
+          185.99812499999996
         ],
         "state": {},
         "device_id": "wire",
@@ -129,8 +129,8 @@
         "id": "loop_d3f99e44",
         "node_type": "Loop",
         "position": [
-          80.0302233763857,
-          -53.77605703637819
+          81.18022337638571,
+          -54.9260570363782
         ],
         "state": {
           "count": 6,

@@ -22,6 +22,7 @@ from glider.serialization.schema import (
     DeviceConfigSchema,
     DashboardWidgetSchema,
     PortSchema,
+    SchemaValidationError,
     SCHEMA_VERSION,
 )
 
@@ -102,16 +103,56 @@ class ExperimentSerializer:
 
         Raises:
             FileNotFoundError: If the file doesn't exist
-            json.JSONDecodeError: If the file contains invalid JSON
+            PermissionError: If the file cannot be read
+            SchemaValidationError: If the file is malformed or invalid
             ValueError: If schema validation fails
         """
-        with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except FileNotFoundError:
+            logger.error(f"Experiment file not found: {path}")
+            raise
+        except PermissionError:
+            logger.error(f"Permission denied reading experiment file: {path}")
+            raise
+        except UnicodeDecodeError as e:
+            logger.error(f"Encoding error reading {path}: {e}")
+            raise SchemaValidationError(
+                f"File encoding error: {e}. Ensure the file is UTF-8 encoded.",
+                path=str(path),
+            )
+        except OSError as e:
+            logger.error(f"Error reading experiment file {path}: {e}")
+            raise SchemaValidationError(
+                f"Error reading file: {e}",
+                path=str(path),
+            )
 
-        schema = ExperimentSchema.from_json(content)
+        # Validate file is not empty
+        if not content.strip():
+            raise SchemaValidationError(
+                "File is empty",
+                path=str(path),
+            )
+
+        try:
+            schema = ExperimentSchema.from_json(content)
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in {path}: line {e.lineno}, column {e.colno}")
+            raise SchemaValidationError(
+                f"Invalid JSON at line {e.lineno}, column {e.colno}: {e.msg}",
+                path=str(path),
+            )
+        except SchemaValidationError:
+            # Re-raise with file path context
+            raise
 
         # Validate and migrate if needed
-        schema = self._validate_and_migrate(schema)
+        try:
+            schema = self._validate_and_migrate(schema)
+        except ValueError as e:
+            raise SchemaValidationError(str(e), path=str(path))
 
         logger.info(f"Loaded experiment from {path}")
         return schema

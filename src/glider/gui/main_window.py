@@ -47,6 +47,7 @@ from PyQt6.QtCore import Qt, QSize, pyqtSignal, pyqtSlot, QMimeData, QTimer
 
 from glider.gui.view_manager import ViewManager, ViewMode
 from glider.gui.node_graph.graph_view import NodeGraphView
+from glider.hal.base_board import BoardConnectionState
 
 if TYPE_CHECKING:
     from glider.core.glider_core import GliderCore
@@ -917,6 +918,9 @@ class MainWindow(QMainWindow):
         self._core.on_state_change(self._on_core_state_change)
         self._core.on_error(self._on_core_error)
 
+        # Connect hardware connection change callback for disconnect handling
+        self._core.hardware_manager.on_connection_change(self._on_hardware_connection_change)
+
         # Connect session changed to update runner view
         self.session_changed.connect(self._update_runner_experiment_name)
 
@@ -1131,6 +1135,142 @@ class MainWindow(QMainWindow):
         """Handle core errors."""
         self.error_occurred.emit(source, str(error))
         logger.error(f"Error from {source}: {error}")
+
+    def _on_hardware_connection_change(self, board_id: str, state: BoardConnectionState) -> None:
+        """
+        Handle hardware connection state changes.
+
+        If a board disconnects while running, pause and prompt the user.
+        """
+        # Only handle disconnection during active experiment
+        if state not in (BoardConnectionState.DISCONNECTED, BoardConnectionState.ERROR):
+            return
+
+        # Check if we're running an experiment
+        if not hasattr(self._core, 'state'):
+            return
+
+        from glider.core.glider_core import SessionState
+        if self._core.state != SessionState.RUNNING:
+            # Not running, just log it
+            logger.warning(f"Board {board_id} disconnected (state: {state.name})")
+            return
+
+        # We're running and a board disconnected - pause and prompt
+        logger.warning(f"Board {board_id} disconnected during experiment! Pausing...")
+
+        # Pause the experiment
+        self._run_async(self._core.pause())
+
+        # Show the disconnection dialog
+        self._show_hardware_disconnection_dialog(board_id, state)
+
+    def _show_hardware_disconnection_dialog(self, board_id: str, state: BoardConnectionState) -> None:
+        """Show a dialog when hardware disconnects during an experiment."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Hardware Disconnected")
+        dialog.setMinimumWidth(400)
+
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(16)
+
+        # Warning icon and message
+        header_layout = QHBoxLayout()
+        warning_label = QLabel("⚠️")
+        warning_label.setStyleSheet("font-size: 48px;")
+        header_layout.addWidget(warning_label)
+
+        message = QLabel(
+            f"<b>Board '{board_id}' has disconnected.</b><br><br>"
+            f"The experiment has been paused. What would you like to do?"
+        )
+        message.setWordWrap(True)
+        header_layout.addWidget(message, 1)
+        layout.addLayout(header_layout)
+
+        # Status info
+        status_label = QLabel(f"Connection state: {state.name}")
+        status_label.setStyleSheet("color: #888;")
+        layout.addWidget(status_label)
+
+        # Buttons
+        button_layout = QVBoxLayout()
+        button_layout.setSpacing(8)
+
+        retry_btn = QPushButton("🔄 Retry Connection")
+        retry_btn.setMinimumHeight(40)
+        retry_btn.clicked.connect(lambda: self._handle_disconnection_retry(dialog, board_id))
+        button_layout.addWidget(retry_btn)
+
+        continue_btn = QPushButton("▶️ Continue Without Hardware")
+        continue_btn.setMinimumHeight(40)
+        continue_btn.setToolTip("Resume the experiment without this board (may cause errors)")
+        continue_btn.clicked.connect(lambda: self._handle_disconnection_continue(dialog))
+        button_layout.addWidget(continue_btn)
+
+        stop_btn = QPushButton("⏹️ Stop Experiment")
+        stop_btn.setMinimumHeight(40)
+        stop_btn.clicked.connect(lambda: self._handle_disconnection_stop(dialog))
+        button_layout.addWidget(stop_btn)
+
+        layout.addLayout(button_layout)
+
+        dialog.exec()
+
+    def _handle_disconnection_retry(self, dialog: QDialog, board_id: str) -> None:
+        """Attempt to reconnect to the disconnected board."""
+        dialog.accept()
+
+        # Show progress
+        self.statusBar().showMessage(f"Reconnecting to {board_id}...")
+
+        async def retry_connection():
+            try:
+                success = await self._core.hardware_manager.connect_board(board_id)
+                if success:
+                    logger.info(f"Reconnected to board {board_id}")
+                    self.statusBar().showMessage(f"Reconnected to {board_id}. Resuming...", 3000)
+                    # Resume the experiment
+                    await self._core.resume()
+                else:
+                    logger.warning(f"Failed to reconnect to board {board_id}")
+                    self.statusBar().showMessage(f"Failed to reconnect to {board_id}", 5000)
+                    # Show dialog again
+                    self._show_hardware_disconnection_dialog(
+                        board_id, BoardConnectionState.DISCONNECTED
+                    )
+            except Exception as e:
+                logger.error(f"Error reconnecting to {board_id}: {e}")
+                self.statusBar().showMessage(f"Error: {e}", 5000)
+                self._show_hardware_disconnection_dialog(
+                    board_id, BoardConnectionState.ERROR
+                )
+
+        self._run_async(retry_connection())
+
+    def _handle_disconnection_continue(self, dialog: QDialog) -> None:
+        """Continue the experiment without the disconnected hardware."""
+        dialog.accept()
+
+        reply = QMessageBox.warning(
+            self,
+            "Continue Without Hardware",
+            "Continuing without the disconnected hardware may cause errors "
+            "or unexpected behavior. Are you sure?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            logger.warning("User chose to continue experiment without disconnected hardware")
+            self._run_async(self._core.resume())
+
+    def _handle_disconnection_stop(self, dialog: QDialog) -> None:
+        """Stop the experiment due to hardware disconnection."""
+        dialog.accept()
+        logger.info("User stopped experiment due to hardware disconnection")
+        self._run_async(self._core.stop())
+        self.statusBar().showMessage("Experiment stopped", 3000)
 
     def _toggle_view(self) -> None:
         """Toggle between builder and runner views."""

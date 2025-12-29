@@ -86,6 +86,7 @@ class BaseBoard(ABC):
         self._state = BoardConnectionState.DISCONNECTED
         self._callbacks: Dict[int, List[Callable]] = {}
         self._error_callbacks: List[Callable] = []
+        self._state_callbacks: List[Callable[[BoardConnectionState], None]] = []
         self._reconnect_task: Optional[asyncio.Task] = None
         self._reconnect_interval = 5.0  # seconds (increased to reduce spam)
 
@@ -270,6 +271,26 @@ class BaseBoard(ABC):
         """Register a callback for error events."""
         self._error_callbacks.append(callback)
 
+    def register_state_callback(self, callback: Callable[[BoardConnectionState], None]) -> None:
+        """Register a callback for state change events."""
+        self._state_callbacks.append(callback)
+
+    def _set_state(self, new_state: BoardConnectionState) -> None:
+        """Set the connection state and notify callbacks."""
+        if self._state != new_state:
+            old_state = self._state
+            self._state = new_state
+            logger.debug(f"Board {self._id} state: {old_state.name} -> {new_state.name}")
+            self._notify_state_change(new_state)
+
+    def _notify_state_change(self, state: BoardConnectionState) -> None:
+        """Notify all registered state change callbacks."""
+        for callback in self._state_callbacks:
+            try:
+                callback(state)
+            except Exception:
+                pass  # Don't let callback errors propagate
+
     def _notify_callbacks(self, pin: int, value: Any) -> None:
         """Notify all registered callbacks for a pin."""
         if pin in self._callbacks:
@@ -300,7 +321,7 @@ class BaseBoard(ABC):
     def start_reconnect(self) -> None:
         """Start the automatic reconnection process."""
         if self._auto_reconnect and self._reconnect_task is None:
-            self._state = BoardConnectionState.RECONNECTING
+            self._set_state(BoardConnectionState.RECONNECTING)
             self._reconnect_task = asyncio.create_task(self._attempt_reconnect())
 
     def stop_reconnect(self) -> None:

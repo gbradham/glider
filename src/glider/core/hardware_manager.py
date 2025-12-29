@@ -156,6 +156,9 @@ class HardwareManager:
         # Register error callback
         board.register_error_callback(lambda e: self._notify_error(config.id, e))
 
+        # Register state change callback to propagate to listeners
+        board.register_state_callback(lambda state, bid=config.id: self._notify_connection_change(bid, state))
+
         # Store board and create pin manager
         self._boards[config.id] = board
         self._pin_managers[config.id] = PinManager(board)

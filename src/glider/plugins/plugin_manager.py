@@ -191,13 +191,22 @@ class PluginManager:
         if not plugin_dir.exists():
             return discovered
 
-        for item in plugin_dir.iterdir():
+        try:
+            dir_items = list(plugin_dir.iterdir())
+        except PermissionError:
+            logger.warning(f"Permission denied accessing plugin directory: {plugin_dir}")
+            return discovered
+        except OSError as e:
+            logger.warning(f"Error accessing plugin directory {plugin_dir}: {e}")
+            return discovered
+
+        for item in dir_items:
             if item.is_dir():
                 # Look for manifest.json
                 manifest_path = item / "manifest.json"
                 if manifest_path.exists():
                     try:
-                        with open(manifest_path) as f:
+                        with open(manifest_path, encoding='utf-8') as f:
                             manifest = json.load(f)
 
                         info = PluginInfo.from_dict(manifest)
@@ -205,8 +214,19 @@ class PluginManager:
                         discovered.append(info)
                         logger.debug(f"Discovered directory plugin: {info.name}")
 
+                    except json.JSONDecodeError as e:
+                        logger.warning(
+                            f"Invalid JSON in manifest {manifest_path}: "
+                            f"line {e.lineno}, column {e.colno}: {e.msg}"
+                        )
+                    except KeyError as e:
+                        logger.warning(f"Missing required field in manifest {manifest_path}: {e}")
+                    except PermissionError:
+                        logger.warning(f"Permission denied reading manifest: {manifest_path}")
+                    except UnicodeDecodeError as e:
+                        logger.warning(f"Encoding error in manifest {manifest_path}: {e}")
                     except Exception as e:
-                        logger.warning(f"Error loading manifest from {item}: {e}")
+                        logger.warning(f"Unexpected error loading manifest from {item}: {type(e).__name__}: {e}")
 
                 # Also check for __init__.py with glider_plugin info
                 elif (item / "__init__.py").exists():
@@ -308,9 +328,45 @@ class PluginManager:
             logger.info(f"Successfully loaded plugin: {name}")
             return True
 
+        except ModuleNotFoundError as e:
+            info.error = f"Module not found: {e.name}"
+            logger.error(f"Plugin {name} failed to load - module not found: {e.name}")
+            return False
+
+        except ImportError as e:
+            info.error = f"Import error: {e}"
+            logger.error(f"Plugin {name} failed to load - import error: {e}")
+            return False
+
+        except SyntaxError as e:
+            info.error = f"Syntax error in {e.filename}:{e.lineno}: {e.msg}"
+            logger.error(f"Plugin {name} has syntax error at {e.filename}:{e.lineno}: {e.msg}")
+            return False
+
+        except AttributeError as e:
+            info.error = f"Missing attribute: {e}"
+            logger.error(f"Plugin {name} failed - missing attribute: {e}")
+            return False
+
+        except TypeError as e:
+            info.error = f"Type error during setup: {e}"
+            logger.error(f"Plugin {name} setup function failed with type error: {e}")
+            return False
+
+        except FileNotFoundError as e:
+            info.error = f"File not found: {e.filename}"
+            logger.error(f"Plugin {name} failed - file not found: {e.filename}")
+            return False
+
+        except PermissionError as e:
+            info.error = f"Permission denied: {e.filename}"
+            logger.error(f"Plugin {name} failed - permission denied: {e.filename}")
+            return False
+
         except Exception as e:
-            info.error = str(e)
-            logger.error(f"Failed to load plugin {name}: {e}")
+            # Catch-all for unexpected errors
+            info.error = f"Unexpected error: {type(e).__name__}: {e}"
+            logger.error(f"Plugin {name} failed with unexpected error: {type(e).__name__}: {e}")
             return False
 
     async def _register_plugin_components(self, info: PluginInfo, module: Any) -> None:

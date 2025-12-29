@@ -262,7 +262,7 @@ class TelemetrixBoard(BaseBoard):
             # Only log once by checking if we're transitioning state
             if self._state == BoardConnectionState.CONNECTED:
                 logger.warning("Telemetrix thread died unexpectedly - marking as disconnected")
-                self._state = BoardConnectionState.DISCONNECTED
+                self._set_state(BoardConnectionState.DISCONNECTED)
             return False
 
         return True
@@ -288,7 +288,7 @@ class TelemetrixBoard(BaseBoard):
             return True
 
         try:
-            self._state = BoardConnectionState.CONNECTING
+            self._set_state(BoardConnectionState.CONNECTING)
             logger.info(f"Connecting to {self.name} on port {self._port or 'auto'}...")
 
             # Import telemetrix here to allow graceful failure if not installed
@@ -296,7 +296,7 @@ class TelemetrixBoard(BaseBoard):
                 from telemetrix_aio import telemetrix_aio
             except ImportError:
                 logger.error("telemetrix-aio not installed. Install with: pip install telemetrix-aio")
-                self._state = BoardConnectionState.ERROR
+                self._set_state(BoardConnectionState.ERROR)
                 return False
 
             # Disconnect existing connection if any
@@ -309,13 +309,13 @@ class TelemetrixBoard(BaseBoard):
             self._telemetrix_thread = TelemetrixThread()
             self._telemetrix_thread.start(self._port, sleep_tune=0.05)
 
-            self._state = BoardConnectionState.CONNECTED
+            self._set_state(BoardConnectionState.CONNECTED)
             logger.info(f"Successfully connected to {self.name}")
             return True
 
         except Exception as e:
             logger.error(f"Failed to connect to {self.name}: {e}")
-            self._state = BoardConnectionState.ERROR
+            self._set_state(BoardConnectionState.ERROR)
             self._telemetrix_thread = None
             self._notify_error(e)
             if self._auto_reconnect:
@@ -332,7 +332,7 @@ class TelemetrixBoard(BaseBoard):
                 logger.warning(f"Error during disconnect: {e}")
             finally:
                 self._telemetrix_thread = None
-        self._state = BoardConnectionState.DISCONNECTED
+        self._set_state(BoardConnectionState.DISCONNECTED)
         logger.info(f"Disconnected from {self.name}")
 
     def _call_telemetrix(self, method_name: str, *args, **kwargs) -> Any:

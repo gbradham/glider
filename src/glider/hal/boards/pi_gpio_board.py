@@ -106,7 +106,7 @@ class PiGPIOBoard(BaseBoard):
     async def connect(self) -> bool:
         """Initialize GPIO access."""
         try:
-            self._state = BoardConnectionState.CONNECTING
+            self._set_state(BoardConnectionState.CONNECTING)
             logger.info("Initializing Raspberry Pi GPIO...")
 
             # Store event loop for thread-safe callbacks
@@ -131,16 +131,16 @@ class PiGPIOBoard(BaseBoard):
 
             if not self._gpiozero_available and not self._lgpio_available:
                 logger.error("No GPIO library available. Install gpiozero or lgpio.")
-                self._state = BoardConnectionState.ERROR
+                self._set_state(BoardConnectionState.ERROR)
                 return False
 
-            self._state = BoardConnectionState.CONNECTED
+            self._set_state(BoardConnectionState.CONNECTED)
             logger.info("Raspberry Pi GPIO initialized successfully")
             return True
 
         except Exception as e:
             logger.error(f"Failed to initialize GPIO: {e}")
-            self._state = BoardConnectionState.ERROR
+            self._set_state(BoardConnectionState.ERROR)
             self._notify_error(e)
             return False
 
@@ -159,7 +159,7 @@ class PiGPIOBoard(BaseBoard):
         self._devices.clear()
         self._pin_modes.clear()
         self._pin_types.clear()
-        self._state = BoardConnectionState.DISCONNECTED
+        self._set_state(BoardConnectionState.DISCONNECTED)
         logger.info("Raspberry Pi GPIO disconnected")
 
     async def set_pin_mode(self, pin: int, mode: PinMode, pin_type: PinType = PinType.DIGITAL) -> None:

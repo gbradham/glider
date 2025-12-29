@@ -797,6 +797,29 @@ class MainWindow(QMainWindow):
 
         view_menu.addSeparator()
 
+        # Panel visibility toggles (only in desktop mode)
+        if hasattr(self, '_node_library_dock'):
+            node_library_action = self._node_library_dock.toggleViewAction()
+            node_library_action.setText("&Node Library")
+            view_menu.addAction(node_library_action)
+
+        if hasattr(self, '_properties_dock'):
+            properties_action = self._properties_dock.toggleViewAction()
+            properties_action.setText("&Properties Panel")
+            view_menu.addAction(properties_action)
+
+        if hasattr(self, '_hardware_dock'):
+            hardware_action = self._hardware_dock.toggleViewAction()
+            hardware_action.setText("&Hardware Panel")
+            view_menu.addAction(hardware_action)
+
+        if hasattr(self, '_control_dock'):
+            control_action = self._control_dock.toggleViewAction()
+            control_action.setText("&Device Control")
+            view_menu.addAction(control_action)
+
+        view_menu.addSeparator()
+
         # Window size presets
         pi_view_action = QAction("&Pi Display (480x800)", self)
         pi_view_action.triggered.connect(lambda: self._set_window_size(480, 800))

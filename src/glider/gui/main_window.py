@@ -39,6 +39,8 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QScrollArea,
     QFrame,
+    QPlainTextEdit,
+    QCheckBox,
 )
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QDrag
 from PyQt6.QtCore import Qt, QSize, pyqtSignal, pyqtSlot, QMimeData, QTimer
@@ -52,6 +54,258 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# Undo/Redo Command Pattern Implementation
+# =============================================================================
+
+class Command:
+    """Base class for undoable commands."""
+
+    def execute(self) -> None:
+        """Execute the command."""
+        raise NotImplementedError
+
+    def undo(self) -> None:
+        """Undo the command."""
+        raise NotImplementedError
+
+    def description(self) -> str:
+        """Human-readable description."""
+        return "Unknown command"
+
+
+class CreateNodeCommand(Command):
+    """Command for creating a node."""
+
+    def __init__(self, main_window: "MainWindow", node_id: str, node_type: str, x: float, y: float):
+        self._main_window = main_window
+        self._node_id = node_id
+        self._node_type = node_type
+        self._x = x
+        self._y = y
+
+    def execute(self) -> None:
+        """Create the node."""
+        # Node is already created when command is recorded
+        pass
+
+    def undo(self) -> None:
+        """Delete the node."""
+        self._main_window._graph_view.remove_node(self._node_id)
+        if self._main_window._core.session:
+            self._main_window._core.session.remove_node(self._node_id)
+
+    def description(self) -> str:
+        return f"Create {self._node_type}"
+
+
+class DeleteNodeCommand(Command):
+    """Command for deleting a node."""
+
+    def __init__(self, main_window: "MainWindow", node_id: str, node_data: dict):
+        self._main_window = main_window
+        self._node_id = node_id
+        self._node_data = node_data  # Saved node state for restoration
+
+    def execute(self) -> None:
+        """Delete is already done when command is recorded."""
+        pass
+
+    def undo(self) -> None:
+        """Restore the node."""
+        data = self._node_data
+        node_item = self._main_window._graph_view.add_node(
+            data["id"], data["node_type"], data["x"], data["y"]
+        )
+        self._main_window._setup_node_ports(node_item, data["node_type"])
+        self._main_window._graph_view._connect_port_signals(node_item)
+
+        if self._main_window._core.session:
+            from glider.core.experiment_session import NodeConfig
+            node_config = NodeConfig(
+                id=data["id"],
+                node_type=data["node_type"],
+                position=(data["x"], data["y"]),
+                state=data.get("state", {}),
+                device_id=data.get("device_id"),
+                visible_in_runner=data.get("visible_in_runner", False),
+            )
+            self._main_window._core.session.add_node(node_config)
+
+    def description(self) -> str:
+        return f"Delete {self._node_data.get('node_type', 'node')}"
+
+
+class MoveNodeCommand(Command):
+    """Command for moving a node."""
+
+    def __init__(self, main_window: "MainWindow", node_id: str, old_x: float, old_y: float, new_x: float, new_y: float):
+        self._main_window = main_window
+        self._node_id = node_id
+        self._old_x = old_x
+        self._old_y = old_y
+        self._new_x = new_x
+        self._new_y = new_y
+
+    def execute(self) -> None:
+        """Move is already done when command is recorded."""
+        pass
+
+    def undo(self) -> None:
+        """Move node back to original position."""
+        node_item = self._main_window._graph_view.nodes.get(self._node_id)
+        if node_item:
+            node_item.setPos(self._old_x, self._old_y)
+        if self._main_window._core.session:
+            self._main_window._core.session.update_node_position(self._node_id, self._old_x, self._old_y)
+
+    def description(self) -> str:
+        return "Move node"
+
+
+class CreateConnectionCommand(Command):
+    """Command for creating a connection."""
+
+    def __init__(self, main_window: "MainWindow", conn_id: str, from_node: str, from_port: int, to_node: str, to_port: int, conn_type: str):
+        self._main_window = main_window
+        self._conn_id = conn_id
+        self._from_node = from_node
+        self._from_port = from_port
+        self._to_node = to_node
+        self._to_port = to_port
+        self._conn_type = conn_type
+
+    def execute(self) -> None:
+        """Connection is already created when command is recorded."""
+        pass
+
+    def undo(self) -> None:
+        """Remove the connection."""
+        self._main_window._graph_view.remove_connection(self._conn_id)
+        if self._main_window._core.session:
+            self._main_window._core.session.remove_connection(self._conn_id)
+
+    def description(self) -> str:
+        return "Create connection"
+
+
+class DeleteConnectionCommand(Command):
+    """Command for deleting a connection."""
+
+    def __init__(self, main_window: "MainWindow", conn_id: str, conn_data: dict):
+        self._main_window = main_window
+        self._conn_id = conn_id
+        self._conn_data = conn_data
+
+    def execute(self) -> None:
+        """Deletion is already done when command is recorded."""
+        pass
+
+    def undo(self) -> None:
+        """Restore the connection."""
+        data = self._conn_data
+        self._main_window._graph_view.add_connection(
+            data["id"], data["from_node"], data["from_port"], data["to_node"], data["to_port"]
+        )
+        if self._main_window._core.session:
+            from glider.core.experiment_session import ConnectionConfig
+            conn_config = ConnectionConfig(
+                id=data["id"],
+                from_node=data["from_node"],
+                from_output=data["from_port"],
+                to_node=data["to_node"],
+                to_input=data["to_port"],
+                connection_type=data.get("conn_type", "data"),
+            )
+            self._main_window._core.session.add_connection(conn_config)
+
+    def description(self) -> str:
+        return "Delete connection"
+
+
+class PropertyChangeCommand(Command):
+    """Command for changing a node property."""
+
+    def __init__(self, main_window: "MainWindow", node_id: str, prop_name: str, old_value, new_value):
+        self._main_window = main_window
+        self._node_id = node_id
+        self._prop_name = prop_name
+        self._old_value = old_value
+        self._new_value = new_value
+
+    def execute(self) -> None:
+        """Property is already changed when command is recorded."""
+        pass
+
+    def undo(self) -> None:
+        """Restore old property value."""
+        if self._main_window._core.session:
+            self._main_window._core.session.update_node_state(self._node_id, {self._prop_name: self._old_value})
+
+    def description(self) -> str:
+        return f"Change {self._prop_name}"
+
+
+class UndoStack:
+    """Manages undo/redo history."""
+
+    def __init__(self, max_size: int = 100):
+        self._undo_stack: list[Command] = []
+        self._redo_stack: list[Command] = []
+        self._max_size = max_size
+
+    def push(self, command: Command) -> None:
+        """Add a command to the undo stack."""
+        self._undo_stack.append(command)
+        # Clear redo stack when new command is added
+        self._redo_stack.clear()
+        # Limit stack size
+        if len(self._undo_stack) > self._max_size:
+            self._undo_stack.pop(0)
+
+    def undo(self) -> Optional[Command]:
+        """Undo the last command."""
+        if not self._undo_stack:
+            return None
+        command = self._undo_stack.pop()
+        command.undo()
+        self._redo_stack.append(command)
+        return command
+
+    def redo(self) -> Optional[Command]:
+        """Redo the last undone command."""
+        if not self._redo_stack:
+            return None
+        command = self._redo_stack.pop()
+        # Re-execute by undoing the undo (for property changes, we need to swap values)
+        # For most commands, we need to re-apply the action
+        self._undo_stack.append(command)
+        return command
+
+    def can_undo(self) -> bool:
+        return len(self._undo_stack) > 0
+
+    def can_redo(self) -> bool:
+        return len(self._redo_stack) > 0
+
+    def clear(self) -> None:
+        """Clear both stacks."""
+        self._undo_stack.clear()
+        self._redo_stack.clear()
+
+    def undo_description(self) -> str:
+        """Get description of next undo action."""
+        if self._undo_stack:
+            return self._undo_stack[-1].description()
+        return ""
+
+    def redo_description(self) -> str:
+        """Get description of next redo action."""
+        if self._redo_stack:
+            return self._redo_stack[-1].description()
+        return ""
+
+
 class DraggableNodeButton(QPushButton):
     """A button that can be dragged to create nodes in the graph."""
 
@@ -60,31 +314,9 @@ class DraggableNodeButton(QPushButton):
         self._node_type = node_type
         self._category = category
 
-        # Style based on category
-        category_colors = {
-            "Hardware": ("#2d5a2d", "#3d7a3d"),
-            "Logic": ("#2d4a5a", "#3d6a7a"),
-            "Interface": ("#5a4a2d", "#7a6a3d"),
-        }
-        bg_color, hover_color = category_colors.get(category, ("#444", "#555"))
-
-        self.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {bg_color};
-                color: white;
-                border: none;
-                padding: 8px 12px;
-                text-align: left;
-                border-radius: 4px;
-                margin: 1px 0px;
-            }}
-            QPushButton:hover {{
-                background-color: {hover_color};
-            }}
-            QPushButton:pressed {{
-                background-color: #333;
-            }}
-        """)
+        # Use Qt properties for styling (defined in desktop.qss)
+        self.setProperty("nodeCategory", category)
+        self.setProperty("nodeButton", True)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
 
     def mousePressEvent(self, event):
@@ -144,6 +376,12 @@ class MainWindow(QMainWindow):
         self._core = core
         self._view_manager = ViewManager(None)
         self._view_manager.mode = view_mode
+
+        # Undo/Redo stack
+        self._undo_stack = UndoStack()
+
+        # Async task tracking to prevent garbage collection
+        self._pending_tasks: set = set()
 
         # UI components
         self._stack: Optional[QStackedWidget] = None
@@ -241,7 +479,7 @@ class MainWindow(QMainWindow):
     def _create_runner_view(self) -> None:
         """Create the runner (dashboard) view optimized for 480x800 portrait."""
         self._runner_view = QWidget()
-        self._runner_view.setStyleSheet("background-color: #0d0d1a;")
+        self._runner_view.setObjectName("runnerView")
         layout = QVBoxLayout(self._runner_view)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(8)
@@ -249,45 +487,28 @@ class MainWindow(QMainWindow):
         # === Header Bar ===
         header = QWidget()
         header.setFixedHeight(50)
-        header.setStyleSheet("background-color: #16162a; border-radius: 8px;")
+        header.setProperty("runnerHeader", True)
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(12, 4, 12, 4)
 
         # Experiment name
         self._runner_exp_name = QLabel("No Experiment")
-        self._runner_exp_name.setStyleSheet("font-size: 16px; font-weight: bold; color: #fff;")
+        self._runner_exp_name.setProperty("title", True)
         header_layout.addWidget(self._runner_exp_name)
 
         header_layout.addStretch()
 
-        # Status indicator
+        # Status indicator - uses properties for styling
         self._status_label = QLabel("IDLE")
-        self._status_label.setStyleSheet("""
-            QLabel {
-                background-color: #444;
-                color: #fff;
-                padding: 6px 14px;
-                border-radius: 12px;
-                font-size: 14px;
-                font-weight: bold;
-            }
-        """)
+        self._status_label.setProperty("runnerStatus", True)
+        self._status_label.setProperty("statusState", "IDLE")
         header_layout.addWidget(self._status_label)
 
         layout.addWidget(header)
 
         # === Recording Indicator ===
         self._runner_recording = QLabel("● REC")
-        self._runner_recording.setStyleSheet("""
-            QLabel {
-                background-color: #5a2d2d;
-                color: #ff6666;
-                padding: 4px 12px;
-                border-radius: 10px;
-                font-size: 12px;
-                font-weight: bold;
-            }
-        """)
+        self._runner_recording.setProperty("recording", True)
         self._runner_recording.setFixedHeight(28)
         self._runner_recording.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._runner_recording.hide()  # Hidden until recording starts
@@ -329,7 +550,7 @@ class MainWindow(QMainWindow):
         # === Control Buttons ===
         controls = QWidget()
         controls.setFixedHeight(160)
-        controls.setStyleSheet("background-color: #16162a; border-radius: 12px;")
+        controls.setProperty("runnerControls", True)
         controls_layout = QVBoxLayout(controls)
         controls_layout.setContentsMargins(12, 12, 12, 12)
         controls_layout.setSpacing(8)
@@ -340,37 +561,13 @@ class MainWindow(QMainWindow):
 
         self._start_btn = QPushButton("▶  START")
         self._start_btn.setFixedHeight(60)
-        self._start_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #27ae60;
-                color: white;
-                font-size: 20px;
-                font-weight: bold;
-                border-radius: 12px;
-                border: none;
-            }
-            QPushButton:pressed {
-                background-color: #1e8449;
-            }
-        """)
+        self._start_btn.setProperty("runnerAction", "start")
         self._start_btn.clicked.connect(self._on_start_clicked)
         top_row.addWidget(self._start_btn)
 
         self._stop_btn = QPushButton("■  STOP")
         self._stop_btn.setFixedHeight(60)
-        self._stop_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #7f8c8d;
-                color: white;
-                font-size: 20px;
-                font-weight: bold;
-                border-radius: 12px;
-                border: none;
-            }
-            QPushButton:pressed {
-                background-color: #5d6d6e;
-            }
-        """)
+        self._stop_btn.setProperty("runnerAction", "stop")
         self._stop_btn.clicked.connect(self._on_stop_clicked)
         top_row.addWidget(self._stop_btn)
 
@@ -379,19 +576,7 @@ class MainWindow(QMainWindow):
         # Bottom row: E-STOP (full width)
         self._emergency_btn = QPushButton("⚠  EMERGENCY STOP")
         self._emergency_btn.setFixedHeight(60)
-        self._emergency_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #c0392b;
-                color: white;
-                font-size: 18px;
-                font-weight: bold;
-                border-radius: 12px;
-                border: 3px solid #e74c3c;
-            }
-            QPushButton:pressed {
-                background-color: #922b21;
-            }
-        """)
+        self._emergency_btn.setProperty("runnerAction", "emergency")
         self._emergency_btn.clicked.connect(self._on_emergency_stop)
         controls_layout.addWidget(self._emergency_btn)
 
@@ -589,13 +774,17 @@ class MainWindow(QMainWindow):
         # Edit menu
         edit_menu = menubar.addMenu("&Edit")
 
-        undo_action = QAction("&Undo", self)
-        undo_action.setShortcut(QKeySequence.StandardKey.Undo)
-        edit_menu.addAction(undo_action)
+        self._undo_action = QAction("&Undo", self)
+        self._undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+        self._undo_action.triggered.connect(self._on_undo)
+        self._undo_action.setEnabled(False)
+        edit_menu.addAction(self._undo_action)
 
-        redo_action = QAction("&Redo", self)
-        redo_action.setShortcut(QKeySequence.StandardKey.Redo)
-        edit_menu.addAction(redo_action)
+        self._redo_action = QAction("&Redo", self)
+        self._redo_action.setShortcut(QKeySequence.StandardKey.Redo)
+        self._redo_action.triggered.connect(self._on_redo)
+        self._redo_action.setEnabled(False)
+        edit_menu.addAction(self._redo_action)
 
         # View menu
         view_menu = menubar.addMenu("&View")
@@ -707,18 +896,10 @@ class MainWindow(QMainWindow):
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         toolbar.addWidget(spacer)
 
-        # Persistent status indicator
+        # Persistent status indicator - uses properties for styling
         self._toolbar_status = QLabel("IDLE")
-        self._toolbar_status.setStyleSheet("""
-            QLabel {
-                background-color: #444;
-                color: #fff;
-                padding: 4px 12px;
-                border-radius: 4px;
-                font-weight: bold;
-                margin: 2px;
-            }
-        """)
+        self._toolbar_status.setProperty("statusIndicator", True)
+        self._toolbar_status.setProperty("statusState", "IDLE")
         toolbar.addWidget(self._toolbar_status)
 
     def _setup_status_bar(self) -> None:
@@ -744,55 +925,19 @@ class MainWindow(QMainWindow):
         state_name = state.name
         self.state_changed.emit(state_name)
 
-        # Update runner view status label with color coding
+        # Update runner view status label - uses property for color (defined in QSS)
         if hasattr(self, '_status_label'):
             self._status_label.setText(state_name)
-            # Color code based on state
-            runner_state_colors = {
-                "IDLE": "#444",       # Gray
-                "READY": "#27ae60",   # Green
-                "RUNNING": "#3498db", # Blue
-                "PAUSED": "#f39c12",  # Orange
-                "STOPPING": "#f39c12", # Orange
-                "ERROR": "#c0392b",   # Red
-                "INITIALIZING": "#9b59b6",  # Purple
-            }
-            bg_color = runner_state_colors.get(state_name, "#444")
-            self._status_label.setStyleSheet(f"""
-                QLabel {{
-                    background-color: {bg_color};
-                    color: #fff;
-                    padding: 6px 14px;
-                    border-radius: 12px;
-                    font-size: 14px;
-                    font-weight: bold;
-                }}
-            """)
+            self._status_label.setProperty("statusState", state_name)
+            self._status_label.style().unpolish(self._status_label)
+            self._status_label.style().polish(self._status_label)
 
-        # Update toolbar status indicator with color coding
+        # Update toolbar status indicator - uses property for color (defined in QSS)
         if hasattr(self, '_toolbar_status'):
             self._toolbar_status.setText(state_name)
-            # Color code based on state
-            state_colors = {
-                "IDLE": "#444",       # Gray
-                "READY": "#2d5a2d",   # Green
-                "RUNNING": "#2d4a5a", # Blue
-                "PAUSED": "#5a4a2d",  # Orange
-                "STOPPING": "#5a4a2d", # Orange
-                "ERROR": "#5a2d2d",   # Red
-                "INITIALIZING": "#4a4a2d",  # Yellow-ish
-            }
-            bg_color = state_colors.get(state_name, "#444")
-            self._toolbar_status.setStyleSheet(f"""
-                QLabel {{
-                    background-color: {bg_color};
-                    color: #fff;
-                    padding: 4px 12px;
-                    border-radius: 4px;
-                    font-weight: bold;
-                    margin: 2px;
-                }}
-            """)
+            self._toolbar_status.setProperty("statusState", state_name)
+            self._toolbar_status.style().unpolish(self._toolbar_status)
+            self._toolbar_status.style().polish(self._toolbar_status)
 
         if hasattr(self, 'statusBar') and self.statusBar():
             self.statusBar().showMessage(f"State: {state_name}")
@@ -1460,7 +1605,7 @@ class MainWindow(QMainWindow):
                 self._refresh_hardware_tree()
             except Exception as e:
                 QMessageBox.critical(self, "Connection Error", str(e))
-        asyncio.create_task(connect())
+        self._run_async(connect())
 
     def _disconnect_board(self, board_id: str) -> None:
         """Disconnect from a specific board."""
@@ -1470,7 +1615,7 @@ class MainWindow(QMainWindow):
                 self._refresh_hardware_tree()
             except Exception as e:
                 QMessageBox.critical(self, "Disconnect Error", str(e))
-        asyncio.create_task(disconnect())
+        self._run_async(disconnect())
 
     def _remove_board(self, board_id: str) -> None:
         """Remove a board."""
@@ -1486,7 +1631,7 @@ class MainWindow(QMainWindow):
                 if self._core.session:
                     self._core.session.remove_board(board_id)
                 self._refresh_hardware_tree()
-            asyncio.create_task(remove())
+            self._run_async(remove())
 
     def _remove_device(self, device_id: str) -> None:
         """Remove a device."""
@@ -1502,11 +1647,11 @@ class MainWindow(QMainWindow):
                 if self._core.session:
                     self._core.session.remove_device(device_id)
                 self._refresh_hardware_tree()
-            asyncio.create_task(remove())
+            self._run_async(remove())
 
     def _on_connect_hardware(self) -> None:
         """Connect to all hardware."""
-        asyncio.create_task(self._connect_hardware_async())
+        self._run_async(self._connect_hardware_async())
 
     async def _connect_hardware_async(self) -> None:
         """Async hardware connection."""
@@ -1525,13 +1670,36 @@ class MainWindow(QMainWindow):
 
     def _on_disconnect_hardware(self) -> None:
         """Disconnect all hardware."""
-        asyncio.create_task(self._core.hardware_manager.disconnect_all())
+        self._run_async(self._core.hardware_manager.disconnect_all())
 
     # Run operations
     @pyqtSlot()
     def _on_start_clicked(self) -> None:
         """Start experiment."""
-        asyncio.create_task(self._start_async())
+        # Check for Script nodes and warn user
+        if self._core.session:
+            script_nodes = [
+                node for node in self._core.session.flow.nodes
+                if node.node_type.replace(" ", "") == "Script"
+            ]
+            if script_nodes:
+                result = QMessageBox.warning(
+                    self,
+                    "Script Nodes Detected",
+                    f"This experiment contains {len(script_nodes)} Script node(s).\n\n"
+                    "Script nodes execute arbitrary Python code which could:\n"
+                    "- Access and modify files on your system\n"
+                    "- Make network connections\n"
+                    "- Control connected hardware unexpectedly\n\n"
+                    "Only run experiments with Script nodes from trusted sources.\n\n"
+                    "Do you want to continue?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
+                )
+                if result != QMessageBox.StandardButton.Yes:
+                    return
+
+        self._run_async(self._start_async())
 
     async def _start_async(self) -> None:
         """Async start."""
@@ -1543,7 +1711,7 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def _on_stop_clicked(self) -> None:
         """Stop experiment."""
-        asyncio.create_task(self._stop_async())
+        self._run_async(self._stop_async())
 
     async def _stop_async(self) -> None:
         """Async stop."""
@@ -1555,7 +1723,7 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def _on_emergency_stop(self) -> None:
         """Trigger emergency stop."""
-        asyncio.create_task(self._core.emergency_stop())
+        self._run_async(self._core.emergency_stop())
 
     def _on_about(self) -> None:
         """Show about dialog."""
@@ -1595,6 +1763,9 @@ class MainWindow(QMainWindow):
                 ("Output", "Output", "Write to a device (digital or PWM)"),
                 ("Input", "Input", "Read from a device (digital or analog)"),
             ],
+            "Script": [
+                ("Script", "Python Script", "Execute custom Python code (SECURITY WARNING: runs arbitrary code)"),
+            ],
         }
 
         # Category colors
@@ -1602,20 +1773,13 @@ class MainWindow(QMainWindow):
             "Flow": "#2d4a5a",  # Blue
             "Control": "#5a4a2d",  # Orange/Brown
             "I/O": "#2d5a2d",   # Green
+            "Script": "#4a2d5a",  # Purple
         }
 
         for category, nodes in node_categories.items():
-            # Category header
+            # Category header - uses Qt properties for styling (defined in desktop.qss)
             header = QLabel(category)
-            header.setStyleSheet(f"""
-                QLabel {{
-                    background-color: {category_colors.get(category, '#444')};
-                    color: white;
-                    padding: 6px;
-                    font-weight: bold;
-                    border-radius: 4px;
-                }}
-            """)
+            header.setProperty("categoryHeader", category)
             layout.addWidget(header)
 
             # Node items
@@ -1644,6 +1808,27 @@ class MainWindow(QMainWindow):
         import uuid
         from glider.core.experiment_session import NodeConfig
 
+        node_type_normalized = node_type.replace(" ", "")
+
+        # Show security warning for Script nodes
+        if node_type_normalized == "Script":
+            result = QMessageBox.warning(
+                self,
+                "Security Warning",
+                "Script nodes execute arbitrary Python code.\n\n"
+                "This is a potential security risk as the code has full access to:\n"
+                "- The file system\n"
+                "- Network connections\n"
+                "- Connected hardware\n"
+                "- System resources\n\n"
+                "Only use Script nodes with code you trust.\n\n"
+                "Do you want to continue?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            if result != QMessageBox.StandardButton.Yes:
+                return
+
         node_id = f"{node_type.lower()}_{uuid.uuid4().hex[:8]}"
 
         # Determine category from node type
@@ -1651,14 +1836,16 @@ class MainWindow(QMainWindow):
         flow_nodes = ["StartExperiment", "EndExperiment", "Delay"]
         control_nodes = ["Loop", "WaitForInput"]
         io_nodes = ["Output", "Input"]
+        script_nodes = ["Script"]
 
-        node_type_normalized = node_type.replace(" ", "")
         if node_type_normalized in flow_nodes:
             category = "logic"  # Use blue color
         elif node_type_normalized in control_nodes:
             category = "interface"  # Use orange color for control nodes
         elif node_type_normalized in io_nodes:
             category = "hardware"  # Use green color
+        elif node_type_normalized in script_nodes:
+            category = "script"  # Use purple color
 
         # Add visual node to graph
         node_item = self._graph_view.add_node(node_id, node_type, x, y)
@@ -1683,6 +1870,11 @@ class MainWindow(QMainWindow):
             )
             self._core.session.add_node(node_config)
 
+        # Add to undo stack
+        command = CreateNodeCommand(self, node_id, node_type, x, y)
+        self._undo_stack.push(command)
+        self._update_undo_redo_actions()
+
         self.statusBar().showMessage(f"Created node: {node_type}", 2000)
 
     def _setup_node_ports(self, node_item, node_type: str) -> None:
@@ -1706,6 +1898,8 @@ class MainWindow(QMainWindow):
             # I/O nodes
             "Output": ([">exec", "value"], [">next"]),  # Exec in, value to write, exec out
             "Input": ([">exec"], ["value", ">next"]),   # Exec in, outputs value and exec
+            # Script nodes
+            "Script": ([">exec", "input"], ["output", ">next"]),  # Exec in, data input, data output, exec out
         }
 
         inputs, outputs = port_configs.get(nt, ([">in"], [">out"]))
@@ -1724,9 +1918,32 @@ class MainWindow(QMainWindow):
 
     def _on_node_deleted(self, node_id: str) -> None:
         """Handle node deletion from graph view."""
-        # Remove from session
+        # Save node data for undo before deletion
+        node_data = {}
+        node_item = self._graph_view.nodes.get(node_id)
+        if node_item:
+            node_data = {
+                "id": node_id,
+                "node_type": node_item.node_type,
+                "x": node_item.pos().x(),
+                "y": node_item.pos().y(),
+            }
+
+        # Get additional data from session
         if self._core.session:
+            node_config = self._core.session.get_node(node_id)
+            if node_config:
+                node_data["state"] = node_config.state
+                node_data["device_id"] = node_config.device_id
+                node_data["visible_in_runner"] = node_config.visible_in_runner
+
+            # Remove from session
             self._core.session.remove_node(node_id)
+
+        # Add to undo stack
+        command = DeleteNodeCommand(self, node_id, node_data)
+        self._undo_stack.push(command)
+        self._update_undo_redo_actions()
 
         self.statusBar().showMessage(f"Deleted node: {node_id}", 2000)
 
@@ -1763,12 +1980,34 @@ class MainWindow(QMainWindow):
             self._core.session.add_connection(conn_config)
             logger.info(f"Saved connection: {from_node}:{from_port} -> {to_node}:{to_port} (type: {conn_type})")
 
+        # Add to undo stack
+        command = CreateConnectionCommand(self, connection_id, from_node, from_port, to_node, to_port, conn_type)
+        self._undo_stack.push(command)
+        self._update_undo_redo_actions()
+
         self.statusBar().showMessage(f"Connected: {from_node} -> {to_node}", 2000)
 
     def _on_connection_deleted(self, connection_id: str) -> None:
         """Handle connection deletion from graph view."""
+        # Save connection data for undo
+        conn_data = {"id": connection_id}
+
+        # Get connection data from session before deletion
         if self._core.session:
+            conn_config = self._core.session.get_connection(connection_id)
+            if conn_config:
+                conn_data["from_node"] = conn_config.from_node
+                conn_data["from_port"] = conn_config.from_output
+                conn_data["to_node"] = conn_config.to_node
+                conn_data["to_port"] = conn_config.to_input
+                conn_data["conn_type"] = conn_config.connection_type
+
             self._core.session.remove_connection(connection_id)
+
+        # Add to undo stack
+        command = DeleteConnectionCommand(self, connection_id, conn_data)
+        self._undo_stack.push(command)
+        self._update_undo_redo_actions()
 
         self.statusBar().showMessage(f"Deleted connection: {connection_id}", 2000)
 
@@ -1906,6 +2145,50 @@ class MainWindow(QMainWindow):
             )
             props_layout.addRow("Timeout:", timeout_spin)
 
+        # Add properties for Script node
+        elif node_type == "Script":
+            # Security warning banner - uses property for styling (defined in QSS)
+            warning_label = QLabel("WARNING: Executes arbitrary Python code")
+            warning_label.setProperty("securityWarning", True)
+            props_layout.addRow(warning_label)
+
+            # Code editor
+            code_label = QLabel("Python Code:")
+            props_layout.addRow(code_label)
+
+            code_edit = QPlainTextEdit()
+            code_edit.setMinimumHeight(200)
+            code_edit.setProperty("codeEditor", True)
+            code_edit.setPlaceholderText(
+                "# Available variables:\n"
+                "# - inputs: list of input values\n"
+                "# - outputs: list for output values\n"
+                "# - set_output(index, value): set output\n"
+                "# - device: bound hardware device\n"
+                "# - asyncio: asyncio module\n\n"
+                "# Example:\n"
+                "value = inputs[0] * 2\n"
+                "set_output(0, value)"
+            )
+
+            # Load saved code
+            saved_code = ""
+            if node_config and node_config.state:
+                saved_code = node_config.state.get("code", "")
+            code_edit.setPlainText(saved_code)
+
+            # Save code on change (with debounce)
+            def on_code_changed(nid=node_id, editor=code_edit):
+                self._on_node_property_changed(nid, "code", editor.toPlainText())
+
+            code_edit.textChanged.connect(on_code_changed)
+            props_layout.addRow(code_edit)
+
+            # Validate button
+            validate_btn = QPushButton("Validate Syntax")
+            validate_btn.clicked.connect(lambda: self._validate_script_syntax(code_edit.toPlainText()))
+            props_layout.addRow(validate_btn)
+
         self._properties_dock.setWidget(props_widget)
 
     def _on_node_device_changed(self, node_id: str, device_id: str) -> None:
@@ -1932,6 +2215,121 @@ class MainWindow(QMainWindow):
         if self._core.session:
             self._core.session.update_node_state(node_id, {prop_name: value})
             logger.info(f"Node {node_id} property '{prop_name}' changed to: {value}")
+
+    def _validate_script_syntax(self, code: str) -> None:
+        """Validate Python script syntax and show result."""
+        if not code.strip():
+            QMessageBox.information(self, "Validation", "No code to validate.")
+            return
+
+        try:
+            compile(code, "<script>", "exec")
+            QMessageBox.information(
+                self, "Validation Passed",
+                "Script syntax is valid.\n\n"
+                "Note: This only checks syntax, not runtime errors."
+            )
+        except SyntaxError as e:
+            QMessageBox.warning(
+                self, "Syntax Error",
+                f"Line {e.lineno}: {e.msg}\n\n{e.text}"
+            )
+
+    def _run_async(self, coro) -> asyncio.Task:
+        """
+        Run an async coroutine with proper task tracking.
+
+        This prevents garbage collection of the task before completion
+        and ensures proper cleanup on application exit.
+        """
+        task = asyncio.create_task(coro)
+        self._pending_tasks.add(task)
+        task.add_done_callback(self._pending_tasks.discard)
+        return task
+
+    # Undo/Redo methods
+    def _on_undo(self) -> None:
+        """Handle undo action."""
+        command = self._undo_stack.undo()
+        if command:
+            self.statusBar().showMessage(f"Undo: {command.description()}", 2000)
+            self._update_undo_redo_actions()
+
+    def _on_redo(self) -> None:
+        """Handle redo action."""
+        command = self._undo_stack.redo()
+        if command:
+            # For redo, we need to re-apply the action
+            # Most commands just need to be re-created
+            self._redo_command(command)
+            self.statusBar().showMessage(f"Redo: {command.description()}", 2000)
+            self._update_undo_redo_actions()
+
+    def _redo_command(self, command: Command) -> None:
+        """Re-apply a command for redo."""
+        if isinstance(command, CreateNodeCommand):
+            # Re-create the node
+            self._on_node_created(command._node_type, command._x, command._y)
+            # Remove the duplicate undo entry that was just added
+            if self._undo_stack._undo_stack:
+                self._undo_stack._undo_stack.pop()
+        elif isinstance(command, DeleteNodeCommand):
+            # Re-delete the node
+            node_id = command._node_id
+            self._graph_view.remove_node(node_id)
+            if self._core.session:
+                self._core.session.remove_node(node_id)
+        elif isinstance(command, MoveNodeCommand):
+            # Re-apply the move
+            node_item = self._graph_view.nodes.get(command._node_id)
+            if node_item:
+                node_item.setPos(command._new_x, command._new_y)
+            if self._core.session:
+                self._core.session.update_node_position(command._node_id, command._new_x, command._new_y)
+        elif isinstance(command, CreateConnectionCommand):
+            # Re-create the connection
+            self._graph_view.add_connection(
+                command._conn_id, command._from_node, command._from_port,
+                command._to_node, command._to_port
+            )
+            if self._core.session:
+                from glider.core.experiment_session import ConnectionConfig
+                conn_config = ConnectionConfig(
+                    id=command._conn_id,
+                    from_node=command._from_node,
+                    from_output=command._from_port,
+                    to_node=command._to_node,
+                    to_input=command._to_port,
+                    connection_type=command._conn_type,
+                )
+                self._core.session.add_connection(conn_config)
+        elif isinstance(command, DeleteConnectionCommand):
+            # Re-delete the connection
+            self._graph_view.remove_connection(command._conn_id)
+            if self._core.session:
+                self._core.session.remove_connection(command._conn_id)
+        elif isinstance(command, PropertyChangeCommand):
+            # Re-apply the property change
+            if self._core.session:
+                self._core.session.update_node_state(command._node_id, {command._prop_name: command._new_value})
+
+    def _update_undo_redo_actions(self) -> None:
+        """Update the enabled state of undo/redo menu actions."""
+        if hasattr(self, '_undo_action'):
+            can_undo = self._undo_stack.can_undo()
+            self._undo_action.setEnabled(can_undo)
+            if can_undo:
+                self._undo_action.setText(f"&Undo {self._undo_stack.undo_description()}")
+            else:
+                self._undo_action.setText("&Undo")
+
+        if hasattr(self, '_redo_action'):
+            can_redo = self._undo_stack.can_redo()
+            self._redo_action.setEnabled(can_redo)
+            if can_redo:
+                self._redo_action.setText(f"&Redo {self._undo_stack.redo_description()}")
+            else:
+                self._redo_action.setText("&Redo")
 
     # Device Control Panel methods
     def _refresh_device_combo(self) -> None:
@@ -2005,7 +2403,7 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to set output: {e}")
 
-        asyncio.create_task(set_output())
+        self._run_async(set_output())
 
     def _toggle_digital_output(self) -> None:
         """Toggle digital output."""
@@ -2026,7 +2424,7 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to toggle: {e}")
 
-        asyncio.create_task(toggle())
+        self._run_async(toggle())
 
     def _on_pwm_changed(self, value: int) -> None:
         """Handle PWM slider change."""
@@ -2045,7 +2443,7 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 logger.error(f"PWM error: {e}")
 
-        asyncio.create_task(set_pwm())
+        self._run_async(set_pwm())
 
     def _on_servo_changed(self, angle: int) -> None:
         """Handle servo slider change."""
@@ -2064,7 +2462,7 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 logger.error(f"Servo error: {e}")
 
-        asyncio.create_task(set_servo())
+        self._run_async(set_servo())
 
     def closeEvent(self, event) -> None:
         """Handle window close event."""
@@ -2073,6 +2471,12 @@ class MainWindow(QMainWindow):
             self._device_refresh_timer.stop()
 
         if self._check_save():
+            # Cancel any pending async tasks
+            for task in self._pending_tasks:
+                if not task.done():
+                    task.cancel()
+            self._pending_tasks.clear()
+
             # Shutdown core - must complete before closing to ensure devices are LOW
             try:
                 loop = asyncio.get_event_loop()

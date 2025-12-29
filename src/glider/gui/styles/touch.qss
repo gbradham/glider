@@ -570,3 +570,98 @@ QDialog {
     font-size: 20px;
     margin: 2px;
 }
+
+/* === Runner Status Colors === */
+QLabel[runnerStatus="true"] {
+    padding: 6px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff;
+}
+
+QLabel[statusState="IDLE"] {
+    background-color: #444;
+}
+
+QLabel[statusState="READY"] {
+    background-color: #27ae60;
+}
+
+QLabel[statusState="RUNNING"] {
+    background-color: #3498db;
+}
+
+QLabel[statusState="PAUSED"],
+QLabel[statusState="STOPPING"] {
+    background-color: #f39c12;
+}
+
+QLabel[statusState="ERROR"] {
+    background-color: #c0392b;
+}
+
+QLabel[statusState="INITIALIZING"] {
+    background-color: #9b59b6;
+}
+
+/* === Recording Indicator === */
+QLabel[recording="true"] {
+    background-color: #5a2d2d;
+    color: #ff6666;
+    padding: 4px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* === Runner Control Buttons === */
+QPushButton[runnerAction="start"] {
+    background-color: #27ae60;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 12px;
+    border: none;
+}
+
+QPushButton[runnerAction="start"]:pressed {
+    background-color: #1e8449;
+}
+
+QPushButton[runnerAction="stop"] {
+    background-color: #7f8c8d;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 12px;
+    border: none;
+}
+
+QPushButton[runnerAction="stop"]:pressed {
+    background-color: #5d6d6e;
+}
+
+QPushButton[runnerAction="emergency"] {
+    background-color: #c0392b;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 12px;
+    border: 3px solid #e74c3c;
+}
+
+QPushButton[runnerAction="emergency"]:pressed {
+    background-color: #922b21;
+}
+
+/* === Runner View === */
+QWidget[runnerHeader="true"] {
+    background-color: #16162a;
+    border-radius: 8px;
+}
+
+QWidget[runnerControls="true"] {
+    background-color: #16162a;
+    border-radius: 12px;
+}

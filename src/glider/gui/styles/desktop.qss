@@ -565,3 +565,218 @@ QGraphicsView {
     font-family: "Consolas", "Monaco", monospace;
     background-color: #0d0d1a;
 }
+
+/* === Node Library Buttons === */
+QPushButton[nodeCategory="Flow"] {
+    background-color: #2d4a5a;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    text-align: left;
+    border-radius: 4px;
+    margin: 1px 0px;
+}
+
+QPushButton[nodeCategory="Flow"]:hover {
+    background-color: #3d6a7a;
+}
+
+QPushButton[nodeCategory="Control"] {
+    background-color: #5a4a2d;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    text-align: left;
+    border-radius: 4px;
+    margin: 1px 0px;
+}
+
+QPushButton[nodeCategory="Control"]:hover {
+    background-color: #7a6a3d;
+}
+
+QPushButton[nodeCategory="I/O"] {
+    background-color: #2d5a2d;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    text-align: left;
+    border-radius: 4px;
+    margin: 1px 0px;
+}
+
+QPushButton[nodeCategory="I/O"]:hover {
+    background-color: #3d7a3d;
+}
+
+QPushButton[nodeCategory="Script"] {
+    background-color: #4a2d5a;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    text-align: left;
+    border-radius: 4px;
+    margin: 1px 0px;
+}
+
+QPushButton[nodeCategory="Script"]:hover {
+    background-color: #6a3d7a;
+}
+
+QPushButton[nodeButton="true"]:pressed {
+    background-color: #333;
+}
+
+/* === Node Category Headers === */
+QLabel[categoryHeader="true"] {
+    background-color: #444;
+    color: white;
+    padding: 6px;
+    font-weight: bold;
+    border-radius: 4px;
+}
+
+QLabel[categoryHeader="Flow"] {
+    background-color: #2d4a5a;
+}
+
+QLabel[categoryHeader="Control"] {
+    background-color: #5a4a2d;
+}
+
+QLabel[categoryHeader="I/O"] {
+    background-color: #2d5a2d;
+}
+
+QLabel[categoryHeader="Script"] {
+    background-color: #4a2d5a;
+}
+
+/* === Status Indicators === */
+QLabel[statusIndicator="true"] {
+    background-color: #444;
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-weight: bold;
+    margin: 2px;
+}
+
+QLabel[statusState="IDLE"] {
+    background-color: #444;
+}
+
+QLabel[statusState="READY"] {
+    background-color: #2d5a2d;
+}
+
+QLabel[statusState="RUNNING"] {
+    background-color: #2d4a5a;
+}
+
+QLabel[statusState="PAUSED"],
+QLabel[statusState="STOPPING"] {
+    background-color: #5a4a2d;
+}
+
+QLabel[statusState="ERROR"] {
+    background-color: #5a2d2d;
+}
+
+QLabel[statusState="INITIALIZING"] {
+    background-color: #4a4a2d;
+}
+
+/* === Runner Status (Larger) === */
+QLabel[runnerStatus="true"] {
+    padding: 6px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* === Security Warning === */
+QLabel[securityWarning="true"] {
+    background-color: #5a2d2d;
+    color: #ff6666;
+    padding: 8px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+/* === Recording Indicator === */
+QLabel[recording="true"] {
+    background-color: #5a2d2d;
+    color: #ff6666;
+    padding: 4px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* === Code Editor === */
+QPlainTextEdit[codeEditor="true"] {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 12px;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #3c3c3c;
+    border-radius: 4px;
+}
+
+/* === Runner View Elements === */
+QWidget[runnerHeader="true"] {
+    background-color: #16162a;
+    border-radius: 8px;
+}
+
+QWidget[runnerControls="true"] {
+    background-color: #16162a;
+    border-radius: 12px;
+}
+
+QWidget[deviceCard="true"] {
+    background-color: #1a1a2e;
+    border: 2px solid #2d2d44;
+    border-radius: 12px;
+}
+
+/* === Runner Control Buttons === */
+QPushButton[runnerAction="start"] {
+    background-color: #27ae60;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 12px;
+    border: none;
+}
+
+QPushButton[runnerAction="start"]:pressed {
+    background-color: #1e8449;
+}
+
+QPushButton[runnerAction="stop"] {
+    background-color: #7f8c8d;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 12px;
+    border: none;
+}
+
+QPushButton[runnerAction="stop"]:pressed {
+    background-color: #5d6d6e;
+}
+
+QPushButton[runnerAction="emergency"] {
+    background-color: #c0392b;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 12px;
+    border: 3px solid #e74c3c;
+}
+
+QPushButton[runnerAction="emergency"]:pressed {
+    background-color: #922b21;
+}

@@ -890,17 +890,17 @@ class MainWindow(QMainWindow):
 
         view_menu.addSeparator()
 
-        # Window size presets
-        pi_view_action = QAction("&Pi Display (480x800)", self)
-        pi_view_action.triggered.connect(lambda: self._set_window_size(480, 800))
+        # Layout presets
+        pi_view_action = QAction("&Pi Touchscreen (Tabbed)", self)
+        pi_view_action.triggered.connect(self._set_pi_touchscreen_layout)
         view_menu.addAction(pi_view_action)
 
         compact_view_action = QAction("&Compact (1024x768)", self)
         compact_view_action.triggered.connect(lambda: self._set_window_size(1024, 768))
         view_menu.addAction(compact_view_action)
 
-        default_view_action = QAction("&Default (1400x900)", self)
-        default_view_action.triggered.connect(lambda: self._set_window_size(1400, 900))
+        default_view_action = QAction("&Default Layout", self)
+        default_view_action.triggered.connect(self._set_default_layout)
         view_menu.addAction(default_view_action)
 
         # Hardware menu
@@ -1384,6 +1384,73 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(min(width, 480), min(height, 480))
         self.resize(width, height)
         self.statusBar().showMessage(f"Window resized to {width}x{height}", 2000)
+
+    def _set_pi_touchscreen_layout(self) -> None:
+        """Set up Pi Touchscreen layout with tabbed panels."""
+        # Resize window for Pi display
+        self.setMinimumSize(480, 480)
+        self.resize(480, 800)
+
+        # Collect all dock widgets
+        docks = []
+        if hasattr(self, '_node_library_dock'):
+            docks.append(self._node_library_dock)
+        if hasattr(self, '_properties_dock'):
+            docks.append(self._properties_dock)
+        if hasattr(self, '_hardware_dock'):
+            docks.append(self._hardware_dock)
+        if hasattr(self, '_control_dock'):
+            docks.append(self._control_dock)
+        if hasattr(self, '_camera_dock'):
+            docks.append(self._camera_dock)
+
+        if len(docks) < 2:
+            return
+
+        # Move all docks to bottom area for better touch access
+        for dock in docks:
+            dock.setVisible(True)
+            self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock)
+
+        # Tabify all docks together (stack them as tabs)
+        first_dock = docks[0]
+        for dock in docks[1:]:
+            self.tabifyDockWidget(first_dock, dock)
+
+        # Raise the first dock to make it visible
+        first_dock.raise_()
+
+        self.statusBar().showMessage("Pi Touchscreen layout applied", 2000)
+        logger.info("Applied Pi Touchscreen tabbed layout")
+
+    def _set_default_layout(self) -> None:
+        """Restore default desktop layout."""
+        self.resize(1400, 900)
+
+        # Restore dock positions
+        if hasattr(self, '_node_library_dock'):
+            self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._node_library_dock)
+            self._node_library_dock.setVisible(True)
+
+        if hasattr(self, '_properties_dock'):
+            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._properties_dock)
+            self._properties_dock.setVisible(True)
+
+        if hasattr(self, '_hardware_dock'):
+            self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._hardware_dock)
+            self._hardware_dock.setVisible(True)
+
+        if hasattr(self, '_control_dock'):
+            self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._control_dock)
+            self.tabifyDockWidget(self._hardware_dock, self._control_dock)
+            self._hardware_dock.raise_()
+
+        if hasattr(self, '_camera_dock'):
+            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._camera_dock)
+            self._camera_dock.setVisible(True)
+
+        self.statusBar().showMessage("Default layout restored", 2000)
+        logger.info("Restored default desktop layout")
 
     # File operations
     def _on_new(self) -> None:

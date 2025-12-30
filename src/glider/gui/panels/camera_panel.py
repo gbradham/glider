@@ -13,7 +13,7 @@ from typing import Optional, TYPE_CHECKING
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QCheckBox, QComboBox, QFrame,
-    QSizePolicy
+    QSizePolicy, QScrollArea
 )
 from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
@@ -130,7 +130,20 @@ class CameraPanel(QWidget):
         self._fps_timer.start(1000)
 
     def _setup_ui(self) -> None:
-        layout = QVBoxLayout(self)
+        # Main layout with scroll area
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        # Scroll area for the entire panel
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setStyleSheet("QScrollArea { border: none; }")
+
+        # Content widget inside scroll area
+        content_widget = QWidget()
+        layout = QVBoxLayout(content_widget)
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(8)
 
@@ -221,6 +234,10 @@ class CameraPanel(QWidget):
 
         cv_layout.addStretch()
         layout.addLayout(cv_layout)
+
+        # Set up scroll area
+        scroll_area.setWidget(content_widget)
+        main_layout.addWidget(scroll_area)
 
         # Initial camera list
         self._refresh_cameras()

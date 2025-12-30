@@ -6,7 +6,7 @@
     "author": "",
     "version": "1.0.0",
     "created_at": "2025-12-26T21:54:32.095174",
-    "modified_at": "2025-12-29T17:27:56.196354",
+    "modified_at": "2025-12-29T17:45:33.002580",
     "glider_version": "1.0.0"
   },
   "hardware": {
@@ -91,14 +91,50 @@
         "visible_in_runner": false
       },
       {
-        "id": "delay_d7a0ac82",
-        "node_type": "Delay",
+        "id": "endfunction_22d71272",
+        "node_type": "EndFunction",
         "position": [
-          447.0050000000001,
-          398.07250000000005
+          339.69850718749973,
+          679.1419371874996
+        ],
+        "state": {},
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "startfunction_08a4d377",
+        "node_type": "StartFunction",
+        "position": [
+          -62.1575,
+          667.8625
         ],
         "state": {
-          "duration": 5
+          "function_name": "Delay1Sec"
+        },
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "delay_8c5db753",
+        "node_type": "Delay",
+        "position": [
+          146.79749999999993,
+          675.7974999999997
+        ],
+        "state": {},
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "functioncall_2d83563f",
+        "node_type": "FunctionCall",
+        "position": [
+          445.6824999999999,
+          375.5899999999998
+        ],
+        "state": {
+          "function_start_id": "startfunction_08a4d377",
+          "function_name": "Delay1Sec"
         },
         "device_id": null,
         "visible_in_runner": false
@@ -130,16 +166,32 @@
         "connection_type": "exec"
       },
       {
-        "id": "conn_995e4b9f",
-        "from_node": "customdevice_847d9dce",
-        "from_output": 1,
-        "to_node": "delay_d7a0ac82",
+        "id": "conn_1a64bc85",
+        "from_node": "startfunction_08a4d377",
+        "from_output": 0,
+        "to_node": "delay_8c5db753",
         "to_input": 0,
         "connection_type": "exec"
       },
       {
-        "id": "conn_b114b089",
-        "from_node": "delay_d7a0ac82",
+        "id": "conn_3f090746",
+        "from_node": "delay_8c5db753",
+        "from_output": 0,
+        "to_node": "endfunction_22d71272",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_b2f97f26",
+        "from_node": "customdevice_847d9dce",
+        "from_output": 1,
+        "to_node": "functioncall_2d83563f",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_1fbbff4e",
+        "from_node": "functioncall_2d83563f",
         "from_output": 0,
         "to_node": "customdevice_8446b2cb",
         "to_input": 0,
@@ -173,6 +225,19 @@
           "description": ""
         }
       ]
+    }
+  },
+  "flow_functions": {
+    "cf9b56e5-d8cf-4b53-a7f2-7e03ed6872eb": {
+      "id": "cf9b56e5-d8cf-4b53-a7f2-7e03ed6872eb",
+      "name": "Untitled Function",
+      "description": "",
+      "parameters": [],
+      "outputs": [],
+      "nodes": [],
+      "connections": [],
+      "entry_node_id": null,
+      "exit_node_ids": []
     }
   }
 }

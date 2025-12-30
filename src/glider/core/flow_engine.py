@@ -226,6 +226,26 @@ class FlowEngine:
         else:
             logger.warning(f"Node does not support set_custom_device_context")
 
+    def _bind_function_runner(self, node, start_node_id: str) -> None:
+        """
+        Create and bind a FlowFunctionRunner to a FunctionCall node.
+
+        Args:
+            node: The FunctionCallNode instance
+            start_node_id: ID of the StartFunction node to invoke
+        """
+        from glider.nodes.flow_function_nodes import FlowFunctionRunner
+
+        # Create the runner
+        runner = FlowFunctionRunner(start_node_id, self)
+
+        # Bind to the node
+        if hasattr(node, 'set_function_context'):
+            node.set_function_context(start_node_id, runner)
+            logger.info(f"Bound FlowFunctionRunner for StartFunction '{start_node_id}' to node")
+        else:
+            logger.warning(f"Node does not support set_function_context")
+
     def create_node(
         self,
         node_id: str,
@@ -283,6 +303,17 @@ class FlowEngine:
                     logger.warning(f"CustomDevice node has no definition_id in state")
             else:
                 logger.warning(f"CustomDevice node missing state ({state}) or session ({session is not None})")
+
+        # Handle FunctionCall nodes - bind the runner
+        if node_type == "FunctionCall":
+            logger.info(f"FunctionCall node detected, binding runner...")
+            if state:
+                # Check both key names for compatibility
+                start_node_id = state.get("function_start_id") or state.get("start_node_id")
+                if start_node_id:
+                    self._bind_function_runner(node, start_node_id)
+                else:
+                    logger.warning(f"FunctionCall node has no function_start_id in state")
 
         # Bind to device if specified
         if device_id and self._hardware_manager:

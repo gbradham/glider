@@ -47,6 +47,8 @@ from PyQt6.QtCore import Qt, QSize, pyqtSignal, pyqtSlot, QMimeData, QTimer
 
 from glider.gui.view_manager import ViewManager, ViewMode
 from glider.gui.node_graph.graph_view import NodeGraphView
+from glider.gui.panels.camera_panel import CameraPanel
+from glider.gui.dialogs.camera_settings_dialog import CameraSettingsDialog
 from glider.hal.base_board import BoardConnectionState
 
 if TYPE_CHECKING:
@@ -780,6 +782,19 @@ class MainWindow(QMainWindow):
         self.tabifyDockWidget(self._hardware_dock, self._control_dock)
         self._hardware_dock.raise_()
 
+        # Camera Panel dock
+        self._camera_dock = QDockWidget("Camera", self)
+        self._camera_dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+        )
+        self._camera_panel = CameraPanel(
+            self._core.camera_manager,
+            self._core.cv_processor
+        )
+        self._camera_panel.settings_requested.connect(self._on_camera_settings)
+        self._camera_dock.setWidget(self._camera_panel)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._camera_dock)
+
         # Refresh hardware tree (which also refreshes the device combo)
         self._refresh_hardware_tree()
 
@@ -1484,7 +1499,7 @@ class MainWindow(QMainWindow):
                 flow_nodes = ["StartExperiment", "EndExperiment", "Delay"]
                 control_nodes = ["Loop", "WaitForInput"]
                 io_nodes = ["Output", "Input", "MotorGovernor", "CustomDevice", "CustomDeviceAction"]
-                function_nodes = ["FlowFunctionCall"]
+                function_nodes = ["FlowFunctionCall", "FunctionCall", "StartFunction", "EndFunction"]
 
                 node_type_normalized = node_type.replace(" ", "")
                 if node_type_normalized in flow_nodes:
@@ -1945,6 +1960,26 @@ class MainWindow(QMainWindow):
         """Disconnect all hardware."""
         self._run_async(self._core.hardware_manager.disconnect_all())
 
+    # Camera operations
+    def _on_camera_settings(self) -> None:
+        """Show camera settings dialog."""
+        dialog = CameraSettingsDialog(
+            camera_settings=self._core.camera_manager.settings,
+            cv_settings=self._core.cv_processor.settings,
+            parent=self
+        )
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            # Apply camera settings
+            camera_settings = dialog.get_camera_settings()
+            self._core.camera_manager.apply_settings(camera_settings)
+
+            # Apply CV settings
+            cv_settings = dialog.get_cv_settings()
+            self._core.cv_processor.update_settings(cv_settings)
+
+            logger.info("Camera settings updated")
+
     # Run operations
     @pyqtSlot()
     def _on_start_clicked(self) -> None:
@@ -2028,6 +2063,10 @@ class MainWindow(QMainWindow):
                 ("EndExperiment", "End Experiment", "Exit point - ends the experiment"),
                 ("Delay", "Delay", "Wait for a specified duration"),
             ],
+            "Functions": [
+                ("StartFunction", "Start Function", "Define a reusable function - set name in properties"),
+                ("EndFunction", "End Function", "End of function definition"),
+            ],
             "Control": [
                 ("Loop", "Loop", "Repeat actions N times (0 = infinite)"),
                 ("WaitForInput", "Wait For Input", "Wait for input trigger before continuing"),
@@ -2044,6 +2083,7 @@ class MainWindow(QMainWindow):
         # Category colors for headers
         category_colors = {
             "Flow": "#2d5a7a",      # Blue
+            "Functions": "#2d7a7a", # Teal
             "Control": "#7a5a2d",   # Orange/Brown
             "I/O": "#2d7a2d",       # Green
             "Script": "#5a2d7a",    # Purple
@@ -2341,32 +2381,108 @@ class MainWindow(QMainWindow):
             if item.widget():
                 item.widget().deleteLater()
 
-        # Add functions from session
-        if self._core.session:
-            definitions = self._core.session.flow_function_definitions
-            if definitions:
-                for def_id, def_dict in definitions.items():
-                    name = def_dict.get("name", "Unknown")
-                    btn = EditableDraggableButton(
-                        f"FlowFunction:{def_id}",
-                        name,
-                        "Flow Functions",
-                        on_edit=lambda fid=def_id: self._edit_flow_function(fid),
-                        on_delete=lambda fid=def_id: self._delete_flow_function(fid)
-                    )
-                    btn.setToolTip(f"{def_dict.get('description', '')}\n(Right-click to edit/delete)")
-                    btn.clicked.connect(lambda checked, fid=def_id: self._add_flow_function_node(fid))
-                    self._flow_functions_layout.addWidget(btn)
-            else:
-                placeholder = QLabel("No functions defined")
-                placeholder.setStyleSheet("color: #888; padding: 8px;")
-                placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                self._flow_functions_layout.addWidget(placeholder)
-        else:
-            placeholder = QLabel("No functions defined")
-            placeholder.setStyleSheet("color: #888; padding: 8px;")
+        has_functions = False
+
+        # Detect graph-defined functions (StartFunction -> EndFunction chains)
+        detected_functions = self._detect_graph_functions()
+        if detected_functions:
+            for func_info in detected_functions:
+                has_functions = True
+                func_name = func_info["name"]
+                start_node_id = func_info["start_node_id"]
+
+                btn = DraggableNodeButton(
+                    f"FunctionCall:{start_node_id}",
+                    func_name,
+                    "Functions"
+                )
+                btn.setToolTip(f"Call function '{func_name}'")
+                btn.clicked.connect(
+                    lambda checked, nid=start_node_id, name=func_name: self._add_function_call_node(nid, name)
+                )
+                self._flow_functions_layout.addWidget(btn)
+
+        if not has_functions:
+            placeholder = QLabel("Define functions with StartFunction → EndFunction")
+            placeholder.setStyleSheet("color: #888; padding: 8px; font-size: 10px;")
+            placeholder.setWordWrap(True)
             placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._flow_functions_layout.addWidget(placeholder)
+
+    def _detect_graph_functions(self) -> list:
+        """
+        Detect complete function definitions in the graph.
+
+        A function is defined when a StartFunction node is connected
+        (directly or through other nodes) to an EndFunction node.
+
+        Returns:
+            List of function info dicts with 'name', 'start_node_id', 'end_node_ids'
+        """
+        if not self._core.session:
+            return []
+
+        functions = []
+        flow = self._core.session.flow
+
+        # Find all StartFunction nodes
+        start_nodes = [n for n in flow.nodes if n.node_type == "StartFunction"]
+
+        for start_node in start_nodes:
+            # Get function name from state
+            func_name = "MyFunction"
+            if start_node.state:
+                func_name = start_node.state.get("function_name", "MyFunction")
+
+            # Check if this StartFunction leads to an EndFunction
+            if self._trace_to_end_function(start_node.id, flow):
+                functions.append({
+                    "name": func_name,
+                    "start_node_id": start_node.id,
+                })
+
+        return functions
+
+    def _trace_to_end_function(self, start_id: str, flow) -> bool:
+        """
+        Trace from a node to see if it eventually reaches an EndFunction.
+
+        Args:
+            start_id: Starting node ID
+            flow: The flow configuration
+
+        Returns:
+            True if an EndFunction is reachable
+        """
+        visited = set()
+        to_visit = [start_id]
+
+        while to_visit:
+            current_id = to_visit.pop()
+            if current_id in visited:
+                continue
+            visited.add(current_id)
+
+            # Check if this node is an EndFunction
+            for node in flow.nodes:
+                if node.id == current_id and node.node_type == "EndFunction":
+                    return True
+
+            # Find outgoing connections
+            for conn in flow.connections:
+                if conn.from_node == current_id:
+                    to_visit.append(conn.to_node)
+
+        return False
+
+    def _add_function_call_node(self, start_node_id: str, func_name: str) -> None:
+        """Add a FunctionCall node to the graph."""
+        if hasattr(self, '_graph_view'):
+            center = self._graph_view.mapToScene(
+                self._graph_view.viewport().rect().center()
+            )
+            # Create a FunctionCall node with the function reference
+            self._graph_view.node_created.emit(f"FunctionCall:{start_node_id}", center.x(), center.y())
 
     def _add_custom_device_node(self, definition_id: str) -> None:
         """Add a custom device action node to the graph."""
@@ -2519,6 +2635,19 @@ class MainWindow(QMainWindow):
                 if def_dict:
                     display_name = def_dict.get("name", "Custom Device")
                     initial_state["definition_id"] = definition_id
+        elif node_type.startswith("FunctionCall:"):
+            # FunctionCall: is followed by the StartFunction node ID
+            start_node_id = node_type.split(":", 1)[1]
+            actual_node_type = "FunctionCall"
+            # Get function name from the StartFunction node
+            if self._core.session:
+                start_node = self._core.session.get_node(start_node_id)
+                if start_node and start_node.state:
+                    display_name = start_node.state.get("function_name", "Function")
+                else:
+                    display_name = "Function"
+                initial_state["function_start_id"] = start_node_id
+                initial_state["function_name"] = display_name
         elif node_type.startswith("FlowFunction:"):
             definition_id = node_type.split(":", 1)[1]
             actual_node_type = "FlowFunctionCall"
@@ -2558,7 +2687,7 @@ class MainWindow(QMainWindow):
         control_nodes = ["Loop", "WaitForInput"]
         io_nodes = ["Output", "Input", "MotorGovernor", "CustomDeviceAction"]
         script_nodes = ["Script"]
-        function_nodes = ["FlowFunctionCall"]
+        function_nodes = ["FlowFunctionCall", "FunctionCall", "StartFunction", "EndFunction"]
 
         if node_type_normalized in flow_nodes:
             category = "logic"  # Use blue color
@@ -2629,8 +2758,12 @@ class MainWindow(QMainWindow):
             # Custom device action node
             "CustomDevice": ([">exec"], ["value", ">next"]),  # Exec in, value out, exec out
             "CustomDeviceAction": ([">exec"], ["value", ">next"]),  # Alias for backward compatibility
+            # Flow function definition nodes
+            "StartFunction": ([], [">next"]),  # No inputs, exec out
+            "EndFunction": ([">exec"], []),    # Exec in, no outputs
             # Flow function call node
-            "FlowFunctionCall": ([">exec"], [">next"]),  # Exec in, exec out
+            "FunctionCall": ([">exec"], [">next"]),  # Exec in, exec out
+            "FlowFunctionCall": ([">exec"], [">next"]),  # Legacy alias
             # Script nodes
             "Script": ([">exec", "input"], ["output", ">next"]),  # Exec in, data input, data output, exec out
         }
@@ -2720,6 +2853,9 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage(f"Connected: {from_node} -> {to_node}", 2000)
 
+        # Refresh flow functions in case a function definition was completed
+        self._refresh_flow_functions()
+
     def _on_connection_deleted(self, connection_id: str) -> None:
         """Handle connection deletion from graph view."""
         # Save connection data for undo
@@ -2743,6 +2879,9 @@ class MainWindow(QMainWindow):
         self._update_undo_redo_actions()
 
         self.statusBar().showMessage(f"Deleted connection: {connection_id}", 2000)
+
+        # Refresh flow functions in case a function definition was broken
+        self._refresh_flow_functions()
 
     def _update_properties_panel(self, node_id: str) -> None:
         """Update the properties panel for the selected node."""
@@ -2809,6 +2948,26 @@ class MainWindow(QMainWindow):
                 lambda val, nid=node_id: self._on_node_property_changed(nid, "duration", val)
             )
             props_layout.addRow("Duration:", duration_spin)
+
+        # Add function name editor for StartFunction node
+        elif node_type == "StartFunction":
+            name_edit = QLineEdit()
+            name_edit.setPlaceholderText("Enter function name")
+            # Load saved function name from session
+            saved_name = "MyFunction"
+            if node_config and node_config.state:
+                saved_name = node_config.state.get("function_name", "MyFunction")
+            name_edit.setText(saved_name)
+            name_edit.textChanged.connect(
+                lambda text, nid=node_id: self._on_node_property_changed(nid, "function_name", text)
+            )
+            props_layout.addRow("Function Name:", name_edit)
+
+            # Info label
+            info_label = QLabel("Connect to EndFunction to define a reusable function.")
+            info_label.setWordWrap(True)
+            info_label.setStyleSheet("color: #888; font-size: 10px;")
+            props_layout.addRow(info_label)
 
         # Add HIGH/LOW selector for Output node
         if node_type == "Output":
@@ -3108,6 +3267,10 @@ class MainWindow(QMainWindow):
         if self._core.session:
             self._core.session.update_node_state(node_id, {prop_name: value})
             logger.info(f"Node {node_id} property '{prop_name}' changed to: {value}")
+
+            # Refresh flow functions if function name changed
+            if prop_name == "function_name":
+                self._refresh_flow_functions()
 
     def _validate_script_syntax(self, code: str) -> None:
         """Validate Python script syntax and show result."""

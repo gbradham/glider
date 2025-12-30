@@ -1,0 +1,54 @@
+"""
+GLIDER Vision Module - Video recording and computer vision.
+
+Provides:
+- Camera management and webcam capture
+- Video recording synchronized with experiments
+- Real-time computer vision processing
+- Object detection and tracking
+- Tracking data logging to CSV
+"""
+
+from glider.vision.camera_manager import (
+    CameraManager,
+    CameraInfo,
+    CameraSettings,
+    CameraState,
+)
+from glider.vision.video_recorder import (
+    VideoRecorder,
+    RecordingState,
+    VideoFormat,
+)
+from glider.vision.cv_processor import (
+    CVProcessor,
+    CVSettings,
+    Detection,
+    TrackedObject,
+    MotionResult,
+    DetectionBackend,
+    ObjectTracker,
+)
+from glider.vision.tracking_logger import TrackingDataLogger
+
+__all__ = [
+    # Camera
+    "CameraManager",
+    "CameraInfo",
+    "CameraSettings",
+    "CameraState",
+    # Video Recording
+    "VideoRecorder",
+    "RecordingState",
+    "VideoFormat",
+    # Computer Vision
+    "CVProcessor",
+    "CVSettings",
+    "Detection",
+    "TrackedObject",
+    "MotionResult",
+    "DetectionBackend",
+    "ObjectTracker",
+    # Tracking Data
+    "TrackingDataLogger",
+]

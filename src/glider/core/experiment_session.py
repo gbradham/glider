@@ -134,6 +134,56 @@ class DeviceConfig:
 
 
 @dataclass
+class CameraConfig:
+    """Configuration for camera and computer vision settings."""
+    camera_index: int = 0
+    resolution: tuple = (640, 480)
+    fps: int = 30
+    exposure: int = -1  # -1 = auto
+    brightness: int = 128
+    contrast: int = 128
+    cv_enabled: bool = True
+    cv_backend: str = "background_subtraction"
+    confidence_threshold: float = 0.5
+    tracking_enabled: bool = True
+    max_disappeared: int = 50
+    video_recording_enabled: bool = True
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "camera_index": self.camera_index,
+            "resolution": list(self.resolution),
+            "fps": self.fps,
+            "exposure": self.exposure,
+            "brightness": self.brightness,
+            "contrast": self.contrast,
+            "cv_enabled": self.cv_enabled,
+            "cv_backend": self.cv_backend,
+            "confidence_threshold": self.confidence_threshold,
+            "tracking_enabled": self.tracking_enabled,
+            "max_disappeared": self.max_disappeared,
+            "video_recording_enabled": self.video_recording_enabled,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "CameraConfig":
+        return cls(
+            camera_index=data.get("camera_index", 0),
+            resolution=tuple(data.get("resolution", [640, 480])),
+            fps=data.get("fps", 30),
+            exposure=data.get("exposure", -1),
+            brightness=data.get("brightness", 128),
+            contrast=data.get("contrast", 128),
+            cv_enabled=data.get("cv_enabled", True),
+            cv_backend=data.get("cv_backend", "background_subtraction"),
+            confidence_threshold=data.get("confidence_threshold", 0.5),
+            tracking_enabled=data.get("tracking_enabled", True),
+            max_disappeared=data.get("max_disappeared", 50),
+            video_recording_enabled=data.get("video_recording_enabled", True),
+        )
+
+
+@dataclass
 class HardwareConfig:
     """Complete hardware configuration."""
     boards: List[BoardConfig] = field(default_factory=list)
@@ -275,6 +325,7 @@ class ExperimentSession:
         self._hardware = HardwareConfig()
         self._flow = FlowConfig()
         self._dashboard = DashboardConfig()
+        self._camera = CameraConfig()
         self._state = SessionState.IDLE
         self._dirty = False  # Has unsaved changes
         self._file_path: Optional[str] = None
@@ -306,6 +357,11 @@ class ExperimentSession:
     def dashboard(self) -> DashboardConfig:
         """Dashboard configuration."""
         return self._dashboard
+
+    @property
+    def camera(self) -> CameraConfig:
+        """Camera configuration."""
+        return self._camera
 
     @property
     def custom_device_definitions(self) -> Dict[str, Any]:
@@ -513,6 +569,7 @@ class ExperimentSession:
             "hardware": self._hardware.to_dict(),
             "flow": self._flow.to_dict(),
             "dashboard": self._dashboard.to_dict(),
+            "camera": self._camera.to_dict(),
         }
         # Only include custom definitions if there are any
         if self._custom_device_definitions:
@@ -529,6 +586,7 @@ class ExperimentSession:
         session._hardware = HardwareConfig.from_dict(data.get("hardware", {}))
         session._flow = FlowConfig.from_dict(data.get("flow", {}))
         session._dashboard = DashboardConfig.from_dict(data.get("dashboard", {}))
+        session._camera = CameraConfig.from_dict(data.get("camera", {}))
         # Load custom definitions
         session._custom_device_definitions = data.get("custom_devices", {})
         session._flow_function_definitions = data.get("flow_functions", {})
@@ -592,6 +650,7 @@ class ExperimentSession:
         self._hardware = HardwareConfig()
         self._flow = FlowConfig()
         self._dashboard = DashboardConfig()
+        self._camera = CameraConfig()
         self._custom_device_definitions = {}
         self._flow_function_definitions = {}
         self._state = SessionState.IDLE

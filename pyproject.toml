@@ -35,6 +35,8 @@ dependencies = [
     "jsonschema>=4.0.0",
     "pyqtgraph>=0.13.0",
     "numpy>=1.21.0",
+    "opencv-python>=4.8.0",
+    "scipy>=1.10.0",
 ]
 
 [project.optional-dependencies]
@@ -44,6 +46,9 @@ rpi = [
 ]
 ryven = [
     "ryvencore>=0.4.0",
+]
+vision = [
+    "ultralytics>=8.0.0",  # YOLO v8 for advanced object detection
 ]
 dev = [
     "pytest>=7.0.0",

@@ -1,0 +1,418 @@
+"""
+Camera Settings Dialog - Configure camera and CV parameters.
+
+Provides tabbed interface for camera settings, computer vision
+configuration, and tracking parameters.
+"""
+
+import logging
+from typing import Optional, List, Tuple
+
+from PyQt6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
+    QTabWidget, QWidget, QGroupBox, QLabel,
+    QComboBox, QSpinBox, QDoubleSpinBox, QCheckBox,
+    QSlider, QPushButton, QDialogButtonBox, QFileDialog,
+    QLineEdit
+)
+from PyQt6.QtCore import Qt
+
+from glider.vision.camera_manager import CameraSettings, CameraManager
+from glider.vision.cv_processor import CVSettings, DetectionBackend
+
+logger = logging.getLogger(__name__)
+
+
+class CameraSettingsDialog(QDialog):
+    """Dialog for configuring camera and CV settings."""
+
+    def __init__(
+        self,
+        camera_settings: Optional[CameraSettings] = None,
+        cv_settings: Optional[CVSettings] = None,
+        parent=None
+    ):
+        super().__init__(parent)
+        self._camera_settings = camera_settings or CameraSettings()
+        self._cv_settings = cv_settings or CVSettings()
+        self._setup_ui()
+        self._load_settings()
+
+    def _setup_ui(self):
+        self.setWindowTitle("Camera Settings")
+        self.setMinimumSize(500, 450)
+
+        layout = QVBoxLayout(self)
+
+        # Tab widget
+        self._tabs = QTabWidget()
+        layout.addWidget(self._tabs)
+
+        # Camera tab
+        self._camera_tab = self._create_camera_tab()
+        self._tabs.addTab(self._camera_tab, "Camera")
+
+        # Computer Vision tab
+        self._cv_tab = self._create_cv_tab()
+        self._tabs.addTab(self._cv_tab, "Computer Vision")
+
+        # Tracking tab
+        self._tracking_tab = self._create_tracking_tab()
+        self._tabs.addTab(self._tracking_tab, "Tracking")
+
+        # Dialog buttons
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok |
+            QDialogButtonBox.StandardButton.Cancel |
+            QDialogButtonBox.StandardButton.Apply
+        )
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        apply_btn = button_box.button(QDialogButtonBox.StandardButton.Apply)
+        apply_btn.clicked.connect(self._apply_settings)
+        layout.addWidget(button_box)
+
+    def _create_camera_tab(self) -> QWidget:
+        """Create the camera settings tab."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        # Resolution group
+        res_group = QGroupBox("Resolution")
+        res_layout = QFormLayout(res_group)
+
+        self._resolution_combo = QComboBox()
+        self._resolution_combo.addItem("320x240", (320, 240))
+        self._resolution_combo.addItem("640x480", (640, 480))
+        self._resolution_combo.addItem("800x600", (800, 600))
+        self._resolution_combo.addItem("1280x720 (HD)", (1280, 720))
+        self._resolution_combo.addItem("1920x1080 (Full HD)", (1920, 1080))
+        res_layout.addRow("Resolution:", self._resolution_combo)
+
+        self._fps_spin = QSpinBox()
+        self._fps_spin.setRange(1, 120)
+        self._fps_spin.setValue(30)
+        self._fps_spin.setSuffix(" fps")
+        res_layout.addRow("Frame Rate:", self._fps_spin)
+
+        layout.addWidget(res_group)
+
+        # Image settings group
+        image_group = QGroupBox("Image Settings")
+        image_layout = QFormLayout(image_group)
+
+        # Exposure
+        exposure_layout = QHBoxLayout()
+        self._auto_exposure_cb = QCheckBox("Auto")
+        self._auto_exposure_cb.toggled.connect(self._on_auto_exposure_toggle)
+        exposure_layout.addWidget(self._auto_exposure_cb)
+
+        self._exposure_slider = QSlider(Qt.Orientation.Horizontal)
+        self._exposure_slider.setRange(-10, 0)
+        self._exposure_slider.setValue(-5)
+        exposure_layout.addWidget(self._exposure_slider)
+
+        self._exposure_label = QLabel("-5")
+        self._exposure_label.setMinimumWidth(30)
+        self._exposure_slider.valueChanged.connect(
+            lambda v: self._exposure_label.setText(str(v))
+        )
+        exposure_layout.addWidget(self._exposure_label)
+
+        image_layout.addRow("Exposure:", exposure_layout)
+
+        # Brightness
+        brightness_layout = QHBoxLayout()
+        self._brightness_slider = QSlider(Qt.Orientation.Horizontal)
+        self._brightness_slider.setRange(0, 255)
+        self._brightness_slider.setValue(128)
+        brightness_layout.addWidget(self._brightness_slider)
+
+        self._brightness_label = QLabel("128")
+        self._brightness_label.setMinimumWidth(30)
+        self._brightness_slider.valueChanged.connect(
+            lambda v: self._brightness_label.setText(str(v))
+        )
+        brightness_layout.addWidget(self._brightness_label)
+
+        image_layout.addRow("Brightness:", brightness_layout)
+
+        # Contrast
+        contrast_layout = QHBoxLayout()
+        self._contrast_slider = QSlider(Qt.Orientation.Horizontal)
+        self._contrast_slider.setRange(0, 255)
+        self._contrast_slider.setValue(128)
+        contrast_layout.addWidget(self._contrast_slider)
+
+        self._contrast_label = QLabel("128")
+        self._contrast_label.setMinimumWidth(30)
+        self._contrast_slider.valueChanged.connect(
+            lambda v: self._contrast_label.setText(str(v))
+        )
+        contrast_layout.addWidget(self._contrast_label)
+
+        image_layout.addRow("Contrast:", contrast_layout)
+
+        layout.addWidget(image_group)
+        layout.addStretch()
+
+        return widget
+
+    def _create_cv_tab(self) -> QWidget:
+        """Create the computer vision settings tab."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        # Enable CV
+        self._cv_enabled_cb = QCheckBox("Enable Computer Vision Processing")
+        self._cv_enabled_cb.toggled.connect(self._on_cv_enabled_toggle)
+        layout.addWidget(self._cv_enabled_cb)
+
+        # Detection group
+        detection_group = QGroupBox("Detection")
+        detection_layout = QFormLayout(detection_group)
+
+        self._backend_combo = QComboBox()
+        self._backend_combo.addItem("Background Subtraction", DetectionBackend.BACKGROUND_SUBTRACTION)
+        self._backend_combo.addItem("Motion Detection Only", DetectionBackend.MOTION_ONLY)
+        self._backend_combo.addItem("YOLO v8 (requires ultralytics)", DetectionBackend.YOLO_V8)
+        self._backend_combo.currentIndexChanged.connect(self._on_backend_changed)
+        detection_layout.addRow("Backend:", self._backend_combo)
+
+        # YOLO model path (only visible for YOLO backend)
+        model_layout = QHBoxLayout()
+        self._model_path_edit = QLineEdit()
+        self._model_path_edit.setPlaceholderText("Path to YOLO model (.pt)")
+        model_layout.addWidget(self._model_path_edit)
+
+        self._browse_model_btn = QPushButton("Browse...")
+        self._browse_model_btn.clicked.connect(self._browse_model)
+        model_layout.addWidget(self._browse_model_btn)
+
+        self._model_path_label = QLabel("Model Path:")
+        detection_layout.addRow(self._model_path_label, model_layout)
+
+        # Confidence threshold
+        self._confidence_spin = QDoubleSpinBox()
+        self._confidence_spin.setRange(0.1, 1.0)
+        self._confidence_spin.setSingleStep(0.05)
+        self._confidence_spin.setValue(0.5)
+        detection_layout.addRow("Confidence Threshold:", self._confidence_spin)
+
+        # Min contour area
+        self._min_area_spin = QSpinBox()
+        self._min_area_spin.setRange(100, 50000)
+        self._min_area_spin.setValue(500)
+        self._min_area_spin.setSuffix(" px")
+        detection_layout.addRow("Min Detection Area:", self._min_area_spin)
+
+        layout.addWidget(detection_group)
+
+        # Overlay group
+        overlay_group = QGroupBox("Display")
+        overlay_layout = QFormLayout(overlay_group)
+
+        self._draw_overlays_cb = QCheckBox("Draw Bounding Boxes")
+        self._draw_overlays_cb.setChecked(True)
+        overlay_layout.addRow(self._draw_overlays_cb)
+
+        self._draw_tracks_cb = QCheckBox("Draw Motion Tracks")
+        self._draw_tracks_cb.setChecked(True)
+        overlay_layout.addRow(self._draw_tracks_cb)
+
+        self._draw_contours_cb = QCheckBox("Draw Motion Contours")
+        self._draw_contours_cb.setChecked(False)
+        overlay_layout.addRow(self._draw_contours_cb)
+
+        layout.addWidget(overlay_group)
+        layout.addStretch()
+
+        return widget
+
+    def _create_tracking_tab(self) -> QWidget:
+        """Create the tracking settings tab."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        # Enable tracking
+        self._tracking_enabled_cb = QCheckBox("Enable Object Tracking")
+        self._tracking_enabled_cb.toggled.connect(self._on_tracking_enabled_toggle)
+        layout.addWidget(self._tracking_enabled_cb)
+
+        # Tracking parameters
+        tracking_group = QGroupBox("Tracking Parameters")
+        tracking_layout = QFormLayout(tracking_group)
+
+        self._max_disappeared_spin = QSpinBox()
+        self._max_disappeared_spin.setRange(1, 200)
+        self._max_disappeared_spin.setValue(50)
+        self._max_disappeared_spin.setSuffix(" frames")
+        tracking_layout.addRow("Max Disappeared:", self._max_disappeared_spin)
+
+        help_label = QLabel(
+            "Number of consecutive frames an object can be missing\n"
+            "before it is deregistered from tracking."
+        )
+        help_label.setStyleSheet("color: #888; font-size: 11px;")
+        tracking_layout.addRow(help_label)
+
+        self._max_distance_spin = QSpinBox()
+        self._max_distance_spin.setRange(10, 500)
+        self._max_distance_spin.setValue(100)
+        self._max_distance_spin.setSuffix(" px")
+        tracking_layout.addRow("Max Distance:", self._max_distance_spin)
+
+        distance_help = QLabel(
+            "Maximum distance (in pixels) an object can move\n"
+            "between frames and still be considered the same object."
+        )
+        distance_help.setStyleSheet("color: #888; font-size: 11px;")
+        tracking_layout.addRow(distance_help)
+
+        layout.addWidget(tracking_group)
+
+        # Motion detection
+        motion_group = QGroupBox("Motion Detection")
+        motion_layout = QFormLayout(motion_group)
+
+        self._motion_threshold_spin = QSpinBox()
+        self._motion_threshold_spin.setRange(1, 100)
+        self._motion_threshold_spin.setValue(25)
+        motion_layout.addRow("Motion Threshold:", self._motion_threshold_spin)
+
+        self._motion_area_spin = QDoubleSpinBox()
+        self._motion_area_spin.setRange(0.1, 50.0)
+        self._motion_area_spin.setValue(1.0)
+        self._motion_area_spin.setSuffix(" %")
+        motion_layout.addRow("Min Motion Area:", self._motion_area_spin)
+
+        layout.addWidget(motion_group)
+        layout.addStretch()
+
+        return widget
+
+    def _load_settings(self):
+        """Load current settings into the UI."""
+        # Camera settings
+        res = self._camera_settings.resolution
+        for i in range(self._resolution_combo.count()):
+            if self._resolution_combo.itemData(i) == res:
+                self._resolution_combo.setCurrentIndex(i)
+                break
+
+        self._fps_spin.setValue(self._camera_settings.fps)
+
+        if self._camera_settings.exposure == -1:
+            self._auto_exposure_cb.setChecked(True)
+        else:
+            self._auto_exposure_cb.setChecked(False)
+            self._exposure_slider.setValue(self._camera_settings.exposure)
+
+        self._brightness_slider.setValue(self._camera_settings.brightness)
+        self._contrast_slider.setValue(self._camera_settings.contrast)
+
+        # CV settings
+        self._cv_enabled_cb.setChecked(self._cv_settings.enabled)
+
+        for i in range(self._backend_combo.count()):
+            if self._backend_combo.itemData(i) == self._cv_settings.backend:
+                self._backend_combo.setCurrentIndex(i)
+                break
+
+        if self._cv_settings.model_path:
+            self._model_path_edit.setText(self._cv_settings.model_path)
+
+        self._confidence_spin.setValue(self._cv_settings.confidence_threshold)
+        self._min_area_spin.setValue(self._cv_settings.min_contour_area)
+        self._draw_overlays_cb.setChecked(self._cv_settings.draw_overlays)
+
+        # Tracking settings
+        self._tracking_enabled_cb.setChecked(self._cv_settings.tracking_enabled)
+        self._max_disappeared_spin.setValue(self._cv_settings.max_disappeared)
+
+        # Update UI state
+        self._on_cv_enabled_toggle(self._cv_settings.enabled)
+        self._on_backend_changed(self._backend_combo.currentIndex())
+        self._on_tracking_enabled_toggle(self._cv_settings.tracking_enabled)
+
+    def _on_auto_exposure_toggle(self, checked: bool):
+        """Handle auto exposure toggle."""
+        self._exposure_slider.setEnabled(not checked)
+        self._exposure_label.setEnabled(not checked)
+
+    def _on_cv_enabled_toggle(self, enabled: bool):
+        """Handle CV enabled toggle."""
+        self._backend_combo.setEnabled(enabled)
+        self._confidence_spin.setEnabled(enabled)
+        self._min_area_spin.setEnabled(enabled)
+        self._draw_overlays_cb.setEnabled(enabled)
+        self._draw_tracks_cb.setEnabled(enabled)
+        self._draw_contours_cb.setEnabled(enabled)
+        if enabled:
+            self._on_backend_changed(self._backend_combo.currentIndex())
+
+    def _on_backend_changed(self, index: int):
+        """Handle backend selection change."""
+        backend = self._backend_combo.itemData(index)
+        is_yolo = backend == DetectionBackend.YOLO_V8
+        self._model_path_edit.setVisible(is_yolo)
+        self._model_path_label.setVisible(is_yolo)
+        self._browse_model_btn.setVisible(is_yolo)
+
+    def _on_tracking_enabled_toggle(self, enabled: bool):
+        """Handle tracking enabled toggle."""
+        self._max_disappeared_spin.setEnabled(enabled)
+        self._max_distance_spin.setEnabled(enabled)
+
+    def _browse_model(self):
+        """Browse for YOLO model file."""
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select YOLO Model",
+            "",
+            "PyTorch Models (*.pt);;All Files (*)"
+        )
+        if path:
+            self._model_path_edit.setText(path)
+
+    def _apply_settings(self):
+        """Apply settings without closing dialog."""
+        self._save_settings()
+        logger.info("Camera settings applied")
+
+    def _save_settings(self):
+        """Save UI values to settings objects."""
+        # Camera settings
+        self._camera_settings.resolution = self._resolution_combo.currentData()
+        self._camera_settings.fps = self._fps_spin.value()
+
+        if self._auto_exposure_cb.isChecked():
+            self._camera_settings.exposure = -1
+        else:
+            self._camera_settings.exposure = self._exposure_slider.value()
+
+        self._camera_settings.brightness = self._brightness_slider.value()
+        self._camera_settings.contrast = self._contrast_slider.value()
+
+        # CV settings
+        self._cv_settings.enabled = self._cv_enabled_cb.isChecked()
+        self._cv_settings.backend = self._backend_combo.currentData()
+        self._cv_settings.model_path = self._model_path_edit.text() or None
+        self._cv_settings.confidence_threshold = self._confidence_spin.value()
+        self._cv_settings.min_contour_area = self._min_area_spin.value()
+        self._cv_settings.draw_overlays = self._draw_overlays_cb.isChecked()
+        self._cv_settings.tracking_enabled = self._tracking_enabled_cb.isChecked()
+        self._cv_settings.max_disappeared = self._max_disappeared_spin.value()
+
+    def accept(self):
+        """Handle dialog acceptance."""
+        self._save_settings()
+        super().accept()
+
+    def get_camera_settings(self) -> CameraSettings:
+        """Get the camera settings."""
+        return self._camera_settings
+
+    def get_cv_settings(self) -> CVSettings:
+        """Get the CV settings."""
+        return self._cv_settings

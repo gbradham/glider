@@ -16,6 +16,10 @@ from glider.core.experiment_session import ExperimentSession, SessionState
 from glider.core.hardware_manager import HardwareManager
 from glider.core.flow_engine import FlowEngine, FlowState
 from glider.core.data_recorder import DataRecorder
+from glider.vision.camera_manager import CameraManager
+from glider.vision.video_recorder import VideoRecorder
+from glider.vision.cv_processor import CVProcessor
+from glider.vision.tracking_logger import TrackingDataLogger
 
 if TYPE_CHECKING:
     from glider.plugins.plugin_manager import PluginManager
@@ -42,9 +46,17 @@ class GliderCore:
         self._plugin_manager: Optional["PluginManager"] = None
         self._data_recorder = DataRecorder(self._hardware_manager)
 
+        # Vision components
+        self._camera_manager = CameraManager()
+        self._cv_processor = CVProcessor()
+        self._video_recorder = VideoRecorder(self._camera_manager)
+        self._tracking_logger = TrackingDataLogger()
+
         self._initialized = False
         self._shutting_down = False
         self._recording_enabled = True  # Auto-record experiments by default
+        self._video_recording_enabled = True  # Auto-record video when camera connected
+        self._cv_processing_enabled = True  # Enable CV processing by default
 
         # Callbacks
         self._session_callbacks: List[Callable[[ExperimentSession], None]] = []
@@ -77,6 +89,46 @@ class GliderCore:
         return self._data_recorder
 
     @property
+    def camera_manager(self) -> CameraManager:
+        """Camera manager instance."""
+        return self._camera_manager
+
+    @property
+    def cv_processor(self) -> CVProcessor:
+        """CV processor instance."""
+        return self._cv_processor
+
+    @property
+    def video_recorder(self) -> VideoRecorder:
+        """Video recorder instance."""
+        return self._video_recorder
+
+    @property
+    def tracking_logger(self) -> TrackingDataLogger:
+        """Tracking data logger instance."""
+        return self._tracking_logger
+
+    @property
+    def video_recording_enabled(self) -> bool:
+        """Whether automatic video recording is enabled."""
+        return self._video_recording_enabled
+
+    @video_recording_enabled.setter
+    def video_recording_enabled(self, value: bool) -> None:
+        """Enable or disable automatic video recording."""
+        self._video_recording_enabled = value
+
+    @property
+    def cv_processing_enabled(self) -> bool:
+        """Whether CV processing is enabled."""
+        return self._cv_processing_enabled
+
+    @cv_processing_enabled.setter
+    def cv_processing_enabled(self, value: bool) -> None:
+        """Enable or disable CV processing."""
+        self._cv_processing_enabled = value
+
+    @property
     def recording_enabled(self) -> bool:
         """Whether automatic recording is enabled."""
         return self._recording_enabled
@@ -87,8 +139,10 @@ class GliderCore:
         self._recording_enabled = value
 
     def set_recording_directory(self, path: Path) -> None:
-        """Set the directory for recording data files."""
+        """Set the directory for recording data files (CSV, video, tracking)."""
         self._data_recorder._output_dir = path
+        self._video_recorder.set_output_directory(path)
+        self._tracking_logger.set_output_directory(path)
 
     def set_recording_interval(self, interval: float) -> None:
         """Set the sampling interval for recording (in seconds)."""
@@ -170,6 +224,22 @@ class GliderCore:
             except Exception as e:
                 logger.error(f"Failed to stop recording: {e}")
 
+        # Stop video recording
+        if self._video_recorder.is_recording:
+            try:
+                video_path = await self._video_recorder.stop()
+                logger.info(f"Video saved to: {video_path}")
+            except Exception as e:
+                logger.error(f"Failed to stop video recording: {e}")
+
+        # Stop tracking logger
+        if self._tracking_logger.is_recording:
+            try:
+                tracking_path = await self._tracking_logger.stop()
+                logger.info(f"Tracking data saved to: {tracking_path}")
+            except Exception as e:
+                logger.error(f"Failed to stop tracking logger: {e}")
+
         # Set all devices to safe state
         await self._set_all_devices_low()
 
@@ -213,6 +283,12 @@ class GliderCore:
             register_control_nodes(self._flow_engine)
         except Exception as e:
             logger.error(f"Failed to register control nodes: {e}")
+
+        try:
+            from glider.nodes.flow_function_nodes import register_flow_function_nodes
+            register_flow_function_nodes(self._flow_engine)
+        except Exception as e:
+            logger.error(f"Failed to register flow function nodes: {e}")
 
     async def _load_plugins(self) -> None:
         """Load plugins from the plugin directory."""
@@ -439,6 +515,20 @@ class GliderCore:
             except Exception as e:
                 logger.error(f"Failed to start recording: {e}")
 
+        # Start video recording if enabled and camera is connected
+        experiment_name = self._session.metadata.name or "experiment"
+        if self._video_recording_enabled and self._camera_manager.is_connected:
+            try:
+                video_path = await self._video_recorder.start(experiment_name)
+                logger.info(f"Recording video to: {video_path}")
+
+                # Start tracking logger if CV processing enabled
+                if self._cv_processing_enabled:
+                    tracking_path = await self._tracking_logger.start(experiment_name)
+                    logger.info(f"Tracking data to: {tracking_path}")
+            except Exception as e:
+                logger.error(f"Failed to start video recording: {e}")
+
         self._session.state = SessionState.RUNNING
         await self._flow_engine.start()
 
@@ -458,6 +548,22 @@ class GliderCore:
                 logger.info(f"Recording saved to: {file_path}")
             except Exception as e:
                 logger.error(f"Failed to stop recording: {e}")
+
+        # Stop video recording
+        if self._video_recorder.is_recording:
+            try:
+                video_path = await self._video_recorder.stop()
+                logger.info(f"Video saved to: {video_path}")
+            except Exception as e:
+                logger.error(f"Failed to stop video recording: {e}")
+
+        # Stop tracking logger
+        if self._tracking_logger.is_recording:
+            try:
+                tracking_path = await self._tracking_logger.stop()
+                logger.info(f"Tracking data saved to: {tracking_path}")
+            except Exception as e:
+                logger.error(f"Failed to stop tracking logger: {e}")
 
         # Set all devices to LOW/safe state for safety
         await self._set_all_devices_low()
@@ -522,6 +628,11 @@ class GliderCore:
         # Stop experiment if running
         if self._session and self._session.state == SessionState.RUNNING:
             await self.stop_experiment()
+
+        # Disconnect camera
+        if self._camera_manager.is_connected:
+            self._camera_manager.disconnect()
+            logger.info("Camera disconnected")
 
         # Shutdown flow engine
         self._flow_engine.shutdown()

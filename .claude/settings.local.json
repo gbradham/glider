@@ -11,7 +11,8 @@
       "Bash(tree:*)",
       "Bash(dir /s /b \"C:\\\\Users\\\\Garrett\\\\LaingLab\\\\glider\\\\docs\\\\*.md\")",
       "Bash(grep:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(pip install:*)"
     ]
   }
 }

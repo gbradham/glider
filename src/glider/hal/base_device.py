@@ -6,10 +6,13 @@ Devices represent higher-level components attached to boards
 methods into semantic actions.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 import uuid
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from glider.hal.base_board import BaseBoard
@@ -383,6 +386,17 @@ class AnalogInputDevice(BaseDevice):
         """Read the raw analog value."""
         pin = self._config.pins["input"]
         value = await self._board.read_analog(pin)
+
+        # Validate the value is within expected range (0-1023 for 10-bit ADC)
+        if not isinstance(value, (int, float)):
+            logger.warning(f"Invalid analog value type: {type(value)}, value: {value}")
+            value = 0
+        elif value < 0 or value > 1023:
+            logger.warning(f"Analog value out of range: {value}, clamping to 0-1023")
+            value = max(0, min(1023, int(value)))
+        else:
+            value = int(value)
+
         self._last_value = value
         return value
 

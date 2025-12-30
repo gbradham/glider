@@ -48,6 +48,12 @@ class AnalogReadNode(HardwareNode):
                 data_type=float,
                 description="Voltage value",
             ),
+            PortDefinition(
+                name="threshold_exceeded",
+                port_type=PortType.DATA,
+                data_type=bool,
+                description="True if value exceeds threshold",
+            ),
         ],
         color="#2d5a2d",
     )
@@ -60,6 +66,9 @@ class AnalogReadNode(HardwareNode):
         self._continuous = False
         self._poll_interval = 0.05  # 20Hz default
         self._polling_task = None
+        self._threshold = 512  # Default threshold (mid-range)
+        self._threshold_enabled = False
+        self.visible_in_runner = False  # Can be enabled for live display
 
     @property
     def pin(self) -> int:
@@ -79,12 +88,28 @@ class AnalogReadNode(HardwareNode):
             max_value = 2 ** self._resolution - 1
             voltage = (raw_value / max_value) * self._reference_voltage
             self.set_output(2, voltage)
+
+            # Check threshold
+            threshold_exceeded = False
+            if self._threshold_enabled:
+                threshold_exceeded = raw_value > self._threshold
+            self.set_output(3, threshold_exceeded)
         else:
             self.set_error("No device bound")
             return
 
         # Trigger exec output
         self.exec_output(0)
+
+    def get_display_value(self) -> str:
+        """Get formatted value for display in dashboard."""
+        if len(self._outputs) > 1 and self._outputs[1] is not None:
+            raw = self._outputs[1]
+            if len(self._outputs) > 2 and self._outputs[2] is not None:
+                voltage = self._outputs[2]
+                return f"{raw} ({voltage:.2f}V)"
+            return f"{raw}"
+        return "---"
 
     async def start(self) -> None:
         """Start continuous reading if enabled."""
@@ -120,6 +145,9 @@ class AnalogReadNode(HardwareNode):
         state["resolution"] = self._resolution
         state["continuous"] = self._continuous
         state["poll_interval"] = self._poll_interval
+        state["threshold"] = self._threshold
+        state["threshold_enabled"] = self._threshold_enabled
+        state["visible_in_runner"] = self.visible_in_runner
         return state
 
     def set_state(self, state: Dict[str, Any]) -> None:
@@ -129,6 +157,9 @@ class AnalogReadNode(HardwareNode):
         self._resolution = state.get("resolution", 10)
         self._continuous = state.get("continuous", False)
         self._poll_interval = state.get("poll_interval", 0.05)
+        self._threshold = state.get("threshold", 512)
+        self._threshold_enabled = state.get("threshold_enabled", False)
+        self.visible_in_runner = state.get("visible_in_runner", False)
 
 
 class PWMWriteNode(HardwareNode):

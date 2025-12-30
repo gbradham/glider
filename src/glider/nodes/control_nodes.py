@@ -138,20 +138,22 @@ class WaitForInputNode(GliderNode):
     """
     Wait for Input node - pauses until an input is received.
 
-    Polls a bound device until it reads HIGH (True).
-    Useful for interactive experiments that wait for sensor triggers.
+    Supports two modes:
+    - Digital: Wait for HIGH (True) signal
+    - Analog: Wait until value crosses threshold
     """
 
     definition = NodeDefinition(
         name="WaitForInput",
         category=NodeCategory.LOGIC,
-        description="Wait for input trigger before continuing",
+        description="Wait for input trigger (digital or analog threshold)",
         inputs=[
             PortDefinition("exec", PortType.EXEC, description="Start waiting"),
         ],
         outputs=[
             PortDefinition("triggered", PortType.EXEC, description="Executes when triggered"),
             PortDefinition("timeout", PortType.EXEC, description="Executes on timeout"),
+            PortDefinition("value", PortType.DATA, data_type=int, description="Read value when triggered"),
         ],
     )
 
@@ -160,6 +162,9 @@ class WaitForInputNode(GliderNode):
         self._waiting = False
         self._trigger_value = None
         self._poll_interval = 0.05  # 50ms polling interval
+        self._threshold_mode = "digital"  # "digital" or "analog"
+        self._threshold = 512  # Default analog threshold
+        self._threshold_direction = "above"  # "above" or "below"
 
     def update_event(self) -> None:
         """Called when inputs change."""
@@ -177,17 +182,26 @@ class WaitForInputNode(GliderNode):
         poll_interval = self._state.get("poll_interval", 0.05)
         self._poll_interval = poll_interval
 
-        logger.info(f"  Waiting for input (timeout: {timeout}s, device: {self._device})")
+        # Get threshold settings from state
+        self._threshold_mode = self._state.get("threshold_mode", "digital")
+        self._threshold = self._state.get("threshold", 512)
+        self._threshold_direction = self._state.get("threshold_direction", "above")
+
+        logger.info(f"  Waiting for input (timeout: {timeout}s, mode: {self._threshold_mode})")
+        if self._threshold_mode == "analog":
+            logger.info(f"  Threshold: {self._threshold_direction} {self._threshold}")
 
         self._waiting = True
         self._trigger_value = None
 
         try:
-            logger.info(f"  Polling device for HIGH signal...")
             await self._poll_device(timeout)
 
             # Triggered successfully
             logger.info(f"  Input received: {self._trigger_value}")
+            # Set output value
+            if len(self._outputs) > 0:
+                self._outputs[0] = self._trigger_value
             self._exec_triggered()
 
         except asyncio.TimeoutError:
@@ -198,7 +212,7 @@ class WaitForInputNode(GliderNode):
             self._waiting = False
 
     async def _poll_device(self, timeout: float) -> None:
-        """Poll the bound device until it reads HIGH (rising edge) or timeout."""
+        """Poll the bound device until condition is met or timeout."""
         import time
         start_time = time.time()
         poll_count = 0
@@ -207,11 +221,6 @@ class WaitForInputNode(GliderNode):
         last_value = None  # Track previous value for edge detection
 
         logger.info(f"  Starting device poll loop, device type: {type(self._device).__name__}")
-        logger.info(f"  Device initialized: {getattr(self._device, '_initialized', 'unknown')}")
-        logger.info(f"  Device pins: {getattr(self._device, '_config', {})}")
-
-        # Wait for pin to be LOW first (to detect rising edge)
-        logger.info(f"  Waiting for pin to be LOW before detecting rising edge...")
 
         while self._waiting:
             # Check timeout
@@ -229,13 +238,33 @@ class WaitForInputNode(GliderNode):
                 # Reset error count on successful read
                 error_count = 0
                 poll_count += 1
+
                 # Log every 20 polls (~1 second at 50ms interval)
                 if poll_count % 20 == 1:
-                    logger.info(f"  Poll #{poll_count}: value = {value}, last = {last_value}")
+                    logger.info(f"  Poll #{poll_count}: value = {value}")
 
-                # Detect rising edge: was LOW (or unknown), now HIGH
-                if last_value == False and value == True:
-                    logger.info(f"  TRIGGERED! Rising edge detected after {poll_count} polls")
+                # Check trigger condition based on mode
+                triggered = False
+
+                if self._threshold_mode == "digital":
+                    # Digital mode: detect rising edge (LOW to HIGH)
+                    if last_value == False and value == True:
+                        logger.info(f"  TRIGGERED! Rising edge detected")
+                        triggered = True
+
+                elif self._threshold_mode == "analog":
+                    # Analog mode: check threshold crossing
+                    if isinstance(value, (int, float)):
+                        if self._threshold_direction == "above":
+                            if value > self._threshold:
+                                logger.info(f"  TRIGGERED! Value {value} > threshold {self._threshold}")
+                                triggered = True
+                        else:  # below
+                            if value < self._threshold:
+                                logger.info(f"  TRIGGERED! Value {value} < threshold {self._threshold}")
+                                triggered = True
+
+                if triggered:
                     self._trigger_value = value
                     return
 
@@ -254,8 +283,27 @@ class WaitForInputNode(GliderNode):
 
     def _exec_triggered(self) -> None:
         """Trigger the triggered output."""
+        # First send the value
+        for callback in self._update_callbacks:
+            callback("value", self._trigger_value)
+        # Then trigger execution
         for callback in self._update_callbacks:
             callback("triggered", True)
+
+    def get_state(self) -> dict:
+        """Get node state for serialization."""
+        state = super().get_state()
+        state["threshold_mode"] = self._threshold_mode
+        state["threshold"] = self._threshold
+        state["threshold_direction"] = self._threshold_direction
+        return state
+
+    def set_state(self, state: dict) -> None:
+        """Set node state from deserialization."""
+        super().set_state(state)
+        self._threshold_mode = state.get("threshold_mode", "digital")
+        self._threshold = state.get("threshold", 512)
+        self._threshold_direction = state.get("threshold_direction", "above")
 
     def _exec_timeout(self) -> None:
         """Trigger the timeout output."""

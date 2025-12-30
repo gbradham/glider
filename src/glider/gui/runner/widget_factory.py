@@ -47,12 +47,25 @@ class WidgetFactory:
             "ChartNode": TouchChart,
             "LEDIndicatorNode": TouchLED,
             "NumericInputNode": TouchNumericInput,
+            "AnalogReadNode": TouchLabel,  # Analog value displays as label
         }
 
         widget_class = widget_map.get(node_type)
         if widget_class:
             widget = widget_class()
             widget.bind_node(node)
+
+            # Special handling for nodes with get_display_value
+            if hasattr(node, 'get_display_value'):
+                # Create update callback to use get_display_value
+                def update_from_node(*args):
+                    display_val = node.get_display_value()
+                    widget.set_value(display_val)
+
+                # Register callback with node
+                if hasattr(node, 'register_update_callback'):
+                    node.register_update_callback(update_from_node)
+
             return widget
 
         return None

@@ -234,6 +234,7 @@ class TelemetrixBoard(BaseBoard):
         self._pin_modes: Dict[int, PinMode] = {}
         self._pin_values: Dict[int, Any] = {}
         self._analog_map: Dict[int, int] = {}  # Maps analog pin to Arduino analog number
+        self._analog_callbacks: Dict[int, Callable] = {}  # Store callback references
 
     @property
     def _telemetrix(self):
@@ -363,13 +364,26 @@ class TelemetrixBoard(BaseBoard):
                 # Convert pin number to analog pin number if needed
                 analog_pin = pin - 14 if pin >= 14 else pin
                 self._analog_map[pin] = analog_pin
-                # Use differential reporting (only report when value changes by threshold)
-                self._call_telemetrix(
-                    'set_pin_mode_analog_input',
-                    analog_pin,
-                    differential=5,
-                    callback=self._analog_callback
-                )
+                # Initialize pin value to 0 to prevent None values
+                self._pin_values[pin] = 0
+
+                # Store callback reference to prevent garbage collection
+                if analog_pin not in self._analog_callbacks:
+                    self._analog_callbacks[analog_pin] = self._analog_callback
+
+                # Use differential=1 for more responsive updates
+                # This makes analog values update more frequently for better logging
+                try:
+                    self._call_telemetrix(
+                        'set_pin_mode_analog_input',
+                        analog_pin,
+                        differential=1,
+                        callback=self._analog_callbacks[analog_pin]
+                    )
+                    logger.info(f"✅ Registered analog callback for pin {pin} (analog pin {analog_pin}), callback={self._analog_callbacks[analog_pin]}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to set analog input mode for pin {pin}: {e}")
+                    raise
 
             elif pin_type == PinType.PWM:
                 self._call_telemetrix('set_pin_mode_analog_output', pin)
@@ -415,7 +429,10 @@ class TelemetrixBoard(BaseBoard):
             raise RuntimeError("Board not connected")
 
         # Return cached value from callback
-        return int(self._pin_values.get(pin, 0))
+        value = self._pin_values.get(pin, 0)
+        if value == 0:
+            logger.info(f"⚠️ read_analog(pin={pin}): returning 0! pin_values={self._pin_values}, analog_map={self._analog_map}")
+        return int(value)
 
     async def write_servo(self, pin: int, angle: int) -> None:
         """Write a servo angle."""
@@ -439,14 +456,33 @@ class TelemetrixBoard(BaseBoard):
 
     async def _analog_callback(self, data: list) -> None:
         """Callback for analog pin value changes."""
-        pin = data[1]
-        value = (data[2] << 8) | data[3]  # Combine high and low bytes
-        # Map analog pin back to actual pin number
-        for actual_pin, analog_pin in self._analog_map.items():
-            if analog_pin == pin:
-                self._pin_values[actual_pin] = value
-                self._notify_callbacks(actual_pin, value)
-                break
+        try:
+            # Debug: log the raw callback data
+            logger.info(f"🔔 Analog callback received: data={data}, len={len(data)}")
+
+            # Telemetrix analog callback format: [ANALOG_REPORT, pin, high_byte, low_byte, timestamp]
+            # data[0] = report type (3 for analog), data[1] = pin, data[2] = high byte, data[3] = low byte
+            pin = int(data[1])
+            high_byte = int(data[2])
+            low_byte = int(data[3])
+            value = (high_byte << 8) | low_byte
+
+            logger.info(f"📊 Analog pin {pin}: high={high_byte}, low={low_byte}, combined_value={value}")
+
+            # Map analog pin back to actual pin number
+            found = False
+            for actual_pin, analog_pin in self._analog_map.items():
+                if analog_pin == pin:
+                    logger.info(f"✅ Mapping analog pin {pin} to actual pin {actual_pin}, setting value {value}")
+                    self._pin_values[actual_pin] = value
+                    self._notify_callbacks(actual_pin, value)
+                    found = True
+                    break
+
+            if not found:
+                logger.warning(f"❌ Received analog data for unmapped pin {pin}, analog_map: {self._analog_map}")
+        except Exception as e:
+            logger.error(f"💥 Error in analog callback: {e}, data={data}", exc_info=True)
 
     async def emergency_stop(self) -> None:
         """Set all outputs to safe state."""

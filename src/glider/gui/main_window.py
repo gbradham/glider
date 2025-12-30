@@ -562,6 +562,22 @@ class MainWindow(QMainWindow):
 
         header_layout.addStretch()
 
+        # Elapsed time timer
+        self._runner_timer = QLabel("00:00")
+        self._runner_timer.setProperty("timer", True)
+        self._runner_timer.setStyleSheet("""
+            QLabel[timer] {
+                color: #4CAF50;
+                font-size: 18px;
+                font-weight: bold;
+                font-family: monospace;
+                padding: 4px 8px;
+                background-color: rgba(76, 175, 80, 0.1);
+                border-radius: 4px;
+            }
+        """)
+        header_layout.addWidget(self._runner_timer)
+
         # Status indicator - uses properties for styling
         self._status_label = QLabel("IDLE")
         self._status_label.setProperty("runnerStatus", True)
@@ -653,6 +669,12 @@ class MainWindow(QMainWindow):
         self._device_refresh_timer = QTimer()
         self._device_refresh_timer.setInterval(250)  # 250ms refresh rate
         self._device_refresh_timer.timeout.connect(self._update_runner_device_states)
+
+        # Timer for elapsed time display
+        self._experiment_start_time: Optional[float] = None
+        self._elapsed_timer = QTimer()
+        self._elapsed_timer.setInterval(1000)  # Update every second
+        self._elapsed_timer.timeout.connect(self._update_elapsed_time)
 
     def _setup_dock_widgets(self) -> None:
         """Set up dock widgets for desktop mode."""
@@ -1086,6 +1108,19 @@ class MainWindow(QMainWindow):
                 # Do one final refresh when stopping
                 self._update_runner_device_states()
 
+        # Start/stop elapsed timer based on state
+        if hasattr(self, '_elapsed_timer'):
+            if state_name == "RUNNING":
+                import time
+                self._experiment_start_time = time.time()
+                self._elapsed_timer.start()
+                self._update_elapsed_time()  # Immediate update
+            else:
+                self._elapsed_timer.stop()
+                if hasattr(self, '_runner_timer'):
+                    # Keep the last time displayed when stopped
+                    pass
+
     def _refresh_runner_devices(self) -> None:
         """Refresh the device cards in runner view."""
         if not hasattr(self, '_runner_devices_layout'):
@@ -1149,25 +1184,42 @@ class MainWindow(QMainWindow):
 
         # Status indicator (right side)
         initialized = getattr(device, '_initialized', False)
-        state = getattr(device, '_state', None)
+        device_type = getattr(device, 'device_type', 'Unknown')
+
+        # Check if this is an analog input device
+        is_analog_input = device_type == "AnalogInput"
 
         status_widget = QWidget()
-        status_widget.setFixedSize(60, 50)
+        status_widget.setFixedSize(80 if is_analog_input else 60, 50)
         status_layout = QVBoxLayout(status_widget)
         status_layout.setContentsMargins(0, 0, 0, 0)
         status_layout.setSpacing(2)
 
         # State value
-        if state is not None:
-            if isinstance(state, bool):
-                state_text = "HIGH" if state else "LOW"
-                state_color = "#27ae60" if state else "#7f8c8d"
-            else:
-                state_text = str(state)[:6]
+        if is_analog_input:
+            # For analog inputs, show the raw value and voltage
+            last_value = getattr(device, '_last_value', None)
+            if last_value is not None:
+                # Calculate voltage (assuming 10-bit ADC, 5V reference)
+                voltage = (last_value / 1023.0) * 5.0
+                state_text = f"{last_value}\n{voltage:.2f}V"
                 state_color = "#3498db"
+            else:
+                state_text = "---"
+                state_color = "#444"
         else:
-            state_text = "---"
-            state_color = "#444"
+            # For other devices, use the state
+            state = getattr(device, '_state', None)
+            if state is not None:
+                if isinstance(state, bool):
+                    state_text = "HIGH" if state else "LOW"
+                    state_color = "#27ae60" if state else "#7f8c8d"
+                else:
+                    state_text = str(state)[:6]
+                    state_color = "#3498db"
+            else:
+                state_text = "---"
+                state_color = "#444"
 
         state_label = QLabel(state_text)
         state_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1175,11 +1227,12 @@ class MainWindow(QMainWindow):
             QLabel {{
                 background-color: {state_color};
                 color: white;
-                font-size: 14px;
+                font-size: {'11px' if is_analog_input else '14px'};
                 font-weight: bold;
                 border-radius: 8px;
                 padding: 4px 8px;
                 border: none;
+                line-height: 1.2;
             }}
         """)
         status_layout.addWidget(state_label)
@@ -1208,6 +1261,24 @@ class MainWindow(QMainWindow):
         else:
             self._runner_exp_name.setText("Untitled Experiment")
 
+    def _update_elapsed_time(self) -> None:
+        """Update the elapsed time display in runner view."""
+        if not hasattr(self, '_runner_timer') or self._experiment_start_time is None:
+            return
+
+        import time
+        elapsed = time.time() - self._experiment_start_time
+        hours = int(elapsed // 3600)
+        minutes = int((elapsed % 3600) // 60)
+        seconds = int(elapsed % 60)
+
+        if hours > 0:
+            time_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        else:
+            time_str = f"{minutes:02d}:{seconds:02d}"
+
+        self._runner_timer.setText(time_str)
+
     def _update_runner_device_states(self) -> None:
         """Update the device state displays in runner view."""
         if not hasattr(self, '_runner_device_cards'):
@@ -1218,33 +1289,52 @@ class MainWindow(QMainWindow):
             if device is None:
                 continue
 
-            # Get current state
-            state = getattr(device, '_state', None)
+            # Get device info
             initialized = getattr(device, '_initialized', False)
+            device_type = getattr(device, 'device_type', 'Unknown')
+            is_analog_input = device_type == "AnalogInput"
 
             # Update state label
             if hasattr(card, '_state_label'):
-                if state is not None:
-                    if isinstance(state, bool):
-                        state_text = "HIGH" if state else "LOW"
-                        state_color = "#27ae60" if state else "#7f8c8d"
-                    else:
-                        state_text = str(state)[:6]
+                if is_analog_input:
+                    # For analog inputs, show raw value and voltage
+                    last_value = getattr(device, '_last_value', None)
+                    if last_value is not None:
+                        # Calculate voltage (assuming 10-bit ADC, 5V reference)
+                        voltage = (last_value / 1023.0) * 5.0
+                        state_text = f"{last_value}\n{voltage:.2f}V"
                         state_color = "#3498db"
+                        font_size = "11px"
+                    else:
+                        state_text = "---"
+                        state_color = "#444"
+                        font_size = "11px"
                 else:
-                    state_text = "---"
-                    state_color = "#444"
+                    # For other devices, use the state
+                    state = getattr(device, '_state', None)
+                    if state is not None:
+                        if isinstance(state, bool):
+                            state_text = "HIGH" if state else "LOW"
+                            state_color = "#27ae60" if state else "#7f8c8d"
+                        else:
+                            state_text = str(state)[:6]
+                            state_color = "#3498db"
+                    else:
+                        state_text = "---"
+                        state_color = "#444"
+                    font_size = "14px"
 
                 card._state_label.setText(state_text)
                 card._state_label.setStyleSheet(f"""
                     QLabel {{
                         background-color: {state_color};
                         color: white;
-                        font-size: 14px;
+                        font-size: {font_size};
                         font-weight: bold;
                         border-radius: 8px;
                         padding: 4px 8px;
                         border: none;
+                        line-height: 1.2;
                     }}
                 """)
 
@@ -1847,15 +1937,33 @@ class MainWindow(QMainWindow):
 
             # Get pin names for selected device type
             ui_type = type_combo.currentText()
-            _, pin_names = device_type_map[ui_type]
+            device_type, pin_names = device_type_map[ui_type]
+
+            # Check if this is an analog device
+            is_analog = device_type == "AnalogInput"
 
             # Create spinbox for each pin
             for pin_name in pin_names:
                 spin = QSpinBox()
                 spin.setRange(0, 53)
+
+                # Set default value based on device type
+                if is_analog:
+                    spin.setValue(14)  # Default to A0 (pin 14)
+                    spin.setSpecialValueText("Invalid")
+                else:
+                    spin.setValue(0)
+
                 pin_spinboxes[pin_name] = spin
                 label = f"{pin_name.capitalize()} Pin:"
                 pin_layout.addRow(label, spin)
+
+            # Add helpful note for analog devices
+            if is_analog:
+                note = QLabel("Note: A0=14, A1=15, A2=16, A3=17, A4=18, A5=19")
+                note.setStyleSheet("color: #888; font-size: 10px; font-style: italic;")
+                note.setWordWrap(True)
+                pin_layout.addRow(note)
 
         # Connect device type change to update pin inputs
         type_combo.currentTextChanged.connect(lambda: update_pin_inputs())
@@ -3174,6 +3282,52 @@ class MainWindow(QMainWindow):
 
         # Add properties for WaitForInput node
         elif node_type == "WaitForInput":
+            # Threshold Mode: Digital or Analog
+            mode_combo = QComboBox()
+            mode_combo.addItem("Digital (Rising Edge)", "digital")
+            mode_combo.addItem("Analog (Threshold)", "analog")
+
+            saved_mode = "digital"
+            if node_config and node_config.state:
+                saved_mode = node_config.state.get("threshold_mode", "digital")
+
+            mode_combo.setCurrentIndex(0 if saved_mode == "digital" else 1)
+            mode_combo.currentIndexChanged.connect(
+                lambda idx, nid=node_id, combo=mode_combo: self._on_node_property_changed(
+                    nid, "threshold_mode", combo.currentData()
+                )
+            )
+            props_layout.addRow("Mode:", mode_combo)
+
+            # Threshold Value
+            threshold_spin = QSpinBox()
+            threshold_spin.setRange(0, 1023)
+            saved_threshold = 512
+            if node_config and node_config.state:
+                saved_threshold = node_config.state.get("threshold", 512)
+            threshold_spin.setValue(saved_threshold)
+            threshold_spin.valueChanged.connect(
+                lambda val, nid=node_id: self._on_node_property_changed(nid, "threshold", val)
+            )
+            props_layout.addRow("Threshold:", threshold_spin)
+
+            # Threshold Direction
+            direction_combo = QComboBox()
+            direction_combo.addItem("Above Threshold", "above")
+            direction_combo.addItem("Below Threshold", "below")
+
+            saved_direction = "above"
+            if node_config and node_config.state:
+                saved_direction = node_config.state.get("threshold_direction", "above")
+
+            direction_combo.setCurrentIndex(0 if saved_direction == "above" else 1)
+            direction_combo.currentIndexChanged.connect(
+                lambda idx, nid=node_id, combo=direction_combo: self._on_node_property_changed(
+                    nid, "threshold_direction", combo.currentData()
+                )
+            )
+            props_layout.addRow("Direction:", direction_combo)
+
             # Timeout (0 = no timeout)
             timeout_spin = QDoubleSpinBox()
             timeout_spin.setRange(0.0, 3600.0)
@@ -3188,6 +3342,87 @@ class MainWindow(QMainWindow):
                 lambda val, nid=node_id: self._on_node_property_changed(nid, "timeout", val)
             )
             props_layout.addRow("Timeout:", timeout_spin)
+
+            # Info label
+            info_label = QLabel(
+                "Digital mode: waits for rising edge (LOW → HIGH)\n"
+                "Analog mode: waits for value to cross threshold"
+            )
+            info_label.setWordWrap(True)
+            info_label.setStyleSheet("color: #888; font-size: 10px; margin-top: 8px;")
+            props_layout.addRow(info_label)
+
+        # Add properties for AnalogRead node
+        elif node_type == "AnalogRead":
+            # Continuous reading mode
+            continuous_check = QCheckBox("Enable continuous reading")
+            saved_continuous = False
+            if node_config and node_config.state:
+                saved_continuous = node_config.state.get("continuous", False)
+            continuous_check.setChecked(saved_continuous)
+            continuous_check.toggled.connect(
+                lambda checked, nid=node_id: self._on_node_property_changed(nid, "continuous", checked)
+            )
+            props_layout.addRow(continuous_check)
+
+            # Poll interval
+            poll_spin = QDoubleSpinBox()
+            poll_spin.setRange(0.01, 10.0)
+            poll_spin.setDecimals(2)
+            poll_spin.setSingleStep(0.05)
+            saved_poll = 0.05
+            if node_config and node_config.state:
+                saved_poll = node_config.state.get("poll_interval", 0.05)
+            poll_spin.setValue(saved_poll)
+            poll_spin.setSuffix(" sec")
+            poll_spin.valueChanged.connect(
+                lambda val, nid=node_id: self._on_node_property_changed(nid, "poll_interval", val)
+            )
+            props_layout.addRow("Poll Interval:", poll_spin)
+
+            # Threshold enabled
+            threshold_check = QCheckBox("Enable threshold checking")
+            saved_threshold_enabled = False
+            if node_config and node_config.state:
+                saved_threshold_enabled = node_config.state.get("threshold_enabled", False)
+            threshold_check.setChecked(saved_threshold_enabled)
+            threshold_check.toggled.connect(
+                lambda checked, nid=node_id: self._on_node_property_changed(nid, "threshold_enabled", checked)
+            )
+            props_layout.addRow(threshold_check)
+
+            # Threshold value
+            threshold_spin = QSpinBox()
+            threshold_spin.setRange(0, 1023)
+            saved_threshold = 512
+            if node_config and node_config.state:
+                saved_threshold = node_config.state.get("threshold", 512)
+            threshold_spin.setValue(saved_threshold)
+            threshold_spin.valueChanged.connect(
+                lambda val, nid=node_id: self._on_node_property_changed(nid, "threshold", val)
+            )
+            props_layout.addRow("Threshold:", threshold_spin)
+
+            # Show in runner dashboard
+            visible_check = QCheckBox("Show live value in dashboard")
+            saved_visible = False
+            if node_config and node_config.state:
+                saved_visible = node_config.state.get("visible_in_runner", False)
+            visible_check.setChecked(saved_visible)
+            visible_check.toggled.connect(
+                lambda checked, nid=node_id: self._on_node_property_changed(nid, "visible_in_runner", checked)
+            )
+            props_layout.addRow(visible_check)
+
+            # Info label
+            info_label = QLabel(
+                "Continuous mode: automatically polls sensor at poll interval.\n"
+                "Threshold: output 'threshold_exceeded' will be True when value > threshold.\n"
+                "Dashboard: enable to show live analog value in runner view."
+            )
+            info_label.setWordWrap(True)
+            info_label.setStyleSheet("color: #888; font-size: 10px; margin-top: 8px;")
+            props_layout.addRow(info_label)
 
         # Add properties for Script node
         elif node_type == "Script":

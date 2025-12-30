@@ -5,6 +5,9 @@ pyserial>=3.5
 jsonschema>=4.0.0
 pyqtgraph>=0.13.0
 numpy>=1.21.0
+opencv-python>=4.8.0
+scipy>=1.10.0
+httpx>=0.24.0
 
 [dev]
 pytest>=7.0.0
@@ -19,3 +22,6 @@ lgpio>=0.2.0
 
 [ryven]
 ryvencore>=0.4.0
+
+[vision]
+ultralytics>=8.0.0

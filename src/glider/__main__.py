@@ -150,8 +150,8 @@ def create_main_window(
     else:
         is_runner = view_manager.is_runner_mode
 
-    # Create main window
-    window = MainWindow(core)
+    # Create main window with view_manager to avoid duplicate detection
+    window = MainWindow(core, view_manager=view_manager)
 
     # Apply appropriate stylesheet
     if is_runner:
@@ -325,8 +325,8 @@ def run_sync_fallback(app: QApplication, args: argparse.Namespace) -> int:
     else:
         is_runner = view_manager.is_runner_mode
 
-    # Create window
-    window = MainWindow(core)
+    # Create window with view_manager to avoid duplicate detection
+    window = MainWindow(core, view_manager=view_manager)
 
     if is_runner:
         window.setStyleSheet(get_touch_stylesheet())

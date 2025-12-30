@@ -416,19 +416,28 @@ class MainWindow(QMainWindow):
     state_changed = pyqtSignal(str)  # Session state name
     error_occurred = pyqtSignal(str, str)  # source, message
 
-    def __init__(self, core: "GliderCore", view_mode: ViewMode = ViewMode.AUTO):
+    def __init__(
+        self,
+        core: "GliderCore",
+        view_manager: Optional[ViewManager] = None,
+        view_mode: ViewMode = ViewMode.AUTO,
+    ):
         """
         Initialize the main window.
 
         Args:
             core: GliderCore instance
-            view_mode: Initial view mode
+            view_manager: ViewManager instance (creates one if not provided)
+            view_mode: Initial view mode (only used if view_manager not provided)
         """
         super().__init__()
 
         self._core = core
-        self._view_manager = ViewManager(None)
-        self._view_manager.mode = view_mode
+        if view_manager is not None:
+            self._view_manager = view_manager
+        else:
+            self._view_manager = ViewManager(None)
+            self._view_manager.mode = view_mode
 
         # Undo/Redo stack
         self._undo_stack = UndoStack()

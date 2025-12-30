@@ -12,7 +12,10 @@
       "Bash(dir /s /b \"C:\\\\Users\\\\Garrett\\\\LaingLab\\\\glider\\\\docs\\\\*.md\")",
       "Bash(grep:*)",
       "Bash(dir:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(ollama pull:*)"
     ]
   }
 }

@@ -48,7 +48,9 @@ from PyQt6.QtCore import Qt, QSize, pyqtSignal, pyqtSlot, QMimeData, QTimer
 from glider.gui.view_manager import ViewManager, ViewMode
 from glider.gui.node_graph.graph_view import NodeGraphView
 from glider.gui.panels.camera_panel import CameraPanel
+from glider.gui.panels.agent_panel import AgentPanel
 from glider.gui.dialogs.camera_settings_dialog import CameraSettingsDialog
+from glider.gui.dialogs.agent_settings_dialog import AgentSettingsDialog
 from glider.hal.base_board import BoardConnectionState
 
 if TYPE_CHECKING:
@@ -804,6 +806,21 @@ class MainWindow(QMainWindow):
         self._camera_dock.setWidget(self._camera_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._camera_dock)
 
+        # AI Agent Panel dock
+        self._agent_dock = QDockWidget("AI Assistant", self)
+        self._agent_dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+        )
+        self._agent_panel = AgentPanel()
+        self._agent_panel.set_controller(self._core.agent_controller)
+        self._agent_panel.settings_requested.connect(self._on_agent_settings)
+        self._agent_dock.setWidget(self._agent_panel)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._agent_dock)
+
+        # Tabify agent dock with camera dock
+        self.tabifyDockWidget(self._camera_dock, self._agent_dock)
+        self._camera_dock.raise_()
+
         # Refresh hardware tree (which also refreshes the device combo)
         self._refresh_hardware_tree()
 
@@ -896,6 +913,11 @@ class MainWindow(QMainWindow):
             camera_action = self._camera_dock.toggleViewAction()
             camera_action.setText("&Camera Panel")
             view_menu.addAction(camera_action)
+
+        if hasattr(self, '_agent_dock'):
+            agent_action = self._agent_dock.toggleViewAction()
+            agent_action.setText("AI &Assistant")
+            view_menu.addAction(agent_action)
 
         view_menu.addSeparator()
 
@@ -1412,6 +1434,8 @@ class MainWindow(QMainWindow):
             docks.append(self._control_dock)
         if hasattr(self, '_camera_dock'):
             docks.append(self._camera_dock)
+        if hasattr(self, '_agent_dock'):
+            docks.append(self._agent_dock)
 
         if len(docks) < 2:
             return
@@ -1457,6 +1481,11 @@ class MainWindow(QMainWindow):
         if hasattr(self, '_camera_dock'):
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._camera_dock)
             self._camera_dock.setVisible(True)
+
+        if hasattr(self, '_agent_dock'):
+            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._agent_dock)
+            self.tabifyDockWidget(self._camera_dock, self._agent_dock)
+            self._camera_dock.raise_()
 
         self.statusBar().showMessage("Default layout restored", 2000)
         logger.info("Restored default desktop layout")
@@ -2060,6 +2089,20 @@ class MainWindow(QMainWindow):
             self._core.cv_processor.update_settings(cv_settings)
 
             logger.info("Camera settings updated")
+
+    # Agent operations
+    def _on_agent_settings(self) -> None:
+        """Show agent settings dialog."""
+        dialog = AgentSettingsDialog(
+            config=self._core.agent_controller.config,
+            parent=self
+        )
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            # Apply agent settings
+            new_config = dialog.get_config()
+            self._core.agent_controller.config = new_config
+            logger.info("Agent settings updated")
 
     # Run operations
     @pyqtSlot()

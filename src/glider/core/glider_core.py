@@ -23,6 +23,7 @@ from glider.vision.tracking_logger import TrackingDataLogger
 
 if TYPE_CHECKING:
     from glider.plugins.plugin_manager import PluginManager
+    from glider.agent.agent_controller import AgentController
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,9 @@ class GliderCore:
         self._cv_processor = CVProcessor()
         self._video_recorder = VideoRecorder(self._camera_manager)
         self._tracking_logger = TrackingDataLogger()
+
+        # Agent (lazy initialization)
+        self._agent_controller: Optional["AgentController"] = None
 
         self._initialized = False
         self._shutting_down = False
@@ -107,6 +111,18 @@ class GliderCore:
     def tracking_logger(self) -> TrackingDataLogger:
         """Tracking data logger instance."""
         return self._tracking_logger
+
+    @property
+    def agent_controller(self) -> "AgentController":
+        """
+        Agent controller instance (lazy initialization).
+
+        Creates the agent controller on first access.
+        """
+        if self._agent_controller is None:
+            from glider.agent.agent_controller import AgentController
+            self._agent_controller = AgentController(self)
+        return self._agent_controller
 
     @property
     def video_recording_enabled(self) -> bool:

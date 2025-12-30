@@ -105,6 +105,12 @@ class BaseBoard(ABC):
         ...
 
     @property
+    @abstractmethod
+    def board_type(self) -> str:
+        """Driver/board type identifier (e.g., 'telemetrix', 'pigpio')."""
+        ...
+
+    @property
     def port(self) -> Optional[str]:
         """Connection port for the board."""
         return self._port

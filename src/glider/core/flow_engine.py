@@ -648,6 +648,214 @@ class FlowEngine:
 
         return {"nodes": nodes}
 
+    # =========================================================================
+    # Agent Tool Helper Methods
+    # =========================================================================
+
+    def get_nodes(self) -> List[Dict[str, Any]]:
+        """Get list of all nodes with their metadata."""
+        result = []
+        for node_id, node in self._nodes.items():
+            node_info = {
+                "id": node_id,
+                "type": type(node).__name__.replace("Node", ""),
+                "name": getattr(node, "name", node_id),
+            }
+            if hasattr(node, "get_state"):
+                node_info["state"] = node.get_state()
+            if hasattr(node, "_device") and node._device:
+                node_info["device_id"] = node._device.id
+            result.append(node_info)
+        return result
+
+    def get_connections(self) -> List[Dict[str, Any]]:
+        """Get list of all connections."""
+        return self._connections.copy()
+
+    def delete_node(self, node_id: str) -> bool:
+        """Delete a node by ID. Returns True if deleted."""
+        if node_id in self._nodes:
+            self.remove_node(node_id)
+            # Also remove related connections
+            self._connections = [
+                c for c in self._connections
+                if c["from_node"] != node_id and c["to_node"] != node_id
+            ]
+            return True
+        return False
+
+    def connect_nodes(
+        self,
+        from_node: str,
+        from_port: str,
+        to_node: str,
+        to_port: str,
+    ) -> str:
+        """
+        Connect nodes by port name.
+
+        Args:
+            from_node: Source node ID or name
+            from_port: Source port name (e.g., 'exec', 'value')
+            to_node: Target node ID or name
+            to_port: Target port name
+
+        Returns:
+            Connection ID
+        """
+        # Resolve node IDs if names given
+        from_id = self._resolve_node_id(from_node)
+        to_id = self._resolve_node_id(to_node)
+
+        if from_id is None:
+            raise ValueError(f"Source node not found: {from_node}")
+        if to_id is None:
+            raise ValueError(f"Target node not found: {to_node}")
+
+        # Get port indices
+        from_idx = self._get_output_index(from_id, from_port)
+        to_idx = self._get_input_index(to_id, to_port)
+
+        if from_idx is None:
+            raise ValueError(f"Output port not found: {from_port}")
+        if to_idx is None:
+            raise ValueError(f"Input port not found: {to_port}")
+
+        # Generate connection ID
+        import uuid
+        conn_id = f"conn_{uuid.uuid4().hex[:8]}"
+
+        # Determine connection type
+        conn_type = "exec" if from_port == "exec" or to_port == "exec" else "data"
+
+        self.create_connection(conn_id, from_id, from_idx, to_id, to_idx, conn_type)
+
+        return conn_id
+
+    def disconnect_nodes(
+        self,
+        from_node: str,
+        from_port: str,
+        to_node: str,
+        to_port: str,
+    ) -> bool:
+        """Disconnect nodes. Returns True if disconnected."""
+        from_id = self._resolve_node_id(from_node)
+        to_id = self._resolve_node_id(to_node)
+
+        if from_id is None or to_id is None:
+            return False
+
+        from_idx = self._get_output_index(from_id, from_port)
+        to_idx = self._get_input_index(to_id, to_port)
+
+        # Find and remove connection
+        for i, conn in enumerate(self._connections):
+            if (conn["from_node"] == from_id and
+                conn["from_output"] == from_idx and
+                conn["to_node"] == to_id and
+                conn["to_input"] == to_idx):
+                self._connections.pop(i)
+                return True
+
+        return False
+
+    def set_node_property(self, node_id: str, property_name: str, value: Any) -> bool:
+        """Set a property on a node. Returns True if successful."""
+        node_id = self._resolve_node_id(node_id)
+        if node_id is None:
+            return False
+
+        node = self._nodes.get(node_id)
+        if node is None:
+            return False
+
+        # Try different ways to set property
+        if hasattr(node, "set_property"):
+            node.set_property(property_name, value)
+            return True
+        elif hasattr(node, "_state") and isinstance(node._state, dict):
+            node._state[property_name] = value
+            return True
+        elif hasattr(node, property_name):
+            setattr(node, property_name, value)
+            return True
+
+        return False
+
+    def validate(self) -> List[str]:
+        """Validate the flow graph. Returns list of error messages."""
+        errors = []
+
+        # Check for StartExperiment node
+        has_start = any(
+            type(n).__name__ == "StartExperimentNode"
+            for n in self._nodes.values()
+        )
+        if not has_start:
+            errors.append("Missing StartExperiment node")
+
+        # Check for disconnected nodes
+        connected_nodes = set()
+        for conn in self._connections:
+            connected_nodes.add(conn["from_node"])
+            connected_nodes.add(conn["to_node"])
+
+        for node_id in self._nodes:
+            if node_id not in connected_nodes and len(self._nodes) > 1:
+                node = self._nodes[node_id]
+                node_type = type(node).__name__
+                # Some nodes don't need connections
+                if node_type not in ("StartExperimentNode",):
+                    errors.append(f"Node '{node_id}' is not connected")
+
+        return errors
+
+    def _resolve_node_id(self, node_ref: str) -> Optional[str]:
+        """Resolve a node reference (ID or name) to node ID."""
+        # Direct ID match
+        if node_ref in self._nodes:
+            return node_ref
+
+        # Search by name
+        for node_id, node in self._nodes.items():
+            if getattr(node, "name", None) == node_ref:
+                return node_id
+
+        return None
+
+    def _get_output_index(self, node_id: str, port_name: str) -> Optional[int]:
+        """Get output port index by name."""
+        node = self._nodes.get(node_id)
+        if node is None:
+            return None
+
+        # Common port mappings
+        port_map = {"exec": 0, "value": 0, "result": 0, "next": 0, "body": 0, "complete": 1}
+
+        if hasattr(node, "definition") and hasattr(node.definition, "outputs"):
+            for i, out in enumerate(node.definition.outputs):
+                if out.name == port_name:
+                    return i
+
+        return port_map.get(port_name, 0)
+
+    def _get_input_index(self, node_id: str, port_name: str) -> Optional[int]:
+        """Get input port index by name."""
+        node = self._nodes.get(node_id)
+        if node is None:
+            return None
+
+        # Common port mappings
+        port_map = {"exec": 0, "value": 0, "condition": 1, "duration": 1, "count": 1}
+
+        if hasattr(node, "definition") and hasattr(node.definition, "inputs"):
+            for i, inp in enumerate(node.definition.inputs):
+                if inp.name == port_name:
+                    return i
+
+        return port_map.get(port_name, 0)
+
     def load_from_session(self, session) -> None:
         """
         Load flow from an ExperimentSession.

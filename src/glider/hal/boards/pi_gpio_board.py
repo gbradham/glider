@@ -91,6 +91,10 @@ class PiGPIOBoard(BaseBoard):
         return "Raspberry Pi GPIO"
 
     @property
+    def board_type(self) -> str:
+        return "pigpio"
+
+    @property
     def capabilities(self) -> BoardCapabilities:
         return BoardCapabilities(
             name=self.name,

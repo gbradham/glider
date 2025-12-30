@@ -247,6 +247,10 @@ class TelemetrixBoard(BaseBoard):
         return self._board_config["name"]
 
     @property
+    def board_type(self) -> str:
+        return "telemetrix"
+
+    @property
     def is_connected(self) -> bool:
         """Check if board is connected AND telemetrix thread is alive."""
         # First check base state

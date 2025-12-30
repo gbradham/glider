@@ -43,9 +43,11 @@ class CameraPreviewWidget(QLabel):
         """)
         self._placeholder = True
         self.setText("No Camera")
+        # Prevent the widget from resizing based on pixmap content
+        self.setScaledContents(False)
         self.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Expanding
+            QSizePolicy.Policy.Ignored,
+            QSizePolicy.Policy.Ignored
         )
 
     def update_frame(self, frame: np.ndarray) -> None:
@@ -185,7 +187,7 @@ class CameraPanel(QWidget):
         camera_layout.addWidget(self._camera_combo, 1)
 
         self._refresh_btn = QPushButton("Refresh")
-        self._refresh_btn.setFixedWidth(70)
+        self._refresh_btn.setFixedWidth(80)
         self._refresh_btn.clicked.connect(self._refresh_cameras)
         camera_layout.addWidget(self._refresh_btn)
 

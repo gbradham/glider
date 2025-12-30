@@ -883,6 +883,11 @@ class MainWindow(QMainWindow):
             control_action.setText("&Device Control")
             view_menu.addAction(control_action)
 
+        if hasattr(self, '_camera_dock'):
+            camera_action = self._camera_dock.toggleViewAction()
+            camera_action.setText("&Camera Panel")
+            view_menu.addAction(camera_action)
+
         view_menu.addSeparator()
 
         # Window size presets

@@ -323,7 +323,7 @@ class CameraSettingsDialog(QDialog):
             self._model_path_edit.setText(self._cv_settings.model_path)
 
         self._confidence_spin.setValue(self._cv_settings.confidence_threshold)
-        self._min_area_spin.setValue(self._cv_settings.min_contour_area)
+        self._min_area_spin.setValue(self._cv_settings.min_detection_area)
         self._draw_overlays_cb.setChecked(self._cv_settings.draw_overlays)
 
         # Tracking settings
@@ -399,7 +399,7 @@ class CameraSettingsDialog(QDialog):
         self._cv_settings.backend = self._backend_combo.currentData()
         self._cv_settings.model_path = self._model_path_edit.text() or None
         self._cv_settings.confidence_threshold = self._confidence_spin.value()
-        self._cv_settings.min_contour_area = self._min_area_spin.value()
+        self._cv_settings.min_detection_area = self._min_area_spin.value()
         self._cv_settings.draw_overlays = self._draw_overlays_cb.isChecked()
         self._cv_settings.tracking_enabled = self._tracking_enabled_cb.isChecked()
         self._cv_settings.max_disappeared = self._max_disappeared_spin.value()

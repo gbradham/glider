@@ -1,0 +1,9 @@
+# GLIDER Tracking Data
+# Experiment,Untitled Experiment
+# Start Time,2025-12-29T18:53:53.910825
+
+frame,timestamp,elapsed_ms,object_id,class,x,y,w,h,confidence
+
+# End Time,2025-12-29T18:53:59.037318
+# Duration (s),5.13
+# Total Frames,0

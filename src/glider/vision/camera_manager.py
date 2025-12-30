@@ -156,34 +156,44 @@ class CameraManager:
         """
         cameras = []
 
-        for i in range(max_cameras):
-            # Use DirectShow on Windows for better compatibility
-            cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
-            if cap.isOpened():
-                # Try to get camera name (not always available)
-                name = f"Camera {i}"
+        # Suppress OpenCV warnings during enumeration by redirecting stderr
+        import sys
+        import io
+        old_stderr = sys.stderr
+        sys.stderr = io.StringIO()
 
-                # Test which resolutions are supported
-                supported_resolutions = []
-                for res in CameraManager.COMMON_RESOLUTIONS:
-                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, res[0])
-                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, res[1])
-                    actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    if (actual_w, actual_h) == res:
-                        supported_resolutions.append(res)
+        try:
+            for i in range(max_cameras):
+                # Use DirectShow on Windows for better compatibility
+                cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+                if cap.isOpened():
+                    # Try to get camera name (not always available)
+                    name = f"Camera {i}"
 
-                # Get max FPS
-                max_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+                    # Test which resolutions are supported
+                    supported_resolutions = []
+                    for res in CameraManager.COMMON_RESOLUTIONS:
+                        cap.set(cv2.CAP_PROP_FRAME_WIDTH, res[0])
+                        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, res[1])
+                        actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                        actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                        if (actual_w, actual_h) == res:
+                            supported_resolutions.append(res)
 
-                cameras.append(CameraInfo(
-                    index=i,
-                    name=name,
-                    resolutions=supported_resolutions or [(640, 480)],
-                    max_fps=max_fps,
-                    is_available=True
-                ))
-                cap.release()
+                    # Get max FPS
+                    max_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+
+                    cameras.append(CameraInfo(
+                        index=i,
+                        name=name,
+                        resolutions=supported_resolutions or [(640, 480)],
+                        max_fps=max_fps,
+                        is_available=True
+                    ))
+                    cap.release()
+        finally:
+            # Restore stderr
+            sys.stderr = old_stderr
 
         logger.info(f"Found {len(cameras)} camera(s)")
         return cameras

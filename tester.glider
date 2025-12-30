@@ -6,7 +6,7 @@
     "author": "",
     "version": "1.0.0",
     "created_at": "2025-12-26T21:54:32.095174",
-    "modified_at": "2025-12-29T17:45:33.002580",
+    "modified_at": "2025-12-29T18:53:44.071032",
     "glider_version": "1.0.0"
   },
   "hardware": {
@@ -121,7 +121,9 @@
           146.79749999999993,
           675.7974999999997
         ],
-        "state": {},
+        "state": {
+          "duration": 5
+        },
         "device_id": null,
         "visible_in_runner": false
       },
@@ -203,6 +205,23 @@
     "widgets": [],
     "layout": "vertical",
     "columns": 1
+  },
+  "camera": {
+    "camera_index": 0,
+    "resolution": [
+      640,
+      480
+    ],
+    "fps": 30,
+    "exposure": -1,
+    "brightness": 128,
+    "contrast": 128,
+    "cv_enabled": true,
+    "cv_backend": "background_subtraction",
+    "confidence_threshold": 0.5,
+    "tracking_enabled": true,
+    "max_disappeared": 50,
+    "video_recording_enabled": true
   },
   "custom_devices": {
     "eeef3556-d07e-40a5-a7f1-5be201adb2dc": {

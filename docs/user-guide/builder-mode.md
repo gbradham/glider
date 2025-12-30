@@ -103,6 +103,27 @@ Configure the selected node or device:
 - **Device Properties**: Pin assignments, settings
 - **Connection Properties**: Data type information
 
+### Camera Panel (Right)
+
+Live camera preview and computer vision controls:
+
+- **Preview**: Live video feed from connected webcam
+- **Camera Selector**: Dropdown to choose camera, Refresh button
+- **Controls**: Start/Stop Preview, Settings button
+- **CV Options**: Enable CV, Show Overlays checkboxes
+- **Status**: FPS, resolution, recording indicator
+
+**Features:**
+- Real-time video preview with CV overlay
+- Automatic video recording during experiments
+- Object detection and tracking
+- Motion detection
+
+**Actions:**
+- Click **Settings...** to configure camera and CV parameters
+- Toggle **Enable CV** for computer vision processing
+- Toggle **Show Overlays** to display detection boxes
+
 ## Working with Nodes
 
 ### Adding Nodes
@@ -223,6 +244,13 @@ Configure the selected node or device:
 | Fit to Window | Ctrl+0 | Fit all nodes in view |
 | Show Grid | Ctrl+G | Toggle grid display |
 | Runner Mode | F11 | Switch to Runner Mode |
+| Node Library | - | Toggle Node Library panel |
+| Properties Panel | - | Toggle Properties panel |
+| Hardware Panel | - | Toggle Hardware panel |
+| Device Control | - | Toggle Device Control panel |
+| Camera Panel | - | Toggle Camera panel |
+| Pi Touchscreen | - | Tabbed layout for small screens |
+| Default Layout | - | Restore default panel layout |
 
 ### Hardware Menu
 

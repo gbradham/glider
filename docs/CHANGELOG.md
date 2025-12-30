@@ -18,16 +18,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Plugin system for extensibility
 - Comprehensive documentation
 
+### Video Recording & Computer Vision
+- **Camera Panel**: Live webcam preview with controls
+- **Video Recording**: Automatic MP4 recording synchronized with experiments
+- **Object Detection**: Background subtraction and motion detection (built-in)
+- **YOLO v8 Support**: Optional AI-powered object detection
+- **Object Tracking**: Persistent ID tracking across frames
+- **Tracking CSV Export**: Frame-by-frame tracking data output
+- **Camera Settings Dialog**: Configure resolution, FPS, exposure, CV parameters
+- **Real-time Overlays**: Bounding boxes and labels on preview
+- **Pi Touchscreen Layout**: Tabbed panel layout for small screens
+
 ### Hardware Support
 - Arduino Uno, Mega, Nano
 - Raspberry Pi GPIO
 - Digital I/O, Analog Input, PWM, Servo
+- USB Webcams via OpenCV
 
 ### Built-in Nodes
 - StartExperiment, EndExperiment
 - Delay, Loop, WaitForInput
 - Output (digital write)
 - Input (digital/analog read)
+- Custom Device nodes
+- Flow Function nodes (StartFunction, EndFunction, FunctionCall)
 
 ---
 

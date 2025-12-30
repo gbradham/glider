@@ -211,6 +211,41 @@ timestamp,led_state,sensor_value,motor_speed
 2024-01-15T10:30:00.200,0,510,0
 ```
 
+## Video Recording & Computer Vision
+
+GLIDER includes integrated video recording and computer vision:
+
+### Video Recording
+
+- **Automatic Recording**: Video starts/stops with experiments
+- **Synchronized Timestamps**: Video aligned with sensor data
+- **MP4 Format**: Standard format for analysis
+
+### Computer Vision
+
+- **Object Detection**: Identify objects in video frames
+- **Object Tracking**: Assign persistent IDs to tracked objects
+- **Motion Detection**: Detect and measure movement
+- **Real-time Overlays**: Bounding boxes displayed on preview
+
+### Detection Backends
+
+| Backend | Description | Requirements |
+|---------|-------------|--------------|
+| Background Subtraction | Detects moving objects | Built-in |
+| Motion Detection | Detects any movement | Built-in |
+| YOLO v8 | AI-powered detection | `pip install ultralytics` |
+
+### Output Files
+
+When an experiment runs, GLIDER generates:
+```
+output_folder/
+├── experiment_20250115_103000.csv           # Sensor data
+├── experiment_20250115_103000.mp4           # Video recording
+└── experiment_20250115_103000_tracking.csv  # CV tracking data
+```
+
 ## Plugin System
 
 GLIDER is extensible through plugins:
@@ -240,6 +275,10 @@ See the [Plugin Development Guide](../developer-guide/plugin-development.md) for
 | `BaseBoard` | Abstract board interface |
 | `BaseDevice` | Abstract device interface |
 | `GliderNode` | Base class for all nodes |
+| `CameraManager` | Webcam capture and streaming |
+| `CVProcessor` | Computer vision processing |
+| `VideoRecorder` | Video recording synchronized with experiments |
+| `TrackingDataLogger` | CV tracking data to CSV |
 
 ## Next Steps
 

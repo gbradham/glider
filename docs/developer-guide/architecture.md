@@ -20,6 +20,7 @@ graph TB
         VM[ViewManager]
         NG[NodeGraphView]
         DB[Dashboard]
+        CP[CameraPanel]
     end
 
     subgraph Core["Core Layer"]
@@ -28,6 +29,13 @@ graph TB
         FE[FlowEngine]
         HM[HardwareManager]
         DR[DataRecorder]
+    end
+
+    subgraph Vision["Vision Layer"]
+        CM[CameraManager]
+        VR[VideoRecorder]
+        CVP[CVProcessor]
+        TL[TrackingLogger]
     end
 
     subgraph HAL["Hardware Abstraction Layer"]
@@ -49,11 +57,21 @@ graph TB
     VM --> MW
     NG --> MW
     DB --> MW
+    CP --> CM
+    CP --> CVP
 
     GC --> ES
     GC --> FE
     GC --> HM
     GC --> DR
+    GC --> CM
+    GC --> VR
+    GC --> CVP
+    GC --> TL
+
+    CM --> VR
+    CM --> CVP
+    CVP --> TL
 
     HM --> BB
     HM --> BD
@@ -84,12 +102,21 @@ glider/
 │   │   ├── main_window.py   # Primary window
 │   │   ├── view_manager.py  # Mode detection
 │   │   ├── node_graph/      # Visual editor
+│   │   ├── panels/          # Dock panels
+│   │   │   └── camera_panel.py   # Camera controls
+│   │   ├── dialogs/         # Dialog windows
+│   │   │   └── camera_settings_dialog.py
 │   │   └── runner/          # Touch dashboard
 │   ├── hal/                 # Hardware abstraction
 │   │   ├── base_board.py    # Board interface
 │   │   ├── base_device.py   # Device interface
 │   │   ├── pin_manager.py   # Pin allocation
 │   │   └── boards/          # Board implementations
+│   ├── vision/              # Computer vision
+│   │   ├── camera_manager.py     # Webcam capture
+│   │   ├── video_recorder.py     # Video recording
+│   │   ├── cv_processor.py       # Detection & tracking
+│   │   └── tracking_logger.py    # Tracking CSV output
 │   ├── nodes/               # Node system
 │   │   ├── base_node.py     # Base node class
 │   │   ├── experiment_nodes.py   # Flow control
@@ -362,6 +389,76 @@ classDiagram
     GliderNode *-- Port
     GliderNode <|-- HardwareNode
     GliderNode <|-- LogicNode
+```
+
+## Vision Layer
+
+The vision module provides video recording and computer vision capabilities synchronized with experiments.
+
+### Vision Components
+
+```mermaid
+graph LR
+    CAM[Camera] --> CM[CameraManager]
+    CM --> VR[VideoRecorder]
+    CM --> CVP[CVProcessor]
+    CVP --> OT[ObjectTracker]
+    CVP --> TL[TrackingLogger]
+    VR --> MP4[.mp4 File]
+    TL --> CSV[_tracking.csv]
+```
+
+### CameraManager
+
+Thread-safe webcam capture with frame callbacks.
+
+```python
+class CameraManager:
+    def enumerate_cameras() -> List[CameraInfo]
+    def connect(settings: CameraSettings) -> bool
+    def disconnect() -> None
+    def start_streaming() -> None
+    def stop_streaming() -> None
+    def on_frame(callback) -> None  # Register frame handler
+```
+
+### CVProcessor
+
+Real-time computer vision processing.
+
+```python
+class CVProcessor:
+    def initialize() -> bool
+    def process_frame(frame, timestamp) -> (detections, tracked, motion)
+    def draw_overlays(frame, detections, tracked, motion) -> frame
+```
+
+**Detection Backends:**
+- **Background Subtraction**: Built-in, detects moving objects
+- **Motion Detection**: Built-in, detects any movement
+- **YOLO v8**: Optional (requires `ultralytics`), AI-powered detection
+
+### ObjectTracker
+
+Centroid-based multi-object tracker with persistent IDs.
+
+```python
+class ObjectTracker:
+    def update(detections: List[Detection]) -> List[TrackedObject]
+    def reset() -> None
+```
+
+### VideoRecorder & TrackingLogger
+
+Record video and tracking data synchronized with experiment lifecycle.
+
+```python
+# Automatically called by GliderCore during experiments
+await video_recorder.start(experiment_name)  # Creates .mp4
+await tracking_logger.start(experiment_name)  # Creates _tracking.csv
+# ... experiment runs ...
+await video_recorder.stop()
+await tracking_logger.stop()
 ```
 
 ## Data Flow

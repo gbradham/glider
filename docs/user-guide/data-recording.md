@@ -10,6 +10,8 @@ During experiment execution, GLIDER can record:
 - Timestamps for each sample
 - Custom values from nodes
 - Metadata about the experiment
+- **Video recordings** from connected cameras
+- **Computer vision tracking data** (object positions, IDs, confidence scores)
 
 ## Enabling Recording
 
@@ -264,6 +266,118 @@ Export to different formats:
 | Parquet | .parquet | Big data, columnar |
 
 Configure via **Tools → Settings → Recording → Format**.
+
+## Video Recording
+
+GLIDER can record video from connected webcams synchronized with your experiment.
+
+### Enabling Video Recording
+
+1. Open the **Camera Panel** (View → Camera Panel)
+2. Select your camera from the dropdown
+3. Click **Start Preview** to verify camera works
+4. Video recording starts automatically when experiment runs
+
+### Video Output
+
+Video files are saved alongside sensor data:
+```
+output_folder/
+├── MyExperiment_20250115_103000.csv      # Sensor data
+├── MyExperiment_20250115_103000.mp4      # Video recording
+└── MyExperiment_20250115_103000_tracking.csv  # CV tracking data
+```
+
+### Camera Settings
+
+Access camera settings via the **Settings...** button in the Camera Panel:
+
+| Tab | Settings |
+|-----|----------|
+| **Camera** | Resolution, FPS, Exposure, Brightness, Contrast |
+| **Computer Vision** | Detection backend, Confidence threshold, Min detection area |
+| **Tracking** | Enable tracking, Max disappeared frames |
+
+### Supported Resolutions
+
+| Resolution | Aspect Ratio | Use Case |
+|------------|--------------|----------|
+| 320x240 | 4:3 | Low bandwidth, fast processing |
+| 640x480 | 4:3 | General purpose |
+| 1280x720 | 16:9 | HD recording |
+| 1920x1080 | 16:9 | Full HD (higher CPU usage) |
+
+## Computer Vision Tracking
+
+GLIDER includes real-time computer vision for object detection and tracking.
+
+### Detection Backends
+
+| Backend | Description | Requirements |
+|---------|-------------|--------------|
+| **Background Subtraction** | Detects moving objects against static background | None (built-in) |
+| **Motion Detection** | Detects any movement in frame | None (built-in) |
+| **YOLO v8** | AI-powered object detection | `pip install ultralytics` |
+
+### CV Features
+
+- **Bounding Box Detection**: Identifies objects and draws boxes around them
+- **Object Tracking**: Assigns persistent IDs to tracked objects across frames
+- **Motion Detection**: Detects movement and calculates motion area percentage
+- **Overlay Display**: Shows detection boxes and labels on preview
+
+### Tracking Data CSV Format
+
+The tracking CSV contains frame-by-frame detection data:
+
+```csv
+# GLIDER Tracking Data
+# Experiment: MyExperiment
+# Start Time: 2025-01-15T10:30:00
+
+frame,timestamp,elapsed_ms,object_id,class,x,y,w,h,confidence
+1,2025-01-15T10:30:00.033,0.0,1,object,120,80,45,30,0.95
+2,2025-01-15T10:30:00.066,33.3,1,object,125,82,45,30,0.93
+2,2025-01-15T10:30:00.066,33.3,2,object,300,150,40,28,0.87
+```
+
+### Tracking CSV Columns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `frame` | Integer | Frame number |
+| `timestamp` | ISO 8601 | Absolute time |
+| `elapsed_ms` | Float | Milliseconds since start |
+| `object_id` | Integer | Persistent tracking ID (-1 for motion-only) |
+| `class` | String | Object class name |
+| `x`, `y` | Integer | Bounding box top-left corner |
+| `w`, `h` | Integer | Bounding box width and height |
+| `confidence` | Float | Detection confidence (0.0-1.0) |
+
+### Analyzing Tracking Data
+
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Load tracking data (skip comment lines)
+df = pd.read_csv('experiment_tracking.csv', comment='#')
+
+# Plot object trajectories
+for obj_id in df['object_id'].unique():
+    if obj_id >= 0:  # Skip motion-only entries
+        obj_data = df[df['object_id'] == obj_id]
+        # Calculate center position
+        cx = obj_data['x'] + obj_data['w'] / 2
+        cy = obj_data['y'] + obj_data['h'] / 2
+        plt.plot(cx, cy, label=f'Object {obj_id}')
+
+plt.xlabel('X Position')
+plt.ylabel('Y Position')
+plt.title('Object Trajectories')
+plt.legend()
+plt.show()
+```
 
 ### Triggers
 

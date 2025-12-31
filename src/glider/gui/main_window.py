@@ -1580,17 +1580,17 @@ class MainWindow(QMainWindow):
 
         # Collect all dock widgets
         docks = []
-        if hasattr(self, '_node_library_dock'):
+        if getattr(self, '_node_library_dock', None) is not None:
             docks.append(self._node_library_dock)
-        if hasattr(self, '_properties_dock'):
+        if getattr(self, '_properties_dock', None) is not None:
             docks.append(self._properties_dock)
-        if hasattr(self, '_hardware_dock'):
+        if getattr(self, '_hardware_dock', None) is not None:
             docks.append(self._hardware_dock)
-        if hasattr(self, '_control_dock'):
+        if getattr(self, '_control_dock', None) is not None:
             docks.append(self._control_dock)
-        if hasattr(self, '_camera_dock'):
+        if getattr(self, '_camera_dock', None) is not None:
             docks.append(self._camera_dock)
-        if hasattr(self, '_agent_dock'):
+        if getattr(self, '_agent_dock', None) is not None:
             docks.append(self._agent_dock)
 
         if len(docks) < 2:
@@ -1617,31 +1617,33 @@ class MainWindow(QMainWindow):
         self.resize(1400, 900)
 
         # Restore dock positions
-        if hasattr(self, '_node_library_dock'):
+        if getattr(self, '_node_library_dock', None) is not None:
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._node_library_dock)
             self._node_library_dock.setVisible(True)
 
-        if hasattr(self, '_properties_dock'):
+        if getattr(self, '_properties_dock', None) is not None:
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._properties_dock)
             self._properties_dock.setVisible(True)
 
-        if hasattr(self, '_hardware_dock'):
+        if getattr(self, '_hardware_dock', None) is not None:
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._hardware_dock)
             self._hardware_dock.setVisible(True)
 
-        if hasattr(self, '_control_dock'):
+        if getattr(self, '_control_dock', None) is not None:
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._control_dock)
-            self.tabifyDockWidget(self._hardware_dock, self._control_dock)
-            self._hardware_dock.raise_()
+            if getattr(self, '_hardware_dock', None) is not None:
+                self.tabifyDockWidget(self._hardware_dock, self._control_dock)
+                self._hardware_dock.raise_()
 
-        if hasattr(self, '_camera_dock'):
+        if getattr(self, '_camera_dock', None) is not None:
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._camera_dock)
             self._camera_dock.setVisible(True)
 
-        if hasattr(self, '_agent_dock'):
+        if getattr(self, '_agent_dock', None) is not None:
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._agent_dock)
-            self.tabifyDockWidget(self._camera_dock, self._agent_dock)
-            self._camera_dock.raise_()
+            if getattr(self, '_camera_dock', None) is not None:
+                self.tabifyDockWidget(self._camera_dock, self._agent_dock)
+                self._camera_dock.raise_()
 
         self.statusBar().showMessage("Default layout restored", 2000)
         logger.info("Restored default desktop layout")

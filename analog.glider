@@ -24,16 +24,24 @@
       {
         "id": "led",
         "device_type": "DigitalOutput",
+        "name": "LED",
         "board_id": "pi",
-        "pins": {"output": 17},
+        "pins": {
+          "output": 17
+        },
         "settings": {}
       },
       {
         "id": "button",
         "device_type": "DigitalInput",
+        "name": "Button",
         "board_id": "pi",
-        "pins": {"input": 27},
-        "settings": {"pull_up": true}
+        "pins": {
+          "input": 27
+        },
+        "settings": {
+          "pull_up": true
+        }
       }
     ]
   },
@@ -95,7 +103,9 @@
           -136.25,
           83.85000000000001
         ],
-        "state": {"value": 1},
+        "state": {
+          "value": 1
+        },
         "device_id": "led",
         "visible_in_runner": false
       },

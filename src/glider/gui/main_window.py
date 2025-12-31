@@ -417,6 +417,7 @@ class MainWindow(QMainWindow):
     session_changed = pyqtSignal()
     state_changed = pyqtSignal(str)  # Session state name
     error_occurred = pyqtSignal(str, str)  # source, message
+    analog_value_received = pyqtSignal(int, int)  # pin, value - for real-time analog updates
 
     def __init__(
         self,
@@ -800,6 +801,53 @@ class MainWindow(QMainWindow):
         servo_layout.addWidget(self._servo_slider)
         servo_layout.addWidget(self._servo_spinbox)
         self._control_group_layout.addLayout(servo_layout)
+
+        # Input reading section
+        input_group = QGroupBox("Input Reading")
+        input_group_layout = QVBoxLayout(input_group)
+
+        # Value display
+        self._input_value_label = QLabel("--")
+        self._input_value_label.setStyleSheet(
+            "font-size: 24px; font-weight: bold; padding: 10px; "
+            "background-color: #2d2d2d; border-radius: 4px; color: #00ff00;"
+        )
+        self._input_value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._input_value_label.setMinimumHeight(50)
+        input_group_layout.addWidget(self._input_value_label)
+
+        # Read button and continuous checkbox
+        input_control_layout = QHBoxLayout()
+        self._read_btn = QPushButton("Read Once")
+        self._read_btn.clicked.connect(self._read_input_once)
+        input_control_layout.addWidget(self._read_btn)
+
+        self._continuous_checkbox = QCheckBox("Continuous")
+        self._continuous_checkbox.stateChanged.connect(self._on_continuous_changed)
+        input_control_layout.addWidget(self._continuous_checkbox)
+
+        poll_label = QLabel("Interval:")
+        self._poll_spinbox = QSpinBox()
+        self._poll_spinbox.setRange(50, 5000)
+        self._poll_spinbox.setValue(100)
+        self._poll_spinbox.setSuffix(" ms")
+        self._poll_spinbox.valueChanged.connect(self._on_poll_interval_changed)
+        input_control_layout.addWidget(poll_label)
+        input_control_layout.addWidget(self._poll_spinbox)
+
+        input_group_layout.addLayout(input_control_layout)
+        self._input_group = input_group
+        self._control_group_layout.addWidget(input_group)
+
+        # Timer for continuous reading (fallback for digital inputs)
+        self._input_poll_timer = QTimer(self)
+        self._input_poll_timer.timeout.connect(self._poll_input)
+
+        # Real-time callback tracking for analog inputs
+        self._analog_callback_board = None  # Board with registered callback
+        self._analog_callback_pin = None    # Pin with registered callback
+        self._analog_callback_func = None   # The callback function reference
+        self.analog_value_received.connect(self._on_analog_value_received)
 
         # Status display
         self._device_status_label = QLabel("Status: Not connected")
@@ -2001,6 +2049,17 @@ class MainWindow(QMainWindow):
                 self._core.hardware_manager.add_device_multi_pin(
                     device_id, device_type, board_id, pins, name=name
                 )
+
+                # Auto-initialize if board is connected
+                board = self._core.hardware_manager.get_board(board_id)
+                if board and board.is_connected:
+                    async def init_device():
+                        try:
+                            await self._core.hardware_manager.initialize_device(device_id)
+                            logger.info(f"Auto-initialized device: {device_id}")
+                        except Exception as e:
+                            logger.error(f"Failed to auto-initialize device {device_id}: {e}")
+                    self._run_async(init_device())
 
                 # Add to session for persistence
                 if self._core.session:
@@ -3762,14 +3821,26 @@ class MainWindow(QMainWindow):
 
     def _on_device_selected(self, text: str) -> None:
         """Handle device selection change."""
+        # Stop any continuous input reading
+        if hasattr(self, '_input_poll_timer'):
+            self._input_poll_timer.stop()
+        if hasattr(self, '_continuous_checkbox'):
+            self._continuous_checkbox.setChecked(False)
+        if hasattr(self, '_input_value_label'):
+            self._input_value_label.setText("--")
+
         device_id = self._device_combo.currentData()
         if device_id is None:
             self._device_status_label.setText("Status: No device selected")
+            if hasattr(self, '_input_group'):
+                self._input_group.setEnabled(False)
             return
 
         device = self._core.hardware_manager.get_device(device_id)
         if device is None:
             self._device_status_label.setText("Status: Device not found")
+            if hasattr(self, '_input_group'):
+                self._input_group.setEnabled(False)
             return
 
         device_type = getattr(device, 'device_type', 'unknown')
@@ -3784,6 +3855,11 @@ class MainWindow(QMainWindow):
             status = "Not initialized"
 
         self._device_status_label.setText(f"Status: {status} | Type: {device_type}")
+
+        # Enable/disable input reading based on device type
+        if hasattr(self, '_input_group'):
+            is_input_device = device_type in ('DigitalInput', 'AnalogInput')
+            self._input_group.setEnabled(is_input_device)
 
     def _get_selected_device(self):
         """Get the currently selected device."""
@@ -3879,11 +3955,216 @@ class MainWindow(QMainWindow):
 
         self._run_async(set_servo())
 
+    def _read_input_once(self) -> None:
+        """Read the input value once."""
+        device = self._get_selected_device()
+        if device is None:
+            QMessageBox.warning(self, "No Device", "Please select a device first.")
+            return
+
+        device_type = getattr(device, 'device_type', '')
+        if device_type not in ('DigitalInput', 'AnalogInput'):
+            QMessageBox.warning(self, "Invalid Device", "Please select a DigitalInput or AnalogInput device.")
+            return
+
+        async def read_value():
+            try:
+                # Auto-initialize if not initialized
+                if not getattr(device, '_initialized', False):
+                    self._device_status_label.setText("Status: Initializing device...")
+                    await device.initialize()
+                    logger.info(f"Auto-initialized device for reading: {device.id}")
+
+                if device_type == 'DigitalInput':
+                    if hasattr(device, 'read'):
+                        value = await device.read()
+                        display = "HIGH (1)" if value else "LOW (0)"
+                        self._input_value_label.setText(display)
+                        self._device_status_label.setText(f"Status: Digital input = {display}")
+                    else:
+                        pin = device.pins.get('input', list(device.pins.values())[0])
+                        value = await device.board.read_digital(pin)
+                        display = "HIGH (1)" if value else "LOW (0)"
+                        self._input_value_label.setText(display)
+                        self._device_status_label.setText(f"Status: Digital input = {display}")
+                elif device_type == 'AnalogInput':
+                    if hasattr(device, 'read') and hasattr(device, 'read_voltage'):
+                        raw_value = await device.read()
+                        voltage = await device.read_voltage()
+                        display = f"{raw_value}\n{voltage:.2f}V"
+                        self._input_value_label.setText(display)
+                        self._device_status_label.setText(f"Status: Analog = {raw_value} ({voltage:.2f}V)")
+                    elif hasattr(device, 'read'):
+                        raw_value = await device.read()
+                        voltage = (raw_value / 1023.0) * 5.0
+                        display = f"{raw_value}\n{voltage:.2f}V"
+                        self._input_value_label.setText(display)
+                        self._device_status_label.setText(f"Status: Analog = {raw_value} ({voltage:.2f}V)")
+                    else:
+                        pin = device.pins.get('input', list(device.pins.values())[0])
+                        raw_value = await device.board.read_analog(pin)
+                        voltage = (raw_value / 1023.0) * 5.0
+                        display = f"{raw_value}\n{voltage:.2f}V"
+                        self._input_value_label.setText(display)
+                        self._device_status_label.setText(f"Status: Analog = {raw_value} ({voltage:.2f}V)")
+            except Exception as e:
+                logger.error(f"Read error: {e}")
+                self._input_value_label.setText("ERROR")
+                self._device_status_label.setText(f"Status: Read failed - {e}")
+
+        self._run_async(read_value())
+
+    def _on_continuous_changed(self, state: int) -> None:
+        """Handle continuous checkbox state change."""
+        if state == Qt.CheckState.Checked.value:
+            device = self._get_selected_device()
+            if device is None:
+                self._continuous_checkbox.setChecked(False)
+                QMessageBox.warning(self, "No Device", "Please select a device first.")
+                return
+
+            device_type = getattr(device, 'device_type', '')
+            if device_type not in ('DigitalInput', 'AnalogInput'):
+                self._continuous_checkbox.setChecked(False)
+                QMessageBox.warning(self, "Invalid Device", "Please select a DigitalInput or AnalogInput device.")
+                return
+
+            if device_type == 'AnalogInput':
+                # Use real-time callbacks for analog inputs (much faster than polling)
+                self._start_analog_callback(device)
+            else:
+                # Use polling for digital inputs
+                interval = self._poll_spinbox.value()
+                self._input_poll_timer.start(interval)
+                self._device_status_label.setText(f"Status: Continuous reading ({interval}ms)")
+        else:
+            # Stop both callback and polling
+            self._stop_analog_callback()
+            self._input_poll_timer.stop()
+            self._device_status_label.setText("Status: Continuous reading stopped")
+
+    def _start_analog_callback(self, device) -> None:
+        """Start real-time analog monitoring using board callbacks."""
+        # First, stop any existing callback
+        self._stop_analog_callback()
+
+        pin = device.pins.get('input', list(device.pins.values())[0])
+        board = device.board
+
+        # Create a callback that emits the Qt signal (thread-safe)
+        def analog_callback(callback_pin: int, value: int) -> None:
+            # This runs in the telemetrix thread - emit signal to cross to Qt thread
+            logger.info(f"🔔 UI callback fired: pin={callback_pin}, value={value}")
+            self.analog_value_received.emit(callback_pin, value)
+
+        # Register the callback with the board
+        board.register_callback(pin, analog_callback)
+        logger.info(f"Registered UI callback for pin {pin}, board callbacks: {board._callbacks}")
+
+        # Track the registration so we can unregister later
+        self._analog_callback_board = board
+        self._analog_callback_pin = pin
+        self._analog_callback_func = analog_callback
+
+        self._device_status_label.setText("Status: Real-time monitoring (callback)")
+        logger.info(f"Started real-time analog callback for pin {pin}")
+
+    def _stop_analog_callback(self) -> None:
+        """Stop real-time analog monitoring."""
+        if self._analog_callback_board is not None and self._analog_callback_func is not None:
+            try:
+                self._analog_callback_board.unregister_callback(
+                    self._analog_callback_pin,
+                    self._analog_callback_func
+                )
+                logger.info(f"Stopped analog callback for pin {self._analog_callback_pin}")
+            except Exception as e:
+                logger.debug(f"Error unregistering callback: {e}")
+
+        self._analog_callback_board = None
+        self._analog_callback_pin = None
+        self._analog_callback_func = None
+
+    @pyqtSlot(int, int)
+    def _on_analog_value_received(self, pin: int, value: int) -> None:
+        """Handle real-time analog value updates (called via Qt signal from callback)."""
+        logger.info(f"📺 UI slot received: pin={pin}, value={value}")
+        # Get reference voltage from current device if available
+        device = self._get_selected_device()
+        if device is not None and hasattr(device, '_reference_voltage'):
+            ref_voltage = device._reference_voltage
+        else:
+            ref_voltage = 5.0
+
+        voltage = (value / 1023.0) * ref_voltage
+        display = f"{value}\n{voltage:.2f}V"
+        self._input_value_label.setText(display)
+
+    def _on_poll_interval_changed(self, value: int) -> None:
+        """Handle poll interval change."""
+        if self._input_poll_timer.isActive():
+            self._input_poll_timer.setInterval(value)
+            self._device_status_label.setText(f"Status: Poll interval changed to {value}ms")
+
+    def _poll_input(self) -> None:
+        """Poll the input value (called by timer)."""
+        device = self._get_selected_device()
+        if device is None:
+            self._input_poll_timer.stop()
+            self._continuous_checkbox.setChecked(False)
+            return
+
+        device_type = getattr(device, 'device_type', '')
+        if device_type not in ('DigitalInput', 'AnalogInput'):
+            self._input_poll_timer.stop()
+            self._continuous_checkbox.setChecked(False)
+            return
+
+        async def read_value():
+            try:
+                if device_type == 'DigitalInput':
+                    if hasattr(device, 'read'):
+                        value = await device.read()
+                    else:
+                        pin = device.pins.get('input', list(device.pins.values())[0])
+                        value = await device.board.read_digital(pin)
+                    display = "HIGH (1)" if value else "LOW (0)"
+                    self._input_value_label.setText(display)
+                elif device_type == 'AnalogInput':
+                    if hasattr(device, 'read'):
+                        raw_value = await device.read()
+                    else:
+                        pin = device.pins.get('input', list(device.pins.values())[0])
+                        raw_value = await device.board.read_analog(pin)
+
+                    # Get voltage
+                    if hasattr(device, '_reference_voltage'):
+                        ref_voltage = device._reference_voltage
+                    else:
+                        ref_voltage = 5.0
+                    voltage = (raw_value / 1023.0) * ref_voltage
+                    display = f"{raw_value}\n{voltage:.2f}V"
+                    self._input_value_label.setText(display)
+            except Exception as e:
+                logger.error(f"Poll read error: {e}")
+                self._input_poll_timer.stop()
+                self._continuous_checkbox.setChecked(False)
+                self._input_value_label.setText("ERROR")
+
+        self._run_async(read_value())
+
     def closeEvent(self, event) -> None:
         """Handle window close event."""
         # Stop device refresh timer
         if hasattr(self, '_device_refresh_timer'):
             self._device_refresh_timer.stop()
+
+        # Stop input poll timer
+        if hasattr(self, '_input_poll_timer'):
+            self._input_poll_timer.stop()
+
+        # Stop analog callback
+        self._stop_analog_callback()
 
         if self._check_save():
             # Cancel any pending async tasks

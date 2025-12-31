@@ -101,6 +101,10 @@ class DataRecorder:
                 return await device.get_state()
             if hasattr(device, 'read'):
                 return await device.read()
+            if hasattr(device, '_angle'): # For ServoDevice
+                return device._angle
+            if hasattr(device, '_position'): # For MotorGovernorDevice
+                return device._position
             if hasattr(device, '_value'):
                 return device._value
             return None

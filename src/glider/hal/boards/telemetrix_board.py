@@ -22,6 +22,31 @@ from glider.hal.base_board import (
 
 logger = logging.getLogger(__name__)
 
+# Global callback registry - telemetrix-aio may have issues with bound methods
+# This module-level registry allows us to create wrapper functions that work reliably
+_analog_callback_registry: dict = {}
+
+
+def _create_analog_callback(board_id: str):
+    """Create a module-level async callback function for analog data."""
+    async def _callback(data):
+        try:
+            # Look up the board instance from the registry
+            if board_id not in _analog_callback_registry:
+                logger.warning(f"No board registered for id {board_id}")
+                return
+
+            board_instance = _analog_callback_registry[board_id]
+            if board_instance is None:
+                return
+
+            # Process the callback
+            await board_instance._process_analog_data(data)
+        except Exception as e:
+            logger.error(f"Error in analog callback wrapper: {e}", exc_info=True)
+
+    return _callback
+
 
 class TelemetrixThread:
     """
@@ -233,6 +258,7 @@ class TelemetrixBoard(BaseBoard):
         self._telemetrix_thread: Optional[TelemetrixThread] = None
         self._pin_modes: Dict[int, PinMode] = {}
         self._pin_values: Dict[int, Any] = {}
+        self._pin_values_lock = threading.Lock()  # Thread-safe access to _pin_values
         self._analog_map: Dict[int, int] = {}  # Maps analog pin to Arduino analog number
         self._analog_callbacks: Dict[int, Callable] = {}  # Store callback references
 
@@ -314,6 +340,9 @@ class TelemetrixBoard(BaseBoard):
             self._telemetrix_thread = TelemetrixThread()
             self._telemetrix_thread.start(self._port, sleep_tune=0.05)
 
+            # Register this board instance for callbacks
+            _analog_callback_registry[self._id] = self
+
             self._set_state(BoardConnectionState.CONNECTED)
             logger.info(f"Successfully connected to {self.name}")
             return True
@@ -330,6 +359,11 @@ class TelemetrixBoard(BaseBoard):
     async def disconnect(self) -> None:
         """Disconnect from the Arduino."""
         self.stop_reconnect()
+
+        # Unregister from callback registry
+        if self._id in _analog_callback_registry:
+            del _analog_callback_registry[self._id]
+
         if self._telemetrix_thread is not None:
             try:
                 self._telemetrix_thread.stop()
@@ -367,9 +401,10 @@ class TelemetrixBoard(BaseBoard):
                 # Initialize pin value to 0 to prevent None values
                 self._pin_values[pin] = 0
 
-                # Store callback reference to prevent garbage collection
+                # Create a module-level callback wrapper (telemetrix-aio has issues with bound methods)
+                # The wrapper looks up the board instance from the global registry
                 if analog_pin not in self._analog_callbacks:
-                    self._analog_callbacks[analog_pin] = self._analog_callback
+                    self._analog_callbacks[analog_pin] = _create_analog_callback(self._id)
 
                 # Use differential=1 for more responsive updates
                 # This makes analog values update more frequently for better logging
@@ -380,7 +415,7 @@ class TelemetrixBoard(BaseBoard):
                         differential=1,
                         callback=self._analog_callbacks[analog_pin]
                     )
-                    logger.info(f"✅ Registered analog callback for pin {pin} (analog pin {analog_pin}), callback={self._analog_callbacks[analog_pin]}")
+                    logger.info(f"✅ Registered analog callback for pin {pin} (analog pin {analog_pin}), board_id={self._id}")
                 except Exception as e:
                     logger.error(f"❌ Failed to set analog input mode for pin {pin}: {e}")
                     raise
@@ -408,10 +443,23 @@ class TelemetrixBoard(BaseBoard):
 
     async def read_digital(self, pin: int) -> bool:
         """Read a digital value from a pin."""
-        if not self.is_connected:
+        if not self.is_connected or self._telemetrix_thread is None:
             raise RuntimeError("Board not connected")
 
-        # Return cached value from callback
+        # Perform a live read from the hardware
+        # telemetrix-aio's digital_read returns a list [pin, value, timestamp]
+        try:
+            result = self._call_telemetrix('digital_read', pin)
+            if result and len(result) > 1:
+                value = bool(result[1])
+                self._pin_values[pin] = value  # Update cache
+                return value
+        except Exception as e:
+            logger.error(f"Error during live digital read on pin {pin}: {e}")
+            # Fallback to cached value on error
+            return bool(self._pin_values.get(pin, False))
+
+        # Fallback to cached value if live read fails
         return bool(self._pin_values.get(pin, False))
 
     async def write_analog(self, pin: int, value: int) -> None:
@@ -424,15 +472,23 @@ class TelemetrixBoard(BaseBoard):
         self._pin_values[pin] = value
 
     async def read_analog(self, pin: int) -> int:
-        """Read an analog value from a pin."""
-        if not self.is_connected:
+        """Read an analog value from a pin.
+
+        Note: telemetrix-aio is callback-based and has no synchronous analog_read method.
+        This returns the cached value that is continuously updated by the callback
+        registered in set_pin_mode().
+        """
+        if not self.is_connected or self._telemetrix_thread is None:
             raise RuntimeError("Board not connected")
 
-        # Return cached value from callback
-        value = self._pin_values.get(pin, 0)
-        if value == 0:
-            logger.info(f"⚠️ read_analog(pin={pin}): returning 0! pin_values={self._pin_values}, analog_map={self._analog_map}")
-        return int(value)
+        analog_pin = self._analog_map.get(pin)
+        if analog_pin is None:
+            logger.warning(f"Pin {pin} is not configured as an analog input.")
+            return 0
+
+        # Return cached value (continuously updated by _process_analog_data callback)
+        with self._pin_values_lock:
+            return self._pin_values.get(pin, 0)
 
     async def write_servo(self, pin: int, angle: int) -> None:
         """Write a servo angle."""
@@ -454,33 +510,26 @@ class TelemetrixBoard(BaseBoard):
         self._pin_values[pin] = value
         self._notify_callbacks(pin, value)
 
-    async def _analog_callback(self, data: list) -> None:
-        """Callback for analog pin value changes."""
+    async def _process_analog_data(self, data: list) -> None:
+        """Process analog pin value changes (called via module-level callback wrapper)."""
         try:
-            # Debug: log the raw callback data
-            logger.info(f"🔔 Analog callback received: data={data}, len={len(data)}")
-
-            # Telemetrix analog callback format: [ANALOG_REPORT, pin, high_byte, low_byte, timestamp]
-            # data[0] = report type (3 for analog), data[1] = pin, data[2] = high byte, data[3] = low byte
+            # Telemetrix-aio callback format: [ANALOG_REPORT, pin, value, timestamp]
+            # data[0] = report type (3), data[1] = analog pin, data[2] = 10-bit value, data[3] = timestamp
             pin = int(data[1])
-            high_byte = int(data[2])
-            low_byte = int(data[3])
-            value = (high_byte << 8) | low_byte
+            value = int(data[2])
 
-            logger.info(f"📊 Analog pin {pin}: high={high_byte}, low={low_byte}, combined_value={value}")
+            # Clamp to valid 10-bit range (0-1023)
+            value = max(0, min(1023, value))
 
             # Map analog pin back to actual pin number
             found = False
             for actual_pin, analog_pin in self._analog_map.items():
                 if analog_pin == pin:
-                    logger.info(f"✅ Mapping analog pin {pin} to actual pin {actual_pin}, setting value {value}")
-                    self._pin_values[actual_pin] = value
+                    with self._pin_values_lock:
+                        self._pin_values[actual_pin] = value
                     self._notify_callbacks(actual_pin, value)
                     found = True
                     break
-
-            if not found:
-                logger.warning(f"❌ Received analog data for unmapped pin {pin}, analog_map: {self._analog_map}")
         except Exception as e:
             logger.error(f"💥 Error in analog callback: {e}, data={data}", exc_info=True)
 

@@ -1,0 +1,62 @@
+{
+  "metadata": {
+    "id": "e5e9ce4c-8dba-436a-b542-4127967f3515",
+    "name": "Untitled Experiment",
+    "description": "",
+    "author": "",
+    "version": "1.0.0",
+    "created_at": "2025-12-30T17:15:49.944298",
+    "modified_at": "2025-12-31T14:42:48.172725",
+    "glider_version": "1.0.0"
+  },
+  "hardware": {
+    "boards": [
+      {
+        "id": "ard",
+        "driver_type": "arduino",
+        "port": "COM4",
+        "board_type": "uno",
+        "auto_reconnect": false,
+        "settings": {}
+      }
+    ],
+    "devices": [
+      {
+        "id": "a",
+        "device_type": "AnalogInput",
+        "name": "a",
+        "board_id": "ard",
+        "pins": {
+          "input": 14
+        },
+        "settings": {}
+      }
+    ]
+  },
+  "flow": {
+    "nodes": [],
+    "connections": []
+  },
+  "dashboard": {
+    "widgets": [],
+    "layout": "vertical",
+    "columns": 1
+  },
+  "camera": {
+    "camera_index": 0,
+    "resolution": [
+      640,
+      480
+    ],
+    "fps": 30,
+    "exposure": -1,
+    "brightness": 128,
+    "contrast": 128,
+    "cv_enabled": true,
+    "cv_backend": "background_subtraction",
+    "confidence_threshold": 0.5,
+    "tracking_enabled": true,
+    "max_disappeared": 50,
+    "video_recording_enabled": true
+  }
+}

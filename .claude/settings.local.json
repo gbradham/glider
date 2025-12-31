@@ -15,7 +15,11 @@
       "Bash(pip install:*)",
       "Bash(cat:*)",
       "Bash(curl:*)",
-      "Bash(ollama pull:*)"
+      "Bash(ollama pull:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:mryslab.github.io)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

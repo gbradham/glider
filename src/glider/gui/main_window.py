@@ -1661,12 +1661,20 @@ class MainWindow(QMainWindow):
         if not self._check_save():
             return
 
+        # Remember if we were in runner mode (fullscreen/frameless)
+        was_runner_mode = self._view_manager.is_runner_mode
+
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Open Experiment",
             "",
             "GLIDER Experiments (*.glider);;JSON Files (*.json);;All Files (*)",
         )
+
+        # Restore fullscreen/frameless state on Pi after dialog closes
+        if was_runner_mode:
+            self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+            self.showFullScreen()
 
         if file_path:
             try:
@@ -1827,12 +1835,20 @@ class MainWindow(QMainWindow):
 
     def _on_save_as(self) -> None:
         """Save experiment as new file."""
+        # Remember if we were in runner mode (fullscreen/frameless)
+        was_runner_mode = self._view_manager.is_runner_mode
+
         file_path, _ = QFileDialog.getSaveFileName(
             self,
             "Save Experiment",
             "",
             "GLIDER Experiments (*.glider);;JSON Files (*.json)",
         )
+
+        # Restore fullscreen/frameless state on Pi after dialog closes
+        if was_runner_mode:
+            self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+            self.showFullScreen()
 
         if file_path:
             try:
@@ -4129,12 +4145,12 @@ class MainWindow(QMainWindow):
         # Create a callback that emits the Qt signal (thread-safe)
         def analog_callback(callback_pin: int, value: int) -> None:
             # This runs in the telemetrix thread - emit signal to cross to Qt thread
-            logger.info(f"🔔 UI callback fired: pin={callback_pin}, value={value}")
+            # Emit signal to update UI from main thread
             self.analog_value_received.emit(callback_pin, value)
 
         # Register the callback with the board
         board.register_callback(pin, analog_callback)
-        logger.info(f"Registered UI callback for pin {pin}, board callbacks: {board._callbacks}")
+        logger.debug(f"Registered analog UI callback for pin {pin}")
 
         # Track the registration so we can unregister later
         self._analog_callback_board = board
@@ -4163,7 +4179,6 @@ class MainWindow(QMainWindow):
     @pyqtSlot(int, int)
     def _on_analog_value_received(self, pin: int, value: int) -> None:
         """Handle real-time analog value updates (called via Qt signal from callback)."""
-        logger.info(f"📺 UI slot received: pin={pin}, value={value}")
         # Get reference voltage from current device if available
         device = self._get_selected_device()
         if device is not None and hasattr(device, '_reference_voltage'):

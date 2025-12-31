@@ -277,6 +277,10 @@ class FlowEngine:
         if self._ryvencore_available and self._flow:
             # Create through ryvencore
             node = self._flow.create_node(node_class)
+            if node is None:
+                # Node not registered with ryvencore - fall back to standalone
+                logger.warning(f"Node class {node_class} not found in ryvencore session, using standalone mode")
+                node = node_class()
             node._glider_id = node_id
         else:
             # Create standalone node
@@ -621,6 +625,8 @@ class FlowEngine:
         self.state = FlowState.STOPPED
 
         if self._ryvencore_available and self._session:
+            # Re-register nodes with ryvencore (ensures new flow can create them)
+            self._register_nodes_with_ryvencore()
             # Remove old flow and create new one
             self._flow = self._session.create_flow("Main Flow")
 

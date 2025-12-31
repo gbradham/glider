@@ -270,11 +270,12 @@ class GliderCore:
 
         logger.info("Initializing GLIDER Core...")
 
-        # Initialize flow engine
-        self._flow_engine.initialize()
-
-        # Register built-in nodes
+        # Register built-in nodes FIRST (before initializing flow engine)
+        # This ensures _node_registry is populated before ryvencore registration
         self._register_builtin_nodes()
+
+        # Initialize flow engine (registers nodes with ryvencore session)
+        self._flow_engine.initialize()
 
         # Load plugins
         await self._load_plugins()

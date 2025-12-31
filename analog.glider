@@ -6,48 +6,34 @@
     "author": "",
     "version": "1.0.0",
     "created_at": "2025-12-30T17:15:49.944298",
-    "modified_at": "2025-12-31T16:17:12.615149",
+    "modified_at": "2025-12-31T16:22:07.635207",
     "glider_version": "1.0.0"
   },
   "hardware": {
     "boards": [
       {
-        "id": "ard",
-        "driver_type": "arduino",
-        "port": "COM4",
-        "board_type": "uno",
-        "auto_reconnect": false,
-        "settings": {}
-      },
-      {
         "id": "pi",
         "driver_type": "raspberry_pi",
         "port": null,
-        "board_type": "uno",
+        "board_type": "raspberry_pi",
         "auto_reconnect": false,
         "settings": {}
       }
     ],
     "devices": [
       {
-        "id": "a",
-        "device_type": "AnalogInput",
-        "name": "a",
-        "board_id": "ard",
-        "pins": {
-          "input": 14
-        },
+        "id": "led",
+        "device_type": "DigitalOutput",
+        "board_id": "pi",
+        "pins": {"output": 17},
         "settings": {}
       },
       {
-        "id": "led",
-        "device_type": "DigitalOutput",
-        "name": "led",
-        "board_id": "ard",
-        "pins": {
-          "output": 13
-        },
-        "settings": {}
+        "id": "button",
+        "device_type": "DigitalInput",
+        "board_id": "pi",
+        "pins": {"input": 27},
+        "settings": {"pull_up": true}
       }
     ]
   },
@@ -83,10 +69,10 @@
           38.85
         ],
         "state": {
-          "threshold_mode": "analog",
-          "threshold": 200
+          "threshold_mode": "digital_low",
+          "threshold": 0
         },
-        "device_id": "a",
+        "device_id": "button",
         "visible_in_runner": true
       },
       {
@@ -109,7 +95,7 @@
           -136.25,
           83.85000000000001
         ],
-        "state": {},
+        "state": {"value": 1},
         "device_id": "led",
         "visible_in_runner": false
       },

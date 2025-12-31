@@ -2407,11 +2407,11 @@ class MainWindow(QMainWindow):
 
         menu.addSeparator()
 
-        # Switch to desktop mode (if not on Pi)
-        if not (self._view_manager.screen_size.width() <= 800):
-            desktop_action = menu.addAction("🖥️  Desktop Mode")
-            desktop_action.triggered.connect(self._switch_to_desktop_mode)
-            menu.addSeparator()
+        # Switch to desktop mode (always available)
+        desktop_action = menu.addAction("🖥️  Desktop Mode")
+        desktop_action.triggered.connect(self._switch_to_desktop_mode)
+
+        menu.addSeparator()
 
         # Exit action
         exit_action = menu.addAction("✕  Exit")
@@ -2426,9 +2426,19 @@ class MainWindow(QMainWindow):
         """Switch from runner to desktop mode."""
         self.setWindowFlags(Qt.WindowType.Window)
         self.showNormal()
-        self.resize(1400, 900)
-        self._stack.setCurrentIndex(0)
-        self._setup_dock_widgets()
+
+        # Use appropriate size for the screen
+        screen_size = self._view_manager.screen_size
+        if screen_size.width() <= 800:
+            # Small screen - maximize and use tabbed layout
+            self.showMaximized()
+            # Apply tabbed layout for small screens
+            self._apply_pi_touchscreen_layout()
+        else:
+            # Large screen - standard desktop size
+            self.resize(1400, 900)
+            self._stack.setCurrentIndex(0)
+            self._setup_dock_widgets()
 
     def _show_board_settings_dialog(self) -> None:
         """Show a dialog to configure board settings (ports, etc.)."""
@@ -4441,8 +4451,9 @@ class MainWindow(QMainWindow):
         if hasattr(self, '_input_poll_timer'):
             self._input_poll_timer.stop()
 
-        # Stop analog callback
-        self._stop_analog_callback()
+        # Stop analog callback (if initialized)
+        if hasattr(self, '_analog_callback_board'):
+            self._stop_analog_callback()
 
         if self._check_save():
             # Cancel any pending async tasks

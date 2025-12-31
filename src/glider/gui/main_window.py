@@ -2401,6 +2401,10 @@ class MainWindow(QMainWindow):
         reload_action = menu.addAction("🔄  Reload")
         reload_action.triggered.connect(self._refresh_runner_devices)
 
+        # Board settings action
+        board_action = menu.addAction("⚙️  Board Settings")
+        board_action.triggered.connect(self._show_board_settings_dialog)
+
         menu.addSeparator()
 
         # Switch to desktop mode (if not on Pi)
@@ -2425,6 +2429,190 @@ class MainWindow(QMainWindow):
         self.resize(1400, 900)
         self._stack.setCurrentIndex(0)
         self._setup_dock_widgets()
+
+    def _show_board_settings_dialog(self) -> None:
+        """Show a dialog to configure board settings (ports, etc.)."""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QGroupBox
+        import glob
+        import sys
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Board Settings")
+        dialog.setMinimumWidth(350)
+        dialog.setStyleSheet("""
+            QDialog {
+                background-color: #1a1a2e;
+            }
+            QLabel {
+                color: white;
+                font-size: 14px;
+            }
+            QComboBox {
+                background-color: #2d2d44;
+                color: white;
+                border: 2px solid #3498db;
+                border-radius: 6px;
+                padding: 8px;
+                min-height: 36px;
+                font-size: 14px;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 30px;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #2d2d44;
+                color: white;
+                selection-background-color: #3498db;
+            }
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 10px 20px;
+                font-size: 14px;
+                min-height: 40px;
+            }
+            QPushButton:pressed {
+                background-color: #2980b9;
+            }
+            QPushButton[secondary="true"] {
+                background-color: #34495e;
+            }
+            QGroupBox {
+                color: white;
+                font-weight: bold;
+                border: 2px solid #2d2d44;
+                border-radius: 8px;
+                margin-top: 12px;
+                padding-top: 12px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }
+        """)
+
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(16)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        # Detect available serial ports
+        def get_available_ports():
+            ports = []
+            if sys.platform.startswith('linux'):
+                # Common Linux serial port patterns
+                patterns = ['/dev/ttyACM*', '/dev/ttyUSB*', '/dev/ttyAMA*']
+                for pattern in patterns:
+                    ports.extend(glob.glob(pattern))
+            elif sys.platform == 'darwin':
+                ports.extend(glob.glob('/dev/tty.usbmodem*'))
+                ports.extend(glob.glob('/dev/tty.usbserial*'))
+            else:
+                # Windows
+                for i in range(10):
+                    ports.append(f'COM{i}')
+            return sorted(ports)
+
+        available_ports = get_available_ports()
+
+        # Get boards from session
+        boards = self._glider.hardware_manager.boards if self._glider else {}
+        port_combos = {}
+
+        if not boards:
+            no_boards_label = QLabel("No boards configured.\nLoad an experiment first.")
+            no_boards_label.setStyleSheet("color: #888; font-style: italic;")
+            layout.addWidget(no_boards_label)
+        else:
+            for board_id, board in boards.items():
+                group = QGroupBox(f"Board: {board_id}")
+                group_layout = QVBoxLayout(group)
+
+                # Board type
+                board_type = getattr(board, 'board_type', 'unknown')
+                type_label = QLabel(f"Type: {board_type}")
+                group_layout.addWidget(type_label)
+
+                # Port selection
+                port_layout = QHBoxLayout()
+                port_label = QLabel("Port:")
+                port_combo = QComboBox()
+                port_combo.setEditable(True)  # Allow custom port entry
+
+                # Add available ports
+                current_port = getattr(board, '_port', '') or ''
+                if available_ports:
+                    port_combo.addItems(available_ports)
+                # Add current port if not in list
+                if current_port and current_port not in available_ports:
+                    port_combo.addItem(current_port)
+                # Set current port
+                port_combo.setCurrentText(current_port)
+
+                port_combos[board_id] = port_combo
+
+                port_layout.addWidget(port_label)
+                port_layout.addWidget(port_combo, 1)
+                group_layout.addLayout(port_layout)
+
+                # Connection status
+                connected = getattr(board, 'is_connected', False)
+                status_text = "Connected" if connected else "Disconnected"
+                status_color = "#2ecc71" if connected else "#e74c3c"
+                status_label = QLabel(f"Status: {status_text}")
+                status_label.setStyleSheet(f"color: {status_color};")
+                group_layout.addWidget(status_label)
+
+                layout.addWidget(group)
+
+        # Detected ports info
+        if available_ports:
+            ports_label = QLabel(f"Detected ports: {', '.join(available_ports)}")
+            ports_label.setStyleSheet("color: #888; font-size: 12px;")
+            layout.addWidget(ports_label)
+        else:
+            ports_label = QLabel("No serial ports detected")
+            ports_label.setStyleSheet("color: #e74c3c; font-size: 12px;")
+            layout.addWidget(ports_label)
+
+        layout.addStretch()
+
+        # Buttons
+        button_layout = QHBoxLayout()
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setProperty("secondary", True)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        save_btn = QPushButton("Save")
+        save_btn.clicked.connect(dialog.accept)
+
+        button_layout.addWidget(cancel_btn)
+        button_layout.addWidget(save_btn)
+        layout.addLayout(button_layout)
+
+        # Show dialog
+        if dialog.exec() == QDialog.DialogCode.Accepted and port_combos:
+            # Update board ports
+            for board_id, combo in port_combos.items():
+                new_port = combo.currentText()
+                board = boards.get(board_id)
+                if board and new_port:
+                    old_port = getattr(board, '_port', '')
+                    if new_port != old_port:
+                        board._port = new_port
+                        logger.info(f"Updated board '{board_id}' port: {old_port} -> {new_port}")
+
+                        # Also update the session config
+                        if self._glider and self._glider.session:
+                            for board_config in self._glider.session.boards:
+                                if board_config.id == board_id:
+                                    board_config.config['port'] = new_port
+                                    self._glider.session._dirty = True
+                                    break
 
     # Node Library methods
     def _create_node_library(self) -> QWidget:

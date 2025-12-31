@@ -9,7 +9,7 @@ QWidget {
     background-color: #0d0d1a;
     color: #ffffff;
     font-family: "Roboto", "Segoe UI", sans-serif;
-    font-size: 16px;
+    font-size: 14px;
 }
 
 /* === Main Window === */
@@ -80,11 +80,11 @@ QPushButton {
     background-color: #3498db;
     color: white;
     border: none;
-    border-radius: 12px;
-    padding: 20px 32px;
-    font-size: 18px;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 14px;
     font-weight: bold;
-    min-height: 60px;
+    min-height: 44px;
 }
 
 QPushButton:pressed {
@@ -130,17 +130,17 @@ QLabel {
 }
 
 QLabel[title="true"] {
-    font-size: 28px;
+    font-size: 18px;
     font-weight: bold;
 }
 
 QLabel[subtitle="true"] {
-    font-size: 20px;
+    font-size: 14px;
     color: #bdc3c7;
 }
 
 QLabel[value="true"] {
-    font-size: 32px;
+    font-size: 22px;
     font-weight: bold;
     color: #3498db;
 }
@@ -200,10 +200,10 @@ QSpinBox,
 QDoubleSpinBox {
     background-color: #1a1a2e;
     border: 2px solid #2d2d44;
-    border-radius: 8px;
-    padding: 16px;
-    font-size: 24px;
-    min-height: 60px;
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 16px;
+    min-height: 40px;
 }
 
 QSpinBox:focus,
@@ -239,10 +239,10 @@ QDoubleSpinBox::down-button:pressed {
 QLineEdit {
     background-color: #1a1a2e;
     border: 2px solid #2d2d44;
-    border-radius: 8px;
-    padding: 16px;
-    font-size: 20px;
-    min-height: 50px;
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 14px;
+    min-height: 36px;
     selection-background-color: #3498db;
 }
 
@@ -254,10 +254,10 @@ QLineEdit:focus {
 QComboBox {
     background-color: #1a1a2e;
     border: 2px solid #2d2d44;
-    border-radius: 8px;
-    padding: 16px;
-    font-size: 18px;
-    min-height: 60px;
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 14px;
+    min-height: 40px;
 }
 
 QComboBox:focus {

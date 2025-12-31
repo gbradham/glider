@@ -585,6 +585,24 @@ class MainWindow(QMainWindow):
         self._status_label.setProperty("statusState", "IDLE")
         header_layout.addWidget(self._status_label)
 
+        # Menu button for settings/exit
+        self._runner_menu_btn = QPushButton("☰")
+        self._runner_menu_btn.setFixedSize(40, 40)
+        self._runner_menu_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2d2d44;
+                border: none;
+                border-radius: 8px;
+                font-size: 20px;
+                color: white;
+            }
+            QPushButton:pressed {
+                background-color: #3d3d5c;
+            }
+        """)
+        self._runner_menu_btn.clicked.connect(self._show_runner_menu)
+        header_layout.addWidget(self._runner_menu_btn)
+
         layout.addWidget(header)
 
         # === Recording Indicator ===
@@ -2334,6 +2352,63 @@ class MainWindow(QMainWindow):
             "Version 1.0.0\n\n"
             "A modular experimental orchestration platform."
         )
+
+    def _show_runner_menu(self) -> None:
+        """Show the runner mode menu with options like Open, Exit, etc."""
+        from PyQt6.QtWidgets import QMenu
+
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #1a1a2e;
+                border: 2px solid #3498db;
+                border-radius: 8px;
+                padding: 8px;
+            }
+            QMenu::item {
+                background-color: transparent;
+                padding: 12px 24px;
+                font-size: 16px;
+                color: white;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #3498db;
+            }
+        """)
+
+        # Open file action
+        open_action = menu.addAction("📂  Open Experiment")
+        open_action.triggered.connect(self._on_open)
+
+        # Reload action
+        reload_action = menu.addAction("🔄  Reload")
+        reload_action.triggered.connect(self._refresh_runner_devices)
+
+        menu.addSeparator()
+
+        # Switch to desktop mode (if not on Pi)
+        if not (self._view_manager.screen_size.width() <= 800):
+            desktop_action = menu.addAction("🖥️  Desktop Mode")
+            desktop_action.triggered.connect(self._switch_to_desktop_mode)
+            menu.addSeparator()
+
+        # Exit action
+        exit_action = menu.addAction("✕  Exit")
+        exit_action.triggered.connect(self.close)
+
+        # Show menu at button position
+        menu.exec(self._runner_menu_btn.mapToGlobal(
+            self._runner_menu_btn.rect().bottomLeft()
+        ))
+
+    def _switch_to_desktop_mode(self) -> None:
+        """Switch from runner to desktop mode."""
+        self.setWindowFlags(Qt.WindowType.Window)
+        self.showNormal()
+        self.resize(1400, 900)
+        self._stack.setCurrentIndex(0)
+        self._setup_dock_widgets()
 
     # Node Library methods
     def _create_node_library(self) -> QWidget:

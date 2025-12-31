@@ -2433,7 +2433,7 @@ class MainWindow(QMainWindow):
             # Small screen - maximize and use tabbed layout
             self.showMaximized()
             # Apply tabbed layout for small screens
-            self._apply_pi_touchscreen_layout()
+            self._set_pi_touchscreen_layout()
         else:
             # Large screen - standard desktop size
             self.resize(1400, 900)

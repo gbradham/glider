@@ -2429,6 +2429,13 @@ class MainWindow(QMainWindow):
         self.setWindowFlags(Qt.WindowType.Window)
         self.showNormal()
 
+        # Switch to builder view
+        self._stack.setCurrentIndex(0)
+
+        # Create dock widgets if they don't exist yet
+        if getattr(self, '_node_library_dock', None) is None:
+            self._setup_dock_widgets()
+
         # Use appropriate size for the screen
         screen_size = self._view_manager.screen_size
         if screen_size.width() <= 800:
@@ -2439,8 +2446,6 @@ class MainWindow(QMainWindow):
         else:
             # Large screen - standard desktop size
             self.resize(1400, 900)
-            self._stack.setCurrentIndex(0)
-            self._setup_dock_widgets()
 
     def _show_board_settings_dialog(self) -> None:
         """Show a dialog to configure board settings (ports, etc.)."""

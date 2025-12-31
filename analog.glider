@@ -77,8 +77,8 @@
           38.85
         ],
         "state": {
-          "threshold_mode": "digital_low",
-          "threshold": 0
+          "threshold_mode": "digital",
+          "threshold": 1
         },
         "device_id": "button",
         "visible_in_runner": true

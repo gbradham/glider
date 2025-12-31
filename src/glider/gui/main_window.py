@@ -2519,7 +2519,7 @@ class MainWindow(QMainWindow):
         available_ports = get_available_ports()
 
         # Get boards from session
-        boards = self._glider.hardware_manager.boards if self._glider else {}
+        boards = self._core.hardware_manager.boards if self._core else {}
         port_combos = {}
 
         if not boards:
@@ -2607,11 +2607,11 @@ class MainWindow(QMainWindow):
                         logger.info(f"Updated board '{board_id}' port: {old_port} -> {new_port}")
 
                         # Also update the session config
-                        if self._glider and self._glider.session:
-                            for board_config in self._glider.session.boards:
+                        if self._core and self._core.session:
+                            for board_config in self._core.session.boards:
                                 if board_config.id == board_id:
                                     board_config.config['port'] = new_port
-                                    self._glider.session._dirty = True
+                                    self._core.session._dirty = True
                                     break
 
     # Node Library methods

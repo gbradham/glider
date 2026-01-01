@@ -2355,23 +2355,26 @@ class MainWindow(QMainWindow):
 
             try:
                 # Update device in hardware manager
-                if hasattr(device, 'name'):
-                    device.name = new_name
-                if hasattr(device, 'pin') and 'output' in new_pins:
-                    device.pin = new_pins['output']
-                elif hasattr(device, 'pin') and 'input' in new_pins:
-                    device.pin = new_pins['input']
-                elif hasattr(device, 'pin') and 'signal' in new_pins:
-                    device.pin = new_pins['signal']
-                if hasattr(device, 'pins'):
-                    device.pins = new_pins
+                # Update name via _name attribute (name property may not have setter)
+                if hasattr(device, '_name'):
+                    device._name = new_name
+
+                # Update pins via the config object
+                if hasattr(device, 'config') and hasattr(device.config, 'pins'):
+                    device.config.pins.update(new_pins)
+                elif hasattr(device, '_config') and hasattr(device._config, 'pins'):
+                    device._config.pins.update(new_pins)
 
                 # Update session config
                 if self._core.session:
                     self._core.session.update_device(device_id, name=new_name, pins=new_pins)
 
                 self._refresh_hardware_tree()
-                QMessageBox.information(self, "Success", f"Updated device: {device_id}")
+                QMessageBox.information(
+                    self, "Success",
+                    f"Updated device: {device_id}\n\n"
+                    "Note: Pin changes take effect after reconnecting the board."
+                )
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to update device: {e}")
 

@@ -923,27 +923,27 @@ class MainWindow(QMainWindow):
         )
         files_widget = QWidget()
         files_layout = QVBoxLayout(files_widget)
-        files_layout.setContentsMargins(8, 8, 8, 8)
-        files_layout.setSpacing(8)
+        files_layout.setContentsMargins(4, 4, 4, 4)
+        files_layout.setSpacing(4)
 
-        # File operation buttons - styled for touch
-        new_btn = QPushButton("📄  New Experiment")
-        new_btn.setMinimumHeight(50)
+        # File operation buttons - compact for Pi
+        new_btn = QPushButton("📄 New")
+        new_btn.setFixedHeight(36)
         new_btn.clicked.connect(self._on_new)
         files_layout.addWidget(new_btn)
 
-        open_btn = QPushButton("📂  Open Experiment")
-        open_btn.setMinimumHeight(50)
+        open_btn = QPushButton("📂 Open")
+        open_btn.setFixedHeight(36)
         open_btn.clicked.connect(self._on_open)
         files_layout.addWidget(open_btn)
 
-        save_btn = QPushButton("💾  Save")
-        save_btn.setMinimumHeight(50)
+        save_btn = QPushButton("💾 Save")
+        save_btn.setFixedHeight(36)
         save_btn.clicked.connect(self._on_save)
         files_layout.addWidget(save_btn)
 
-        save_as_btn = QPushButton("💾  Save As...")
-        save_as_btn.setMinimumHeight(50)
+        save_as_btn = QPushButton("💾 Save As...")
+        save_as_btn.setFixedHeight(36)
         save_as_btn.clicked.connect(self._on_save_as)
         files_layout.addWidget(save_as_btn)
 

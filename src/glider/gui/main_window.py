@@ -754,9 +754,17 @@ class MainWindow(QMainWindow):
         self._control_dock.setAllowedAreas(
             Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.BottomDockWidgetArea
         )
+
+        # Wrap in scroll area for touch screens
+        control_scroll = QScrollArea()
+        control_scroll.setWidgetResizable(True)
+        control_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        control_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
         control_widget = QWidget()
         self._control_layout = QVBoxLayout(control_widget)
-        self._control_layout.setContentsMargins(4, 4, 4, 4)
+        self._control_layout.setContentsMargins(8, 8, 8, 8)
+        self._control_layout.setSpacing(8)
 
         # Device selector
         device_group = QGroupBox("Select Device")
@@ -871,7 +879,9 @@ class MainWindow(QMainWindow):
         self._control_layout.addWidget(self._control_group)
         self._control_layout.addStretch()
 
-        self._control_dock.setWidget(control_widget)
+        # Set scroll area content and dock widget
+        control_scroll.setWidget(control_widget)
+        self._control_dock.setWidget(control_scroll)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._control_dock)
 
         # Stack the control dock below the hardware dock
@@ -938,13 +948,6 @@ class MainWindow(QMainWindow):
         files_layout.addWidget(save_as_btn)
 
         files_layout.addStretch()
-
-        # Runner mode button (for Pi)
-        runner_btn = QPushButton("▶  Switch to Runner")
-        runner_btn.setMinimumHeight(50)
-        runner_btn.setProperty("primary", True)
-        runner_btn.clicked.connect(self.switch_to_runner)
-        files_layout.addWidget(runner_btn)
 
         self._files_dock.setWidget(files_widget)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._files_dock)
@@ -1616,15 +1619,15 @@ class MainWindow(QMainWindow):
         """Set up Pi Touchscreen layout with tabbed panels.
 
         Pi desktop mode focuses on hardware management and experiment running,
-        not flow creation. Excludes node library and properties panels.
+        not flow creation. Shows runner view with dock panels for configuration.
         """
         # Resize window for Pi display
         self.setMinimumSize(480, 480)
         self.resize(480, 800)
 
-        # Hide the node graph view - Pi is for running, not creating flows
-        if hasattr(self, '_graph_view') and self._graph_view is not None:
-            self._graph_view.hide()
+        # Show runner view as main content (Pi is for running, not creating flows)
+        if hasattr(self, '_stack') and self._stack is not None:
+            self._stack.setCurrentIndex(1)  # Runner view
 
         # Collect dock widgets relevant for Pi: Files, Hardware, Control, Camera
         # Excludes: Node Library, Properties (flow creation), Agent
@@ -1649,9 +1652,12 @@ class MainWindow(QMainWindow):
         if len(docks) < 2:
             return
 
-        # Move all docks to bottom area for better touch access
+        # Move all docks to bottom area and lock them (no dragging/floating on Pi)
         for dock in docks:
             dock.setVisible(True)
+            # Disable dragging and floating - only allow closing via tab
+            dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable)
+            dock.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea)
             self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock)
 
         # Tabify all docks together (stack them as tabs)
@@ -1669,30 +1675,50 @@ class MainWindow(QMainWindow):
         """Restore default desktop layout."""
         self.resize(1400, 900)
 
-        # Restore dock positions
+        # Default dock features for desktop (movable, floatable, closable)
+        default_features = (
+            QDockWidget.DockWidgetFeature.DockWidgetMovable |
+            QDockWidget.DockWidgetFeature.DockWidgetFloatable |
+            QDockWidget.DockWidgetFeature.DockWidgetClosable
+        )
+        default_areas = Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+
+        # Restore dock positions and features
         if getattr(self, '_node_library_dock', None) is not None:
+            self._node_library_dock.setFeatures(default_features)
+            self._node_library_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._node_library_dock)
             self._node_library_dock.setVisible(True)
 
         if getattr(self, '_properties_dock', None) is not None:
+            self._properties_dock.setFeatures(default_features)
+            self._properties_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._properties_dock)
             self._properties_dock.setVisible(True)
 
         if getattr(self, '_hardware_dock', None) is not None:
+            self._hardware_dock.setFeatures(default_features)
+            self._hardware_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._hardware_dock)
             self._hardware_dock.setVisible(True)
 
         if getattr(self, '_control_dock', None) is not None:
+            self._control_dock.setFeatures(default_features)
+            self._control_dock.setAllowedAreas(default_areas | Qt.DockWidgetArea.BottomDockWidgetArea)
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._control_dock)
             if getattr(self, '_hardware_dock', None) is not None:
                 self.tabifyDockWidget(self._hardware_dock, self._control_dock)
                 self._hardware_dock.raise_()
 
         if getattr(self, '_camera_dock', None) is not None:
+            self._camera_dock.setFeatures(default_features)
+            self._camera_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._camera_dock)
             self._camera_dock.setVisible(True)
 
         if getattr(self, '_agent_dock', None) is not None:
+            self._agent_dock.setFeatures(default_features)
+            self._agent_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._agent_dock)
             if getattr(self, '_camera_dock', None) is not None:
                 self.tabifyDockWidget(self._camera_dock, self._agent_dock)
@@ -2460,14 +2486,12 @@ class MainWindow(QMainWindow):
         reload_action = menu.addAction("🔄  Reload")
         reload_action.triggered.connect(self._refresh_runner_devices)
 
-        # Board settings action
-        board_action = menu.addAction("⚙️  Board Settings")
+        # Board settings action (quick port configuration)
+        board_action = menu.addAction("🔌  Ports")
         board_action.triggered.connect(self._show_board_settings_dialog)
 
-        menu.addSeparator()
-
-        # Switch to desktop mode (always available)
-        desktop_action = menu.addAction("🖥️  Desktop Mode")
+        # Switch to desktop/config mode - shows dock panels for full hardware configuration
+        desktop_action = menu.addAction("⚙️  Hardware Config")
         desktop_action.triggered.connect(self._switch_to_desktop_mode)
 
         menu.addSeparator()

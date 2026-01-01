@@ -1613,12 +1613,21 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Window resized to {width}x{height}", 2000)
 
     def _set_pi_touchscreen_layout(self) -> None:
-        """Set up Pi Touchscreen layout with tabbed panels."""
+        """Set up Pi Touchscreen layout with tabbed panels.
+
+        Pi desktop mode focuses on hardware management and experiment running,
+        not flow creation. Excludes node library and properties panels.
+        """
         # Resize window for Pi display
         self.setMinimumSize(480, 480)
         self.resize(480, 800)
 
-        # Collect all dock widgets - Files first for easy access on Pi
+        # Hide the node graph view - Pi is for running, not creating flows
+        if hasattr(self, '_graph_view') and self._graph_view is not None:
+            self._graph_view.hide()
+
+        # Collect dock widgets relevant for Pi: Files, Hardware, Control, Camera
+        # Excludes: Node Library, Properties (flow creation), Agent
         docks = []
         if getattr(self, '_files_dock', None) is not None:
             docks.append(self._files_dock)
@@ -1626,14 +1635,16 @@ class MainWindow(QMainWindow):
             docks.append(self._hardware_dock)
         if getattr(self, '_control_dock', None) is not None:
             docks.append(self._control_dock)
-        if getattr(self, '_node_library_dock', None) is not None:
-            docks.append(self._node_library_dock)
-        if getattr(self, '_properties_dock', None) is not None:
-            docks.append(self._properties_dock)
         if getattr(self, '_camera_dock', None) is not None:
             docks.append(self._camera_dock)
+
+        # Hide flow-creation docks on Pi
+        if getattr(self, '_node_library_dock', None) is not None:
+            self._node_library_dock.setVisible(False)
+        if getattr(self, '_properties_dock', None) is not None:
+            self._properties_dock.setVisible(False)
         if getattr(self, '_agent_dock', None) is not None:
-            docks.append(self._agent_dock)
+            self._agent_dock.setVisible(False)
 
         if len(docks) < 2:
             return

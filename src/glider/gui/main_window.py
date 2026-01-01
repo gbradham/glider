@@ -762,15 +762,19 @@ class MainWindow(QMainWindow):
         control_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         control_widget = QWidget()
+        control_widget.setMaximumWidth(460)  # Fit Pi screen
         self._control_layout = QVBoxLayout(control_widget)
-        self._control_layout.setContentsMargins(8, 8, 8, 8)
-        self._control_layout.setSpacing(8)
+        self._control_layout.setContentsMargins(4, 4, 4, 4)
+        self._control_layout.setSpacing(4)
 
         # Device selector
-        device_group = QGroupBox("Select Device")
+        device_group = QGroupBox("Device")
+        device_group.setMaximumHeight(60)
         device_group_layout = QVBoxLayout(device_group)
+        device_group_layout.setContentsMargins(4, 4, 4, 4)
 
         self._device_combo = QComboBox()
+        self._device_combo.setMaximumHeight(28)
         self._device_combo.currentTextChanged.connect(self._on_device_selected)
         device_group_layout.addWidget(self._device_combo)
 
@@ -779,86 +783,106 @@ class MainWindow(QMainWindow):
         # Control buttons group
         self._control_group = QGroupBox("Controls")
         self._control_group_layout = QVBoxLayout(self._control_group)
+        self._control_group_layout.setContentsMargins(4, 4, 4, 4)
+        self._control_group_layout.setSpacing(4)
 
-        # Digital output controls
+        # Digital output controls - compact buttons
         digital_layout = QHBoxLayout()
-        self._on_btn = QPushButton("ON (HIGH)")
+        digital_layout.setSpacing(2)
+        self._on_btn = QPushButton("ON")
+        self._on_btn.setFixedHeight(32)
         self._on_btn.clicked.connect(lambda: self._set_digital_output(True))
-        self._off_btn = QPushButton("OFF (LOW)")
+        self._off_btn = QPushButton("OFF")
+        self._off_btn.setFixedHeight(32)
         self._off_btn.clicked.connect(lambda: self._set_digital_output(False))
         self._toggle_btn = QPushButton("Toggle")
+        self._toggle_btn.setFixedHeight(32)
         self._toggle_btn.clicked.connect(self._toggle_digital_output)
         digital_layout.addWidget(self._on_btn)
         digital_layout.addWidget(self._off_btn)
         digital_layout.addWidget(self._toggle_btn)
         self._control_group_layout.addLayout(digital_layout)
 
-        # PWM/Analog control
+        # PWM/Analog control - compact layout
         pwm_layout = QHBoxLayout()
-        pwm_label = QLabel("PWM Value:")
+        pwm_layout.setSpacing(2)
+        pwm_label = QLabel("PWM:")
+        pwm_label.setFixedWidth(35)
         self._pwm_slider = QSlider(Qt.Orientation.Horizontal)
         self._pwm_slider.setRange(0, 255)
+        self._pwm_slider.setMaximumHeight(24)
         self._pwm_slider.valueChanged.connect(self._on_pwm_changed)
         self._pwm_spinbox = QSpinBox()
         self._pwm_spinbox.setRange(0, 255)
+        self._pwm_spinbox.setFixedWidth(50)
+        self._pwm_spinbox.setMaximumHeight(24)
         self._pwm_spinbox.valueChanged.connect(self._pwm_slider.setValue)
         self._pwm_slider.valueChanged.connect(self._pwm_spinbox.setValue)
         pwm_layout.addWidget(pwm_label)
-        pwm_layout.addWidget(self._pwm_slider)
+        pwm_layout.addWidget(self._pwm_slider, 1)
         pwm_layout.addWidget(self._pwm_spinbox)
         self._control_group_layout.addLayout(pwm_layout)
 
-        # Servo control
+        # Servo control - compact layout
         servo_layout = QHBoxLayout()
-        servo_label = QLabel("Servo Angle:")
+        servo_layout.setSpacing(2)
+        servo_label = QLabel("Servo:")
+        servo_label.setFixedWidth(35)
         self._servo_slider = QSlider(Qt.Orientation.Horizontal)
         self._servo_slider.setRange(0, 180)
         self._servo_slider.setValue(90)
+        self._servo_slider.setMaximumHeight(24)
         self._servo_slider.valueChanged.connect(self._on_servo_changed)
         self._servo_spinbox = QSpinBox()
         self._servo_spinbox.setRange(0, 180)
         self._servo_spinbox.setValue(90)
+        self._servo_spinbox.setFixedWidth(50)
+        self._servo_spinbox.setMaximumHeight(24)
         self._servo_spinbox.valueChanged.connect(self._servo_slider.setValue)
         self._servo_slider.valueChanged.connect(self._servo_spinbox.setValue)
         servo_layout.addWidget(servo_label)
-        servo_layout.addWidget(self._servo_slider)
+        servo_layout.addWidget(self._servo_slider, 1)
         servo_layout.addWidget(self._servo_spinbox)
         self._control_group_layout.addLayout(servo_layout)
 
-        # Input reading section
-        input_group = QGroupBox("Input Reading")
+        # Input reading section - compact
+        input_group = QGroupBox("Input")
         input_group_layout = QVBoxLayout(input_group)
+        input_group_layout.setContentsMargins(4, 4, 4, 4)
+        input_group_layout.setSpacing(4)
 
-        # Value display
+        # Value display - smaller
         self._input_value_label = QLabel("--")
         self._input_value_label.setStyleSheet(
-            "font-size: 24px; font-weight: bold; padding: 10px; "
+            "font-size: 18px; font-weight: bold; padding: 4px; "
             "background-color: #2d2d2d; border-radius: 4px; color: #00ff00;"
         )
         self._input_value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._input_value_label.setMinimumHeight(50)
+        self._input_value_label.setFixedHeight(32)
         input_group_layout.addWidget(self._input_value_label)
 
-        # Read button and continuous checkbox
-        input_control_layout = QHBoxLayout()
-        self._read_btn = QPushButton("Read Once")
+        # Read button and continuous checkbox - two rows
+        input_row1 = QHBoxLayout()
+        input_row1.setSpacing(4)
+        self._read_btn = QPushButton("Read")
+        self._read_btn.setFixedHeight(28)
         self._read_btn.clicked.connect(self._read_input_once)
-        input_control_layout.addWidget(self._read_btn)
+        input_row1.addWidget(self._read_btn)
 
-        self._continuous_checkbox = QCheckBox("Continuous")
+        self._continuous_checkbox = QCheckBox("Auto")
         self._continuous_checkbox.stateChanged.connect(self._on_continuous_changed)
-        input_control_layout.addWidget(self._continuous_checkbox)
+        input_row1.addWidget(self._continuous_checkbox)
 
-        poll_label = QLabel("Interval:")
         self._poll_spinbox = QSpinBox()
         self._poll_spinbox.setRange(50, 5000)
         self._poll_spinbox.setValue(100)
-        self._poll_spinbox.setSuffix(" ms")
+        self._poll_spinbox.setSuffix("ms")
+        self._poll_spinbox.setFixedWidth(70)
+        self._poll_spinbox.setMaximumHeight(24)
         self._poll_spinbox.valueChanged.connect(self._on_poll_interval_changed)
-        input_control_layout.addWidget(poll_label)
-        input_control_layout.addWidget(self._poll_spinbox)
+        input_row1.addWidget(self._poll_spinbox)
 
-        input_group_layout.addLayout(input_control_layout)
+        input_group_layout.addLayout(input_row1)
         self._input_group = input_group
         self._control_group_layout.addWidget(input_group)
 
@@ -872,8 +896,9 @@ class MainWindow(QMainWindow):
         self._analog_callback_func = None   # The callback function reference
         self.analog_value_received.connect(self._on_analog_value_received)
 
-        # Status display
-        self._device_status_label = QLabel("Status: Not connected")
+        # Status display - compact
+        self._device_status_label = QLabel("Not connected")
+        self._device_status_label.setStyleSheet("font-size: 10px; color: #888;")
         self._control_group_layout.addWidget(self._device_status_label)
 
         self._control_layout.addWidget(self._control_group)

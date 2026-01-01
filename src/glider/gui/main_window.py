@@ -906,6 +906,49 @@ class MainWindow(QMainWindow):
         self.tabifyDockWidget(self._camera_dock, self._agent_dock)
         self._camera_dock.raise_()
 
+        # Files dock (for Pi touchscreen access to file operations)
+        self._files_dock = QDockWidget("Files", self)
+        self._files_dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.BottomDockWidgetArea
+        )
+        files_widget = QWidget()
+        files_layout = QVBoxLayout(files_widget)
+        files_layout.setContentsMargins(8, 8, 8, 8)
+        files_layout.setSpacing(8)
+
+        # File operation buttons - styled for touch
+        new_btn = QPushButton("📄  New Experiment")
+        new_btn.setMinimumHeight(50)
+        new_btn.clicked.connect(self._on_new)
+        files_layout.addWidget(new_btn)
+
+        open_btn = QPushButton("📂  Open Experiment")
+        open_btn.setMinimumHeight(50)
+        open_btn.clicked.connect(self._on_open)
+        files_layout.addWidget(open_btn)
+
+        save_btn = QPushButton("💾  Save")
+        save_btn.setMinimumHeight(50)
+        save_btn.clicked.connect(self._on_save)
+        files_layout.addWidget(save_btn)
+
+        save_as_btn = QPushButton("💾  Save As...")
+        save_as_btn.setMinimumHeight(50)
+        save_as_btn.clicked.connect(self._on_save_as)
+        files_layout.addWidget(save_as_btn)
+
+        files_layout.addStretch()
+
+        # Runner mode button (for Pi)
+        runner_btn = QPushButton("▶  Switch to Runner")
+        runner_btn.setMinimumHeight(50)
+        runner_btn.setProperty("primary", True)
+        runner_btn.clicked.connect(self.switch_to_runner)
+        files_layout.addWidget(runner_btn)
+
+        self._files_dock.setWidget(files_widget)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._files_dock)
+
         # Refresh hardware tree (which also refreshes the device combo)
         self._refresh_hardware_tree()
 
@@ -1575,16 +1618,18 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(480, 480)
         self.resize(480, 800)
 
-        # Collect all dock widgets
+        # Collect all dock widgets - Files first for easy access on Pi
         docks = []
-        if getattr(self, '_node_library_dock', None) is not None:
-            docks.append(self._node_library_dock)
-        if getattr(self, '_properties_dock', None) is not None:
-            docks.append(self._properties_dock)
+        if getattr(self, '_files_dock', None) is not None:
+            docks.append(self._files_dock)
         if getattr(self, '_hardware_dock', None) is not None:
             docks.append(self._hardware_dock)
         if getattr(self, '_control_dock', None) is not None:
             docks.append(self._control_dock)
+        if getattr(self, '_node_library_dock', None) is not None:
+            docks.append(self._node_library_dock)
+        if getattr(self, '_properties_dock', None) is not None:
+            docks.append(self._properties_dock)
         if getattr(self, '_camera_dock', None) is not None:
             docks.append(self._camera_dock)
         if getattr(self, '_agent_dock', None) is not None:
@@ -1641,6 +1686,10 @@ class MainWindow(QMainWindow):
             if getattr(self, '_camera_dock', None) is not None:
                 self.tabifyDockWidget(self._camera_dock, self._agent_dock)
                 self._camera_dock.raise_()
+
+        # Hide files dock on large screens (menu/toolbar available)
+        if getattr(self, '_files_dock', None) is not None:
+            self._files_dock.setVisible(False)
 
         self.statusBar().showMessage("Default layout restored", 2000)
         logger.info("Restored default desktop layout")

@@ -2196,6 +2196,185 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to add device: {e}")
 
+    def _on_edit_board(self, board_id: str) -> None:
+        """Show dialog to edit an existing board."""
+        board = self._core.hardware_manager.get_board(board_id)
+        if board is None:
+            QMessageBox.warning(self, "Error", f"Board '{board_id}' not found.")
+            return
+
+        # Get session config for current values
+        board_config = self._core.session.get_board(board_id) if self._core.session else None
+        current_port = board_config.port if board_config else getattr(board, 'port', None)
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Edit Board: {board_id}")
+        dialog.setMinimumWidth(350)
+
+        layout = QFormLayout(dialog)
+
+        # Board ID (read-only)
+        id_label = QLabel(board_id)
+        id_label.setStyleSheet("color: #888;")
+        layout.addRow("Board ID:", id_label)
+
+        # Port selection with refresh button
+        port_layout = QHBoxLayout()
+        port_combo = QComboBox()
+        port_combo.setMinimumWidth(200)
+
+        def refresh_ports():
+            port_combo.clear()
+            port_combo.addItem("Auto-detect", None)
+            try:
+                import serial.tools.list_ports
+                ports = serial.tools.list_ports.comports()
+                for port in ports:
+                    label = f"{port.device}"
+                    if port.description and port.description != "n/a":
+                        label += f" - {port.description}"
+                    port_combo.addItem(label, port.device)
+            except ImportError:
+                pass
+
+            # Select current port if set
+            if current_port:
+                for i in range(port_combo.count()):
+                    if port_combo.itemData(i) == current_port:
+                        port_combo.setCurrentIndex(i)
+                        break
+
+        refresh_ports()
+        port_layout.addWidget(port_combo)
+
+        refresh_btn = QPushButton("↻")
+        refresh_btn.setMaximumWidth(30)
+        refresh_btn.clicked.connect(refresh_ports)
+        port_layout.addWidget(refresh_btn)
+
+        layout.addRow("Serial Port:", port_layout)
+
+        # Buttons
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addRow(buttons)
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            new_port = port_combo.currentData()
+
+            try:
+                # Update board in hardware manager
+                if hasattr(board, 'port'):
+                    board.port = new_port
+
+                # Update session config
+                if self._core.session:
+                    self._core.session.update_board(board_id, port=new_port)
+
+                self._refresh_hardware_tree()
+                QMessageBox.information(self, "Success", f"Updated board: {board_id}")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to update board: {e}")
+
+    def _on_edit_device(self, device_id: str) -> None:
+        """Show dialog to edit an existing device."""
+        device = self._core.hardware_manager.get_device(device_id)
+        if device is None:
+            QMessageBox.warning(self, "Error", f"Device '{device_id}' not found.")
+            return
+
+        # Get session config for current values
+        device_config = self._core.session.get_device(device_id) if self._core.session else None
+
+        # Get current values
+        current_name = device_config.name if device_config else getattr(device, 'name', device_id)
+        current_pins = device_config.pins if device_config else {}
+        device_type = device_config.device_type if device_config else type(device).__name__
+
+        # If no pins in config, try to get from device
+        if not current_pins and hasattr(device, 'pin'):
+            current_pins = {"output": device.pin} if hasattr(device, 'pin') else {}
+        if not current_pins and hasattr(device, 'pins'):
+            current_pins = device.pins if isinstance(device.pins, dict) else {}
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Edit Device: {device_id}")
+        dialog.setMinimumWidth(380)
+
+        layout = QFormLayout(dialog)
+
+        # Device ID (read-only)
+        id_label = QLabel(device_id)
+        id_label.setStyleSheet("color: #888;")
+        layout.addRow("Device ID:", id_label)
+
+        # Device type (read-only)
+        type_label = QLabel(device_type)
+        type_label.setStyleSheet("color: #888;")
+        layout.addRow("Device Type:", type_label)
+
+        # Name (editable)
+        name_edit = QLineEdit(current_name)
+        layout.addRow("Name:", name_edit)
+
+        # Pin inputs
+        pin_spinboxes: Dict[str, QSpinBox] = {}
+
+        # Determine if this is an analog device
+        is_analog = "Analog" in device_type
+
+        for pin_name, pin_value in current_pins.items():
+            spin = QSpinBox()
+            spin.setRange(0, 53)
+            spin.setValue(pin_value)
+            pin_spinboxes[pin_name] = spin
+            label = f"{pin_name.capitalize()} Pin:"
+            layout.addRow(label, spin)
+
+        # Add helpful note for analog devices
+        if is_analog:
+            note = QLabel("Note: A0=14, A1=15, A2=16, A3=17, A4=18, A5=19")
+            note.setStyleSheet("color: #888; font-size: 10px; font-style: italic;")
+            note.setWordWrap(True)
+            layout.addRow(note)
+
+        # Buttons
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addRow(buttons)
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            new_name = name_edit.text().strip() or device_id
+            new_pins = {pin_name: spin.value() for pin_name, spin in pin_spinboxes.items()}
+
+            try:
+                # Update device in hardware manager
+                if hasattr(device, 'name'):
+                    device.name = new_name
+                if hasattr(device, 'pin') and 'output' in new_pins:
+                    device.pin = new_pins['output']
+                elif hasattr(device, 'pin') and 'input' in new_pins:
+                    device.pin = new_pins['input']
+                elif hasattr(device, 'pin') and 'signal' in new_pins:
+                    device.pin = new_pins['signal']
+                if hasattr(device, 'pins'):
+                    device.pins = new_pins
+
+                # Update session config
+                if self._core.session:
+                    self._core.session.update_device(device_id, name=new_name, pins=new_pins)
+
+                self._refresh_hardware_tree()
+                QMessageBox.information(self, "Success", f"Updated device: {device_id}")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to update device: {e}")
+
     def _refresh_hardware_tree(self) -> None:
         """Refresh the hardware tree widget."""
         if not hasattr(self, '_hardware_tree'):
@@ -2260,10 +2439,16 @@ class MainWindow(QMainWindow):
 
             menu.addSeparator()
 
+            edit_action = menu.addAction("Edit Board")
+            edit_action.triggered.connect(lambda: self._on_edit_board(item_id))
+
             remove_action = menu.addAction("Remove Board")
             remove_action.triggered.connect(lambda: self._remove_board(item_id))
 
         elif item_type == "device":
+            edit_action = menu.addAction("Edit Device")
+            edit_action.triggered.connect(lambda: self._on_edit_device(item_id))
+
             remove_action = menu.addAction("Remove Device")
             remove_action.triggered.connect(lambda: self._remove_device(item_id))
 

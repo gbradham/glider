@@ -451,6 +451,21 @@ class ExperimentSession:
                 return board
         return None
 
+    def update_board(self, board_id: str, port: Optional[str] = None,
+                     board_type: Optional[str] = None, settings: Optional[Dict[str, Any]] = None) -> bool:
+        """Update a board's configuration."""
+        board = self.get_board(board_id)
+        if board is None:
+            return False
+        if port is not None:
+            board.port = port
+        if board_type is not None:
+            board.board_type = board_type
+        if settings is not None:
+            board.settings = settings
+        self._mark_dirty()
+        return True
+
     # Device management
     def add_device(self, config: DeviceConfig) -> None:
         """Add a device to the hardware configuration."""
@@ -470,6 +485,22 @@ class ExperimentSession:
             if device.id == device_id:
                 return device
         return None
+
+    def update_device(self, device_id: str, name: Optional[str] = None,
+                      pins: Optional[Dict[str, int]] = None,
+                      settings: Optional[Dict[str, Any]] = None) -> bool:
+        """Update a device's configuration."""
+        device = self.get_device(device_id)
+        if device is None:
+            return False
+        if name is not None:
+            device.name = name
+        if pins is not None:
+            device.pins = pins
+        if settings is not None:
+            device.settings = settings
+        self._mark_dirty()
+        return True
 
     # Node management
     def add_node(self, config: NodeConfig) -> None:

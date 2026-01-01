@@ -2266,16 +2266,20 @@ class MainWindow(QMainWindow):
             new_port = port_combo.currentData()
 
             try:
-                # Update board in hardware manager
-                if hasattr(board, 'port'):
-                    board.port = new_port
+                # Update board in hardware manager via internal attribute
+                if hasattr(board, '_port'):
+                    board._port = new_port
 
                 # Update session config
                 if self._core.session:
                     self._core.session.update_board(board_id, port=new_port)
 
                 self._refresh_hardware_tree()
-                QMessageBox.information(self, "Success", f"Updated board: {board_id}")
+                QMessageBox.information(
+                    self, "Success",
+                    f"Updated board: {board_id}\n\n"
+                    "Note: Port changes take effect after reconnecting."
+                )
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to update board: {e}")
 

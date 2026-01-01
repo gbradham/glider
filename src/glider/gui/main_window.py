@@ -697,9 +697,6 @@ class MainWindow(QMainWindow):
 
     def _setup_dock_widgets(self) -> None:
         """Set up dock widgets for desktop mode."""
-        if self._view_manager.is_runner_mode:
-            return
-
         # Node Library dock
         self._node_library_dock = QDockWidget("Node Library", self)
         self._node_library_dock.setAllowedAreas(

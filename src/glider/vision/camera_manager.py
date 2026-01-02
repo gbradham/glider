@@ -211,6 +211,52 @@ class CameraManager:
         logger.info(f"Found {len(cameras)} camera(s)")
         return cameras
 
+    def _try_connect_with_backend(self, backend: int) -> bool:
+        """
+        Try to connect to the camera with a specific backend.
+
+        Args:
+            backend: OpenCV backend (e.g., cv2.CAP_V4L2, cv2.CAP_ANY)
+
+        Returns:
+            True if connection successful and frames can be read
+        """
+        if self._capture is not None:
+            self._capture.release()
+
+        self._capture = cv2.VideoCapture(
+            self._settings.camera_index,
+            backend
+        )
+
+        if not self._capture.isOpened():
+            logger.debug(f"Failed to open camera with backend {backend}")
+            return False
+
+        # Set buffer size to reduce latency (especially helpful for V4L2)
+        if backend == cv2.CAP_V4L2:
+            self._capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        # Apply settings
+        self._apply_camera_settings()
+
+        # Warmup and verify we can actually read frames
+        success_count = 0
+        for _ in range(10):
+            if self._capture.grab():
+                ret, frame = self._capture.retrieve()
+                if ret and frame is not None:
+                    success_count += 1
+                    if success_count >= 3:
+                        logger.debug(f"Camera working with backend {backend}")
+                        return True
+            time.sleep(0.05)
+
+        logger.debug(f"Camera opened but failed to read frames with backend {backend}")
+        self._capture.release()
+        self._capture = None
+        return False
+
     def connect(self, settings: Optional[CameraSettings] = None) -> bool:
         """
         Connect to a camera with given settings.
@@ -235,27 +281,18 @@ class CameraManager:
         try:
             # Use platform-appropriate backend
             backend = _get_camera_backend()
-            self._capture = cv2.VideoCapture(
-                self._settings.camera_index,
-                backend
-            )
 
-            if not self._capture.isOpened():
-                logger.error(f"Failed to open camera {self._settings.camera_index}")
-                self._state = CameraState.ERROR
-                return False
-
-            # Set buffer size to reduce latency (especially helpful for V4L2)
-            if backend == cv2.CAP_V4L2:
-                self._capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
-            # Apply settings
-            self._apply_camera_settings()
-
-            # Warmup: grab a few frames to flush the buffer
-            # This is especially important for V4L2 on Linux
-            for _ in range(5):
-                self._capture.grab()
+            # Try connecting with the preferred backend
+            if not self._try_connect_with_backend(backend):
+                # If V4L2 failed on Linux, try CAP_ANY as fallback
+                if backend == cv2.CAP_V4L2:
+                    logger.info("V4L2 failed, trying auto-detect backend")
+                    if not self._try_connect_with_backend(cv2.CAP_ANY):
+                        self._state = CameraState.ERROR
+                        return False
+                else:
+                    self._state = CameraState.ERROR
+                    return False
 
             self._state = CameraState.CONNECTED
             logger.info(f"Connected to camera {self._settings.camera_index}")
@@ -382,10 +419,14 @@ class CameraManager:
         if self._capture is None:
             return
 
-        # On Linux with V4L2, set MJPEG format for better compatibility
+        # On Linux with V4L2, try MJPEG format for better compatibility
+        # Some cameras don't support it, so we don't fail if it doesn't work
         if sys.platform == "linux":
-            fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-            self._capture.set(cv2.CAP_PROP_FOURCC, fourcc)
+            try:
+                fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+                self._capture.set(cv2.CAP_PROP_FOURCC, fourcc)
+            except Exception:
+                pass  # Camera may not support MJPEG, that's okay
 
         # Resolution
         self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, self._settings.resolution[0])
@@ -426,17 +467,31 @@ class CameraManager:
     def _capture_loop(self) -> None:
         """Background thread for frame capture."""
         logger.debug("Capture loop started")
+        consecutive_failures = 0
+        max_failures_before_log = 30  # Only log every 30 failures to avoid spam
 
         while self._running:
             if self._capture is None or not self._capture.isOpened():
                 time.sleep(0.1)
                 continue
 
-            ret, frame = self._capture.read()
-            if not ret:
-                logger.warning("Failed to read frame")
+            # Use grab() + retrieve() which works better with V4L2 on Linux
+            if not self._capture.grab():
+                consecutive_failures += 1
+                if consecutive_failures == 1 or consecutive_failures % max_failures_before_log == 0:
+                    logger.warning(f"Failed to grab frame (attempt {consecutive_failures})")
                 time.sleep(0.01)
                 continue
+
+            ret, frame = self._capture.retrieve()
+            if not ret or frame is None:
+                consecutive_failures += 1
+                if consecutive_failures == 1 or consecutive_failures % max_failures_before_log == 0:
+                    logger.warning(f"Failed to retrieve frame (attempt {consecutive_failures})")
+                time.sleep(0.01)
+                continue
+
+            consecutive_failures = 0  # Reset on success
 
             timestamp = time.time()
 

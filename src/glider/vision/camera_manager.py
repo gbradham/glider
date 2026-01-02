@@ -40,13 +40,9 @@ def _is_raspberry_pi() -> bool:
         return False
 
 
-# Try to import picamera2 for Raspberry Pi camera support
-_picamera2_available = False
-try:
-    from picamera2 import Picamera2
-    _picamera2_available = True
-except ImportError:
-    Picamera2 = None
+# Picamera2 is imported lazily to avoid crashes from numpy version conflicts
+_picamera2_available = None  # None = not checked yet, True/False = checked
+_Picamera2 = None  # Will hold the class if available
 
 
 @dataclass
@@ -285,6 +281,19 @@ class CameraManager:
         Returns:
             True if connection successful and frames can be read
         """
+        global _picamera2_available, _Picamera2
+
+        # Lazy import of picamera2 to avoid crashes from numpy version conflicts
+        if _picamera2_available is None:
+            try:
+                from picamera2 import Picamera2
+                _Picamera2 = Picamera2
+                _picamera2_available = True
+                logger.debug("picamera2 imported successfully")
+            except (ImportError, ValueError) as e:
+                logger.debug(f"picamera2 not available: {e}")
+                _picamera2_available = False
+
         if not _picamera2_available:
             logger.debug("picamera2 not available")
             return False
@@ -300,7 +309,7 @@ class CameraManager:
                 self._picamera2 = None
 
             # Create Picamera2 instance
-            self._picamera2 = Picamera2()
+            self._picamera2 = _Picamera2()
 
             # Configure for video capture
             width, height = self._settings.resolution
@@ -366,7 +375,7 @@ class CameraManager:
             backend = _get_camera_backend()
 
             # On Raspberry Pi, try picamera2 first (for Pi Camera modules)
-            if _is_raspberry_pi() and _picamera2_available:
+            if _is_raspberry_pi():
                 logger.info("Raspberry Pi detected, trying picamera2 first")
                 if self._try_connect_picamera2():
                     self._state = CameraState.CONNECTED

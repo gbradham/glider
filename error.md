@@ -1,29 +1,29 @@
-2026-01-02 11:42:15,973 - glider.gui.view_manager - INFO - Auto-detected Runner mode (480x800 portrait)
-2026-01-02 11:42:16,011 - glider.gui.view_manager - INFO - Applied stylesheet: /home/RP3/glider/src/glider/gui/styles/touch.qss
-2026-01-02 11:42:16,011 - glider.gui.main_window - INFO - MainWindow initialized in RUNNER mode
-2026-01-02 11:42:16,011 - glider - INFO - Starting in Runner mode
-[ WARN:0@3.934] global cap_v4l.cpp:914 open VIDEOIO(V4L2:/dev/video1): can't open camera by index
-[ WARN:0@3.934] global cap.cpp:478 open VIDEOIO(V4L2): backend is generally available but can't be used to capture by index
-[ WARN:0@3.934] global cap_v4l.cpp:914 open VIDEOIO(V4L2:/dev/video2): can't open camera by index
-[ WARN:0@3.934] global cap.cpp:478 open VIDEOIO(V4L2): backend is generally available but can't be used to capture by index
-[ WARN:0@3.934] global cap_v4l.cpp:914 open VIDEOIO(V4L2:/dev/video3): can't open camera by index
-[ WARN:0@3.934] global cap.cpp:478 open VIDEOIO(V4L2): backend is generally available but can't be used to capture by index
-[ WARN:0@3.934] global cap_v4l.cpp:914 open VIDEOIO(V4L2:/dev/video4): can't open camera by index
-[ WARN:0@3.934] global cap.cpp:478 open VIDEOIO(V4L2): backend is generally available but can't be used to capture by index
-[ WARN:0@3.934] global cap_v4l.cpp:914 open VIDEOIO(V4L2:/dev/video5): can't open camera by index
-[ WARN:0@3.934] global cap.cpp:478 open VIDEOIO(V4L2): backend is generally available but can't be used to capture by index
-[ WARN:0@3.934] global cap_v4l.cpp:914 open VIDEOIO(V4L2:/dev/video6): can't open camera by index
-[ WARN:0@3.934] global cap.cpp:478 open VIDEOIO(V4L2): backend is generally available but can't be used to capture by index
-[ WARN:0@3.934] global cap_v4l.cpp:914 open VIDEOIO(V4L2:/dev/video7): can't open camera by index
-[ WARN:0@3.935] global cap.cpp:478 open VIDEOIO(V4L2): backend is generally available but can't be used to capture by index
-[ WARN:0@3.935] global cap_v4l.cpp:914 open VIDEOIO(V4L2:/dev/video8): can't open camera by index
-[ WARN:0@3.935] global cap.cpp:478 open VIDEOIO(V4L2): backend is generally available but can't be used to capture by index
-[ WARN:0@3.935] global cap_v4l.cpp:914 open VIDEOIO(V4L2:/dev/video9): can't open camera by index
-[ WARN:0@3.935] global cap.cpp:478 open VIDEOIO(V4L2): backend is generally available but can't be used to capture by index
-2026-01-02 11:42:19,489 - glider.vision.camera_manager - INFO - Found 1 camera(s)
-2026-01-02 11:42:19,553 - glider.gui.main_window - INFO - Applied Pi Touchscreen tabbed layout
-2026-01-02 11:42:26,309 - glider.vision.camera_manager - INFO - Raspberry Pi detected, trying libcamera first
-2026-01-02 11:42:26,309 - glider.vision.camera_manager - INFO - libcamera failed, falling back to V4L2
-[ WARN:0@21.245] global cap_v4l.cpp:1049 tryIoctl VIDEOIO(V4L2:/dev/video0): select() timeout.
-[ WARN:0@31.303] global cap_v4l.cpp:1049 tryIoctl VIDEOIO(V4L2:/dev/video0): select() timeout.
+Traceback (most recent call last):
+  File "<frozen runpy>", line 189, in _run_module_as_main
+  File "<frozen runpy>", line 148, in _get_module_details
+  File "<frozen runpy>", line 112, in _get_module_details
+  File "/home/RP3/glider/src/glider/__init__.py", line 11, in <module>
+    from glider.core.glider_core import GliderCore
+  File "/home/RP3/glider/src/glider/core/__init__.py", line 9, in <module>
+    from glider.core.glider_core import GliderCore
+  File "/home/RP3/glider/src/glider/core/glider_core.py", line 19, in <module>
+    from glider.vision.camera_manager import CameraManager
+  File "/home/RP3/glider/src/glider/vision/__init__.py", line 12, in <module>
+    from glider.vision.camera_manager import (
+  File "/home/RP3/glider/src/glider/vision/camera_manager.py", line 46, in <module>
+    from picamera2 import Picamera2
+  File "/usr/lib/python3/dist-packages/picamera2/__init__.py", line 11, in <module>
+    from .picamera2 import Picamera2, Preview
+  File "/usr/lib/python3/dist-packages/picamera2/picamera2.py", line 30, in <module>
+    from picamera2.encoders import Encoder, H264Encoder, MJPEGEncoder, Quality
+  File "/usr/lib/python3/dist-packages/picamera2/encoders/__init__.py", line 7, in <module>
+    from .encoder import Encoder, Quality
+  File "/usr/lib/python3/dist-packages/picamera2/encoders/encoder.py", line 13, in <module>
+    from ..request import _MappedBuffer
+  File "/usr/lib/python3/dist-packages/picamera2/request.py", line 13, in <module>
+    import simplejpeg
+  File "/usr/lib/python3/dist-packages/simplejpeg/__init__.py", line 1, in <module>
+    from ._jpeg import encode_jpeg, encode_jpeg_yuv_planes
+  File "simplejpeg/_jpeg.pyx", line 1, in init simplejpeg._jpeg
+ValueError: numpy.dtype size changed, may indicate binary incompatibility. Expected 96 from C header, got 88 from PyObject
 

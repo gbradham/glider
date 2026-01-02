@@ -40,6 +40,15 @@ def _is_raspberry_pi() -> bool:
         return False
 
 
+# Try to import picamera2 for Raspberry Pi camera support
+_picamera2_available = False
+try:
+    from picamera2 import Picamera2
+    _picamera2_available = True
+except ImportError:
+    Picamera2 = None
+
+
 @dataclass
 class CameraInfo:
     """Information about an available camera."""
@@ -127,6 +136,8 @@ class CameraManager:
     def __init__(self):
         """Initialize the camera manager."""
         self._capture: Optional[cv2.VideoCapture] = None
+        self._picamera2 = None  # Picamera2 instance for Pi cameras
+        self._using_picamera2 = False
         self._settings = CameraSettings()
         self._state = CameraState.DISCONNECTED
         self._capture_thread: Optional[threading.Thread] = None
@@ -267,67 +278,67 @@ class CameraManager:
         self._capture = None
         return False
 
-    def _try_connect_libcamera(self) -> bool:
+    def _try_connect_picamera2(self) -> bool:
         """
-        Try to connect using libcamera (for Raspberry Pi camera modules).
+        Try to connect using picamera2 (for Raspberry Pi camera modules).
 
         Returns:
             True if connection successful and frames can be read
         """
-        if self._capture is not None:
-            self._capture.release()
+        if not _picamera2_available:
+            logger.debug("picamera2 not available")
+            return False
 
-        width, height = self._settings.resolution
-        fps = self._settings.fps
-
-        # Try different libcamera pipeline formats
-        pipelines = [
-            # Generic libcamerasrc pipeline
-            (
-                f"libcamerasrc ! "
-                f"video/x-raw,width={width},height={height},framerate={fps}/1 ! "
-                f"videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
-            ),
-            # Simpler pipeline without resolution constraints
-            (
-                f"libcamerasrc ! "
-                f"videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
-            ),
-        ]
-
-        for pipeline in pipelines:
-            logger.debug(f"Trying libcamera pipeline: {pipeline[:50]}...")
-            try:
-                self._capture = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
-
-                if not self._capture.isOpened():
-                    continue
-
-                # Verify we can read frames
-                success_count = 0
-                for _ in range(10):
-                    if self._capture.grab():
-                        ret, frame = self._capture.retrieve()
-                        if ret and frame is not None:
-                            success_count += 1
-                            if success_count >= 3:
-                                # Update resolution to actual
-                                actual_w = int(self._capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-                                actual_h = int(self._capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                                if actual_w > 0 and actual_h > 0:
-                                    self._settings.resolution = (actual_w, actual_h)
-                                logger.info(f"libcamera pipeline working: {self._settings.resolution}")
-                                return True
-                    time.sleep(0.05)
-
+        try:
+            # Clean up any existing capture
+            if self._capture is not None:
                 self._capture.release()
-            except Exception as e:
-                logger.debug(f"libcamera pipeline failed: {e}")
-                if self._capture is not None:
-                    self._capture.release()
+                self._capture = None
 
-        self._capture = None
-        return False
+            if self._picamera2 is not None:
+                self._picamera2.close()
+                self._picamera2 = None
+
+            # Create Picamera2 instance
+            self._picamera2 = Picamera2()
+
+            # Configure for video capture
+            width, height = self._settings.resolution
+            config = self._picamera2.create_video_configuration(
+                main={"size": (width, height), "format": "RGB888"},
+                controls={"FrameRate": self._settings.fps}
+            )
+            self._picamera2.configure(config)
+
+            # Start the camera
+            self._picamera2.start()
+            time.sleep(0.5)  # Give camera time to warm up
+
+            # Verify we can capture frames
+            for _ in range(5):
+                frame = self._picamera2.capture_array()
+                if frame is not None and frame.size > 0:
+                    # Update resolution to actual
+                    self._settings.resolution = (frame.shape[1], frame.shape[0])
+                    self._using_picamera2 = True
+                    logger.info(f"picamera2 working: {self._settings.resolution}")
+                    return True
+                time.sleep(0.1)
+
+            # Failed to get frames
+            self._picamera2.close()
+            self._picamera2 = None
+            return False
+
+        except Exception as e:
+            logger.debug(f"picamera2 failed: {e}")
+            if self._picamera2 is not None:
+                try:
+                    self._picamera2.close()
+                except Exception:
+                    pass
+                self._picamera2 = None
+            return False
 
     def connect(self, settings: Optional[CameraSettings] = None) -> bool:
         """
@@ -354,14 +365,14 @@ class CameraManager:
             # Use platform-appropriate backend
             backend = _get_camera_backend()
 
-            # On Raspberry Pi, try libcamera first (for Pi Camera modules)
-            if _is_raspberry_pi():
-                logger.info("Raspberry Pi detected, trying libcamera first")
-                if self._try_connect_libcamera():
+            # On Raspberry Pi, try picamera2 first (for Pi Camera modules)
+            if _is_raspberry_pi() and _picamera2_available:
+                logger.info("Raspberry Pi detected, trying picamera2 first")
+                if self._try_connect_picamera2():
                     self._state = CameraState.CONNECTED
-                    logger.info(f"Connected to Pi camera via libcamera")
+                    logger.info(f"Connected to Pi camera via picamera2")
                     return True
-                logger.info("libcamera failed, falling back to V4L2")
+                logger.info("picamera2 failed, falling back to V4L2")
 
             # Try connecting with the preferred backend
             if not self._try_connect_with_backend(backend):
@@ -393,6 +404,14 @@ class CameraManager:
             self._capture.release()
             self._capture = None
 
+        if self._picamera2 is not None:
+            try:
+                self._picamera2.close()
+            except Exception:
+                pass
+            self._picamera2 = None
+            self._using_picamera2 = False
+
         self._state = CameraState.DISCONNECTED
         self._last_frame = None
         logger.info("Camera disconnected")
@@ -407,7 +426,11 @@ class CameraManager:
         if self._state == CameraState.STREAMING:
             return True
 
-        if self._capture is None or not self._capture.isOpened():
+        # Check if we have a valid capture source
+        has_opencv = self._capture is not None and self._capture.isOpened()
+        has_picamera2 = self._using_picamera2 and self._picamera2 is not None
+
+        if not has_opencv and not has_picamera2:
             logger.error("Cannot start streaming: camera not connected")
             return False
 
@@ -552,23 +575,44 @@ class CameraManager:
         max_failures_before_log = 30  # Only log every 30 failures to avoid spam
 
         while self._running:
-            if self._capture is None or not self._capture.isOpened():
+            frame = None
+
+            # Handle picamera2
+            if self._using_picamera2 and self._picamera2 is not None:
+                try:
+                    frame = self._picamera2.capture_array()
+                    # picamera2 returns RGB, convert to BGR for OpenCV compatibility
+                    if frame is not None:
+                        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                except Exception as e:
+                    consecutive_failures += 1
+                    if consecutive_failures == 1 or consecutive_failures % max_failures_before_log == 0:
+                        logger.warning(f"picamera2 capture failed: {e}")
+                    time.sleep(0.01)
+                    continue
+            # Handle OpenCV capture
+            elif self._capture is not None and self._capture.isOpened():
+                # Use grab() + retrieve() which works better with V4L2 on Linux
+                if not self._capture.grab():
+                    consecutive_failures += 1
+                    if consecutive_failures == 1 or consecutive_failures % max_failures_before_log == 0:
+                        logger.warning(f"Failed to grab frame (attempt {consecutive_failures})")
+                    time.sleep(0.01)
+                    continue
+
+                ret, frame = self._capture.retrieve()
+                if not ret or frame is None:
+                    consecutive_failures += 1
+                    if consecutive_failures == 1 or consecutive_failures % max_failures_before_log == 0:
+                        logger.warning(f"Failed to retrieve frame (attempt {consecutive_failures})")
+                    time.sleep(0.01)
+                    continue
+            else:
                 time.sleep(0.1)
                 continue
 
-            # Use grab() + retrieve() which works better with V4L2 on Linux
-            if not self._capture.grab():
+            if frame is None:
                 consecutive_failures += 1
-                if consecutive_failures == 1 or consecutive_failures % max_failures_before_log == 0:
-                    logger.warning(f"Failed to grab frame (attempt {consecutive_failures})")
-                time.sleep(0.01)
-                continue
-
-            ret, frame = self._capture.retrieve()
-            if not ret or frame is None:
-                consecutive_failures += 1
-                if consecutive_failures == 1 or consecutive_failures % max_failures_before_log == 0:
-                    logger.warning(f"Failed to retrieve frame (attempt {consecutive_failures})")
                 time.sleep(0.01)
                 continue
 

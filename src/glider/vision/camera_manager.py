@@ -234,9 +234,10 @@ class CameraManager:
 
         try:
             # Use platform-appropriate backend
+            backend = _get_camera_backend()
             self._capture = cv2.VideoCapture(
                 self._settings.camera_index,
-                _get_camera_backend()
+                backend
             )
 
             if not self._capture.isOpened():
@@ -244,8 +245,17 @@ class CameraManager:
                 self._state = CameraState.ERROR
                 return False
 
+            # Set buffer size to reduce latency (especially helpful for V4L2)
+            if backend == cv2.CAP_V4L2:
+                self._capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
             # Apply settings
             self._apply_camera_settings()
+
+            # Warmup: grab a few frames to flush the buffer
+            # This is especially important for V4L2 on Linux
+            for _ in range(5):
+                self._capture.grab()
 
             self._state = CameraState.CONNECTED
             logger.info(f"Connected to camera {self._settings.camera_index}")
@@ -371,6 +381,11 @@ class CameraManager:
         """Apply current settings to the camera."""
         if self._capture is None:
             return
+
+        # On Linux with V4L2, set MJPEG format for better compatibility
+        if sys.platform == "linux":
+            fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+            self._capture.set(cv2.CAP_PROP_FOURCC, fourcc)
 
         # Resolution
         self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, self._settings.resolution[0])

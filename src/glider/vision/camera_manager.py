@@ -30,6 +30,16 @@ def _get_camera_backend() -> int:
         return cv2.CAP_ANY
 
 
+def _is_raspberry_pi() -> bool:
+    """Check if running on a Raspberry Pi."""
+    try:
+        with open('/proc/device-tree/model', 'r') as f:
+            model = f.read().lower()
+            return 'raspberry pi' in model
+    except (FileNotFoundError, PermissionError):
+        return False
+
+
 @dataclass
 class CameraInfo:
     """Information about an available camera."""
@@ -257,6 +267,68 @@ class CameraManager:
         self._capture = None
         return False
 
+    def _try_connect_libcamera(self) -> bool:
+        """
+        Try to connect using libcamera (for Raspberry Pi camera modules).
+
+        Returns:
+            True if connection successful and frames can be read
+        """
+        if self._capture is not None:
+            self._capture.release()
+
+        width, height = self._settings.resolution
+        fps = self._settings.fps
+
+        # Try different libcamera pipeline formats
+        pipelines = [
+            # Generic libcamerasrc pipeline
+            (
+                f"libcamerasrc ! "
+                f"video/x-raw,width={width},height={height},framerate={fps}/1 ! "
+                f"videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
+            ),
+            # Simpler pipeline without resolution constraints
+            (
+                f"libcamerasrc ! "
+                f"videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
+            ),
+        ]
+
+        for pipeline in pipelines:
+            logger.debug(f"Trying libcamera pipeline: {pipeline[:50]}...")
+            try:
+                self._capture = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
+
+                if not self._capture.isOpened():
+                    continue
+
+                # Verify we can read frames
+                success_count = 0
+                for _ in range(10):
+                    if self._capture.grab():
+                        ret, frame = self._capture.retrieve()
+                        if ret and frame is not None:
+                            success_count += 1
+                            if success_count >= 3:
+                                # Update resolution to actual
+                                actual_w = int(self._capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+                                actual_h = int(self._capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                                if actual_w > 0 and actual_h > 0:
+                                    self._settings.resolution = (actual_w, actual_h)
+                                logger.info(f"libcamera pipeline working: {self._settings.resolution}")
+                                return True
+                    time.sleep(0.05)
+
+                self._capture.release()
+            except Exception as e:
+                logger.debug(f"libcamera pipeline failed: {e}")
+                if self._capture is not None:
+                    self._capture.release()
+
+        self._capture = None
+        return False
+
     def connect(self, settings: Optional[CameraSettings] = None) -> bool:
         """
         Connect to a camera with given settings.
@@ -281,6 +353,15 @@ class CameraManager:
         try:
             # Use platform-appropriate backend
             backend = _get_camera_backend()
+
+            # On Raspberry Pi, try libcamera first (for Pi Camera modules)
+            if _is_raspberry_pi():
+                logger.info("Raspberry Pi detected, trying libcamera first")
+                if self._try_connect_libcamera():
+                    self._state = CameraState.CONNECTED
+                    logger.info(f"Connected to Pi camera via libcamera")
+                    return True
+                logger.info("libcamera failed, falling back to V4L2")
 
             # Try connecting with the preferred backend
             if not self._try_connect_with_backend(backend):

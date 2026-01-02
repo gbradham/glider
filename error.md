@@ -1,12 +1,19 @@
- To actually fix the picamera2/numpy conflict on your Pi, try:
+ # Check if camera is detected by the system
+  lsusb | grep -i cam
 
-  # Option 1: Reinstall simplejpeg
-  pip install --force-reinstall simplejpeg
+  # List video devices
+  ls -la /dev/video*
 
-  # Option 2: If that fails, reinstall numpy to match
-  pip install --force-reinstall numpy
+  # Check your user is in video group
+  groups
 
-  # Option 3: Use system packages consistently
-  sudo apt install --reinstall python3-numpy python3-simplejpeg
+  # Check what formats the camera supports
+  v4l2-ctl --list-formats-ext -d /dev/video0
 
-  The root cause is that numpy was upgraded but simplejpeg was compiled against an older version.
+  # Try capturing a single frame with ffmpeg
+  ffmpeg -f v4l2 -i /dev/video0 -frames:v 1 test.jpg
+
+  Also, USB webcams with ring lights draw a lot of power. If you're powering the Pi with a weak supply or using an unpowered USB hub, the camera might be browning out. Try:
+  - Using a powered USB hub
+  - Plugging directly into the Pi (not through a hub)
+  - Using a 3A+ power supply for the Pi

@@ -10,12 +10,24 @@ import numpy as np
 import threading
 import time
 import logging
+import sys
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Callable, Any
 from enum import Enum, auto
 from queue import Queue, Empty
 
 logger = logging.getLogger(__name__)
+
+
+def _get_camera_backend() -> int:
+    """Get the appropriate camera backend for the current platform."""
+    if sys.platform == "win32":
+        return cv2.CAP_DSHOW
+    elif sys.platform == "linux":
+        return cv2.CAP_V4L2
+    else:
+        # macOS and others - let OpenCV auto-select
+        return cv2.CAP_ANY
 
 
 @dataclass
@@ -163,9 +175,10 @@ class CameraManager:
         sys.stderr = io.StringIO()
 
         try:
+            backend = _get_camera_backend()
             for i in range(max_cameras):
-                # Use DirectShow on Windows for better compatibility
-                cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+                # Use platform-appropriate backend
+                cap = cv2.VideoCapture(i, backend)
                 if cap.isOpened():
                     # Try to get camera name (not always available)
                     name = f"Camera {i}"
@@ -220,10 +233,10 @@ class CameraManager:
             self._settings = settings
 
         try:
-            # Use DirectShow on Windows
+            # Use platform-appropriate backend
             self._capture = cv2.VideoCapture(
                 self._settings.camera_index,
-                cv2.CAP_DSHOW
+                _get_camera_backend()
             )
 
             if not self._capture.isOpened():

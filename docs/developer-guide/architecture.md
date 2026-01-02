@@ -53,6 +53,13 @@ graph TB
         NOD[Custom Nodes]
     end
 
+    subgraph Agent["Agent Layer"]
+        AC[AgentController]
+        LLM[LLMBackend]
+        ATK[AgentToolkit]
+        ACT[Actions]
+    end
+
     MW --> GC
     VM --> MW
     NG --> MW
@@ -83,6 +90,11 @@ graph TB
     PLM --> DEV
     PLM --> NOD
     GC --> PLM
+
+    AC --> LLM
+    AC --> ATK
+    ATK --> ACT
+    GC --> AC
 ```
 
 ## Project Structure
@@ -125,6 +137,17 @@ glider/
 │   │   └── interface/       # UI nodes
 │   ├── plugins/             # Plugin system
 │   │   └── plugin_manager.py
+│   ├── agent/               # AI Agent system
+│   │   ├── agent_controller.py  # Main controller
+│   │   ├── llm_backend.py   # LLM provider abstraction
+│   │   ├── toolkit.py       # Tool definitions
+│   │   ├── actions.py       # Action management
+│   │   ├── prompts.py       # System prompts
+│   │   ├── config.py        # Agent configuration
+│   │   └── tools/           # Tool implementations
+│   │       ├── experiment_tools.py
+│   │       ├── hardware_tools.py
+│   │       └── knowledge_tools.py
 │   └── serialization/       # Save/load
 │       ├── schema.py        # Data schemas
 │       └── serializer.py    # File operations
@@ -460,6 +483,106 @@ await tracking_logger.start(experiment_name)  # Creates _tracking.csv
 await video_recorder.stop()
 await tracking_logger.stop()
 ```
+
+## Agent Layer
+
+The agent module provides AI-powered experiment orchestration through natural language.
+
+### Agent Components
+
+```mermaid
+graph LR
+    U[User] --> AC[AgentController]
+    AC --> LLM[LLMBackend]
+    LLM --> API[LLM API]
+    AC --> TK[AgentToolkit]
+    TK --> T1[Experiment Tools]
+    TK --> T2[Hardware Tools]
+    TK --> T3[Knowledge Tools]
+    TK --> ACT[Actions]
+    ACT --> GC[GliderCore]
+```
+
+### AgentController
+
+Main orchestrator for AI interactions.
+
+```python
+class AgentController:
+    def __init__(self, core: GliderCore, config: AgentConfig)
+    async def process_message(user_message: str) -> AsyncIterator[AgentResponse]
+    async def confirm_actions(action_ids: List[str]) -> AgentResponse
+    async def reject_actions(action_ids: List[str]) -> AgentResponse
+    def clear_conversation() -> None
+```
+
+**Responsibilities:**
+- Manages conversation history
+- Builds context from current session state
+- Streams responses from LLM
+- Handles tool execution with confirmation flow
+- Tracks recent errors for debugging context
+
+### LLMBackend
+
+Abstracts LLM provider communication.
+
+```python
+class LLMBackend:
+    async def chat(messages, tools, stream) -> AsyncIterator[ChatChunk]
+    async def check_connection() -> bool
+    async def list_models() -> List[str]
+```
+
+**Supported Providers:**
+- Ollama (local models)
+- OpenAI-compatible APIs
+
+### AgentToolkit
+
+Defines and executes tools the agent can use.
+
+```python
+class AgentToolkit:
+    def get_tool_definitions() -> List[Dict]
+    def create_action(tool_name, args) -> AgentAction
+    async def execute(tool_name, params) -> ToolResult
+```
+
+**Available Tools:**
+- `add_device` - Add a hardware device
+- `remove_device` - Remove a device
+- `add_node` - Add a flow node
+- `connect_nodes` - Connect nodes together
+- `start_experiment` - Start the experiment
+- `stop_experiment` - Stop the experiment
+- `get_session_info` - Get current session state
+
+### Actions
+
+Actions represent operations proposed by the agent.
+
+```python
+@dataclass
+class AgentAction:
+    id: str
+    tool_name: str
+    description: str
+    parameters: Dict
+    requires_confirmation: bool
+    status: ActionStatus  # PENDING, CONFIRMED, EXECUTING, COMPLETE, FAILED
+
+class ActionBatch:
+    actions: List[AgentAction]
+    pending_actions: List[AgentAction]
+```
+
+**Action Flow:**
+1. Agent proposes actions via tool calls
+2. Safe actions auto-execute (if configured)
+3. Dangerous actions require user confirmation
+4. User confirms or rejects pending actions
+5. Confirmed actions execute and report results
 
 ## Data Flow
 

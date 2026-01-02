@@ -19,7 +19,8 @@ GLIDER experiment files use JSON format with the `.glider` extension. They conta
   "metadata": { ... },
   "hardware": { ... },
   "flow": { ... },
-  "dashboard": { ... }
+  "dashboard": { ... },
+  "camera": { ... }
 }
 ```
 
@@ -278,6 +279,89 @@ Follows semantic versioning (MAJOR.MINOR.PATCH).
 - `"normal"` - Standard size
 - `"large"` - Expanded display
 
+## Camera Section
+
+```json
+{
+  "camera": {
+    "enabled": true,
+    "camera_index": 0,
+    "resolution": [640, 480],
+    "fps": 30,
+    "settings": {
+      "exposure": -1,
+      "brightness": 128,
+      "contrast": 128,
+      "saturation": 128,
+      "auto_focus": true,
+      "auto_exposure": true
+    },
+    "cv": {
+      "enabled": true,
+      "backend": "background_subtraction",
+      "confidence_threshold": 0.5,
+      "min_detection_area": 500,
+      "tracking_enabled": true,
+      "max_disappeared": 50,
+      "draw_overlays": true,
+      "show_labels": true
+    },
+    "recording": {
+      "enabled": true,
+      "output_directory": null
+    }
+  }
+}
+```
+
+### Camera Configuration
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | false | Whether camera is enabled |
+| `camera_index` | integer | 0 | Camera device index |
+| `resolution` | array | [640, 480] | [width, height] in pixels |
+| `fps` | integer | 30 | Target frame rate |
+| `settings` | object | {} | Camera hardware settings |
+
+### Camera Settings
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `exposure` | integer | -1 | Exposure value (-1 = auto) |
+| `brightness` | integer | 128 | Brightness (0-255) |
+| `contrast` | integer | 128 | Contrast (0-255) |
+| `saturation` | integer | 128 | Saturation (0-255) |
+| `auto_focus` | boolean | true | Enable auto-focus |
+| `auto_exposure` | boolean | true | Enable auto-exposure |
+
+### CV (Computer Vision) Configuration
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | false | Enable CV processing |
+| `backend` | string | `"background_subtraction"` | Detection backend |
+| `confidence_threshold` | float | 0.5 | Minimum detection confidence |
+| `min_detection_area` | integer | 500 | Minimum contour area (pixels) |
+| `tracking_enabled` | boolean | true | Enable object tracking |
+| `max_disappeared` | integer | 50 | Frames before dropping track |
+| `draw_overlays` | boolean | true | Draw bounding boxes |
+| `show_labels` | boolean | true | Show class labels |
+
+**Detection Backends:**
+| Backend | Description |
+|---------|-------------|
+| `background_subtraction` | Built-in motion-based detection |
+| `motion_only` | Simple motion detection only |
+| `yolo_v8` | YOLO v8 AI detection (requires ultralytics) |
+
+### Recording Configuration
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | true | Record video during experiments |
+| `output_directory` | string | null | Custom output directory (null = default) |
+
 ## Complete Example
 
 ```json
@@ -405,6 +489,16 @@ Follows semantic versioning (MAJOR.MINOR.PATCH).
     "layout_mode": "vertical",
     "columns": 1,
     "widgets": []
+  },
+  "camera": {
+    "enabled": false,
+    "camera_index": 0,
+    "resolution": [640, 480],
+    "fps": 30,
+    "cv": {
+      "enabled": false,
+      "backend": "background_subtraction"
+    }
   }
 }
 ```

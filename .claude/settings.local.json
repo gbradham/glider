@@ -19,7 +19,10 @@
       "WebSearch",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:mryslab.github.io)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(git -C /c/Users/Garrett/LaingLab/glider log --oneline -20)"
     ]
   }
 }

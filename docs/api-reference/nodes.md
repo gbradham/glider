@@ -249,41 +249,379 @@ Read sensor and display:
 
 ### Math Nodes
 
-*(Coming in future versions)*
+#### Add
 
-Planned nodes for mathematical operations:
-- **Add** - Add two numbers
-- **Subtract** - Subtract two numbers
-- **Multiply** - Multiply two numbers
-- **Divide** - Divide two numbers
-- **Compare** - Compare two values
-- **Clamp** - Limit value to range
+Add two numbers together.
+
+**Category:** Logic
+
+**Inputs:**
+| Port | Type | Default | Description |
+|------|------|---------|-------------|
+| `A` | float | 0.0 | First number |
+| `B` | float | 0.0 | Second number |
+
+**Outputs:**
+| Port | Type | Description |
+|------|------|-------------|
+| `Result` | float | A + B |
 
 ---
 
-### Logic Nodes
+#### Subtract
 
-*(Coming in future versions)*
+Subtract two numbers.
 
-Planned nodes for logical operations:
-- **If** - Branch based on condition
-- **And** - Logical AND
-- **Or** - Logical OR
-- **Not** - Logical NOT
-- **Switch** - Multi-way branch
+**Category:** Logic
+
+**Inputs:**
+| Port | Type | Default | Description |
+|------|------|---------|-------------|
+| `A` | float | 0.0 | First number |
+| `B` | float | 0.0 | Number to subtract |
+
+**Outputs:**
+| Port | Type | Description |
+|------|------|-------------|
+| `Result` | float | A - B |
+
+---
+
+#### Multiply
+
+Multiply two numbers.
+
+**Category:** Logic
+
+**Inputs:**
+| Port | Type | Default | Description |
+|------|------|---------|-------------|
+| `A` | float | 0.0 | First number |
+| `B` | float | 1.0 | Second number |
+
+**Outputs:**
+| Port | Type | Description |
+|------|------|-------------|
+| `Result` | float | A * B |
+
+---
+
+#### Divide
+
+Divide two numbers.
+
+**Category:** Logic
+
+**Inputs:**
+| Port | Type | Default | Description |
+|------|------|---------|-------------|
+| `A` | float | 0.0 | Numerator |
+| `B` | float | 1.0 | Denominator |
+
+**Outputs:**
+| Port | Type | Description |
+|------|------|-------------|
+| `Result` | float | A / B |
+
+**Behavior:**
+- Returns 0.0 and sets error if B is 0 (division by zero)
+
+---
+
+#### Map Range
+
+Map a value from one range to another.
+
+**Category:** Logic
+
+**Inputs:**
+| Port | Type | Default | Description |
+|------|------|---------|-------------|
+| `Value` | float | 0.0 | Input value |
+| `In Min` | float | 0.0 | Input range minimum |
+| `In Max` | float | 1023.0 | Input range maximum |
+| `Out Min` | float | 0.0 | Output range minimum |
+| `Out Max` | float | 255.0 | Output range maximum |
+
+**Outputs:**
+| Port | Type | Description |
+|------|------|-------------|
+| `Result` | float | Mapped value |
+
+**Example:**
+```
+Map analog sensor (0-1023) to PWM output (0-255):
+  AnalogRead -> MapRange -> PWMWrite
+```
+
+---
+
+#### Clamp
+
+Clamp a value to a specified range.
+
+**Category:** Logic
+
+**Inputs:**
+| Port | Type | Default | Description |
+|------|------|---------|-------------|
+| `Value` | float | 0.0 | Input value |
+| `Min` | float | 0.0 | Minimum allowed |
+| `Max` | float | 100.0 | Maximum allowed |
+
+**Outputs:**
+| Port | Type | Description |
+|------|------|-------------|
+| `Result` | float | Clamped value |
+
+---
+
+### Comparison Nodes
+
+#### Threshold
+
+Check if a value exceeds a threshold with optional hysteresis.
+
+**Category:** Logic
+
+**Inputs:**
+| Port | Type | Default | Description |
+|------|------|---------|-------------|
+| `Value` | float | 0.0 | Input value |
+| `Threshold` | float | 50.0 | Threshold level |
+| `Hysteresis` | float | 0.0 | Hysteresis band |
+
+**Outputs:**
+| Port | Type | Description |
+|------|------|-------------|
+| `Above` | bool | True if value > threshold |
+| `Below` | bool | True if value <= threshold |
+
+**Behavior:**
+- With hysteresis > 0, prevents rapid toggling near threshold
+- Rising: triggers when value > (threshold + hysteresis)
+- Falling: triggers when value < (threshold - hysteresis)
+
+---
+
+#### In Range
+
+Check if a value is within a specified range.
+
+**Category:** Logic
+
+**Inputs:**
+| Port | Type | Default | Description |
+|------|------|---------|-------------|
+| `Value` | float | 0.0 | Input value |
+| `Min` | float | 0.0 | Range minimum |
+| `Max` | float | 100.0 | Range maximum |
+
+**Outputs:**
+| Port | Type | Description |
+|------|------|-------------|
+| `In Range` | bool | True if min <= value <= max |
+| `Out of Range` | bool | True if value outside range |
 
 ---
 
 ## Interface Nodes
 
-*(Coming in future versions)*
+### Input Nodes
 
-Planned nodes for user interaction:
-- **Button** - Clickable button
-- **Slider** - Value slider
-- **Display** - Value display
-- **Toggle** - On/off switch
-- **Input Field** - Text input
+#### Button
+
+A clickable button that triggers execution when pressed.
+
+**Category:** Interface
+
+**Inputs:** None
+
+**Outputs:**
+| Port | Type | Description |
+|------|------|-------------|
+| `Pressed` | Exec | Triggers when button clicked |
+
+**Properties:**
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `label` | str | "Button" | Button label text |
+
+**Note:** Always visible in Runner mode.
+
+---
+
+#### Toggle Switch
+
+An on/off toggle switch.
+
+**Category:** Interface
+
+**Inputs:** None
+
+**Outputs:**
+| Port | Type | Description |
+|------|------|-------------|
+| `State` | bool | Current switch state |
+| `Changed` | Exec | Triggers when toggled |
+
+**Properties:**
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `label` | str | "Switch" | Switch label text |
+
+---
+
+#### Slider
+
+A slider for continuous value input.
+
+**Category:** Interface
+
+**Inputs:** None
+
+**Outputs:**
+| Port | Type | Description |
+|------|------|-------------|
+| `Value` | float | Current slider value |
+| `Changed` | Exec | Triggers when value changes |
+
+**Properties:**
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `label` | str | "Slider" | Slider label text |
+| `min_value` | float | 0.0 | Minimum value |
+| `max_value` | float | 100.0 | Maximum value |
+| `step` | float | 1.0 | Value step increment |
+
+---
+
+#### Numeric Input
+
+A numeric input field with optional virtual keypad.
+
+**Category:** Interface
+
+**Inputs:** None
+
+**Outputs:**
+| Port | Type | Description |
+|------|------|-------------|
+| `Value` | float | Current input value |
+| `Submitted` | Exec | Triggers on Enter/submit |
+
+**Properties:**
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `label` | str | "Input" | Input label text |
+| `min_value` | float | None | Optional minimum |
+| `max_value` | float | None | Optional maximum |
+| `decimal_places` | int | 2 | Decimal precision |
+
+---
+
+### Display Nodes
+
+#### Label
+
+Display a value as formatted text.
+
+**Category:** Interface
+
+**Inputs:**
+| Port | Type | Default | Description |
+|------|------|---------|-------------|
+| `Value` | any | - | Value to display |
+| `Format` | str | "{}" | Python format string |
+
+**Outputs:** None
+
+**Properties:**
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `label` | str | "Value" | Label text |
+
+**Example:**
+```
+Format examples:
+  "{:.2f}" - Two decimal places
+  "{:.0f}%" - Percentage without decimals
+  "Temp: {}C" - With prefix/suffix
+```
+
+---
+
+#### Gauge
+
+Display a value as a gauge/meter widget.
+
+**Category:** Interface
+
+**Inputs:**
+| Port | Type | Default | Description |
+|------|------|---------|-------------|
+| `Value` | float | 0.0 | Current value |
+| `Min` | float | 0.0 | Gauge minimum |
+| `Max` | float | 100.0 | Gauge maximum |
+
+**Outputs:** None
+
+**Properties:**
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `label` | str | "Value" | Gauge label |
+| `unit` | str | "" | Unit suffix (e.g., "%" or "C") |
+| `warning_threshold` | float | None | Yellow zone threshold |
+| `danger_threshold` | float | None | Red zone threshold |
+
+---
+
+#### Chart
+
+Display a real-time chart/graph of values over time.
+
+**Category:** Interface
+
+**Inputs:**
+| Port | Type | Default | Description |
+|------|------|---------|-------------|
+| `Value` | float | 0.0 | Value to plot |
+
+**Outputs:** None
+
+**Properties:**
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `label` | str | "Chart" | Chart title |
+| `max_points` | int | 100 | Maximum data points |
+| `y_min` | float | None | Fixed Y-axis minimum |
+| `y_max` | float | None | Fixed Y-axis maximum |
+
+**Behavior:**
+- Automatically scrolls as new data arrives
+- Call `clear_data()` to reset the chart
+
+---
+
+#### LED Indicator
+
+Display an on/off LED indicator.
+
+**Category:** Interface
+
+**Inputs:**
+| Port | Type | Default | Description |
+|------|------|---------|-------------|
+| `State` | bool | False | LED state |
+
+**Outputs:** None
+
+**Properties:**
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `label` | str | "LED" | Indicator label |
+| `on_color` | str | "#00ff00" | Color when on (green) |
+| `off_color` | str | "#333333" | Color when off (dark gray) |
 
 ---
 

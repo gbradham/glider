@@ -41,6 +41,7 @@ from PyQt6.QtWidgets import (
     QFrame,
     QPlainTextEdit,
     QCheckBox,
+    QSizePolicy,
 )
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QDrag
 from PyQt6.QtCore import Qt, QSize, pyqtSignal, pyqtSlot, QMimeData, QTimer
@@ -759,55 +760,62 @@ class MainWindow(QMainWindow):
         control_scroll = QScrollArea()
         control_scroll.setWidgetResizable(True)
         control_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        control_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        control_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
         control_widget = QWidget()
-        control_widget.setMaximumWidth(460)  # Fit Pi screen
+        control_widget.setMinimumWidth(200)
+        control_widget.setMaximumWidth(400)
         self._control_layout = QVBoxLayout(control_widget)
-        self._control_layout.setContentsMargins(4, 4, 4, 4)
-        self._control_layout.setSpacing(4)
+        self._control_layout.setContentsMargins(6, 6, 6, 6)
+        self._control_layout.setSpacing(8)
 
-        # Device selector - simple label + combo, no group box
+        # Device selector row
         device_layout = QHBoxLayout()
-        device_layout.setSpacing(4)
+        device_layout.setSpacing(6)
         device_label = QLabel("Device:")
-        device_label.setFixedWidth(45)
+        device_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._device_combo = QComboBox()
+        self._device_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._device_combo.currentTextChanged.connect(self._on_device_selected)
         device_layout.addWidget(device_label)
         device_layout.addWidget(self._device_combo, 1)
         self._control_layout.addLayout(device_layout)
 
-        # Control buttons group
-        self._control_group = QGroupBox("Controls")
+        # Output Controls group
+        self._control_group = QGroupBox("Output Controls")
         self._control_group_layout = QVBoxLayout(self._control_group)
-        self._control_group_layout.setContentsMargins(4, 4, 4, 4)
-        self._control_group_layout.setSpacing(4)
+        self._control_group_layout.setContentsMargins(8, 12, 8, 8)
+        self._control_group_layout.setSpacing(8)
 
-        # Digital output controls - compact buttons
+        # Digital output controls - evenly spaced buttons
         digital_layout = QHBoxLayout()
-        digital_layout.setSpacing(2)
+        digital_layout.setSpacing(4)
         self._on_btn = QPushButton("ON")
-        self._on_btn.setFixedHeight(28)
+        self._on_btn.setMinimumHeight(32)
+        self._on_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._on_btn.clicked.connect(lambda: self._set_digital_output(True))
         self._off_btn = QPushButton("OFF")
-        self._off_btn.setFixedHeight(28)
+        self._off_btn.setMinimumHeight(32)
+        self._off_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._off_btn.clicked.connect(lambda: self._set_digital_output(False))
         self._toggle_btn = QPushButton("Toggle")
-        self._toggle_btn.setFixedHeight(28)
+        self._toggle_btn.setMinimumHeight(32)
+        self._toggle_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._toggle_btn.clicked.connect(self._toggle_digital_output)
         digital_layout.addWidget(self._on_btn)
         digital_layout.addWidget(self._off_btn)
         digital_layout.addWidget(self._toggle_btn)
         self._control_group_layout.addLayout(digital_layout)
 
-        # PWM/Analog control - spinbox only (no slider for compact view)
+        # PWM control row
         pwm_layout = QHBoxLayout()
-        pwm_layout.setSpacing(4)
+        pwm_layout.setSpacing(6)
         pwm_label = QLabel("PWM:")
-        pwm_label.setFixedWidth(40)
+        pwm_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._pwm_spinbox = QSpinBox()
         self._pwm_spinbox.setRange(0, 255)
+        self._pwm_spinbox.setMinimumHeight(28)
+        self._pwm_spinbox.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._pwm_spinbox.valueChanged.connect(self._on_pwm_changed)
         # Hidden slider for compatibility
         self._pwm_slider = QSlider(Qt.Orientation.Horizontal)
@@ -819,15 +827,17 @@ class MainWindow(QMainWindow):
         pwm_layout.addWidget(self._pwm_spinbox, 1)
         self._control_group_layout.addLayout(pwm_layout)
 
-        # Servo control - spinbox only (no slider for compact view)
+        # Servo control row
         servo_layout = QHBoxLayout()
-        servo_layout.setSpacing(4)
+        servo_layout.setSpacing(6)
         servo_label = QLabel("Servo:")
-        servo_label.setFixedWidth(40)
+        servo_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._servo_spinbox = QSpinBox()
         self._servo_spinbox.setRange(0, 180)
         self._servo_spinbox.setValue(90)
         self._servo_spinbox.setSuffix("°")
+        self._servo_spinbox.setMinimumHeight(28)
+        self._servo_spinbox.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._servo_spinbox.valueChanged.connect(self._on_servo_changed)
         # Hidden slider for compatibility
         self._servo_slider = QSlider(Qt.Orientation.Horizontal)
@@ -840,46 +850,52 @@ class MainWindow(QMainWindow):
         servo_layout.addWidget(self._servo_spinbox, 1)
         self._control_group_layout.addLayout(servo_layout)
 
-        # Input reading section - compact
-        input_group = QGroupBox("Input")
-        input_group_layout = QVBoxLayout(input_group)
-        input_group_layout.setContentsMargins(4, 4, 4, 4)
-        input_group_layout.setSpacing(4)
+        self._control_layout.addWidget(self._control_group)
 
-        # Value display - smaller
+        # Input Reading group (separate from Output Controls)
+        input_group = QGroupBox("Input Reading")
+        input_group_layout = QVBoxLayout(input_group)
+        input_group_layout.setContentsMargins(8, 12, 8, 8)
+        input_group_layout.setSpacing(8)
+
+        # Value display
         self._input_value_label = QLabel("--")
         self._input_value_label.setStyleSheet(
-            "font-size: 18px; font-weight: bold; padding: 4px; "
+            "font-size: 20px; font-weight: bold; padding: 6px; "
             "background-color: #2d2d2d; border-radius: 4px; color: #00ff00;"
         )
         self._input_value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._input_value_label.setFixedHeight(32)
+        self._input_value_label.setMinimumHeight(36)
+        self._input_value_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         input_group_layout.addWidget(self._input_value_label)
 
-        # Read button and continuous checkbox - two rows
-        input_row1 = QHBoxLayout()
-        input_row1.setSpacing(4)
+        # Read controls row
+        input_row = QHBoxLayout()
+        input_row.setSpacing(6)
         self._read_btn = QPushButton("Read")
-        self._read_btn.setFixedHeight(28)
+        self._read_btn.setMinimumHeight(32)
+        self._read_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._read_btn.clicked.connect(self._read_input_once)
-        input_row1.addWidget(self._read_btn)
+        input_row.addWidget(self._read_btn)
 
         self._continuous_checkbox = QCheckBox("Auto")
+        self._continuous_checkbox.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._continuous_checkbox.stateChanged.connect(self._on_continuous_changed)
-        input_row1.addWidget(self._continuous_checkbox)
+        input_row.addWidget(self._continuous_checkbox)
 
         self._poll_spinbox = QSpinBox()
         self._poll_spinbox.setRange(50, 5000)
         self._poll_spinbox.setValue(100)
         self._poll_spinbox.setSuffix("ms")
-        self._poll_spinbox.setFixedWidth(70)
-        self._poll_spinbox.setMaximumHeight(24)
+        self._poll_spinbox.setMinimumWidth(75)
+        self._poll_spinbox.setMinimumHeight(28)
+        self._poll_spinbox.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._poll_spinbox.valueChanged.connect(self._on_poll_interval_changed)
-        input_row1.addWidget(self._poll_spinbox)
+        input_row.addWidget(self._poll_spinbox)
 
-        input_group_layout.addLayout(input_row1)
+        input_group_layout.addLayout(input_row)
         self._input_group = input_group
-        self._control_group_layout.addWidget(input_group)
+        self._control_layout.addWidget(input_group)
 
         # Timer for continuous reading (fallback for digital inputs)
         self._input_poll_timer = QTimer(self)
@@ -891,12 +907,12 @@ class MainWindow(QMainWindow):
         self._analog_callback_func = None   # The callback function reference
         self.analog_value_received.connect(self._on_analog_value_received)
 
-        # Status display - compact
-        self._device_status_label = QLabel("Not connected")
-        self._device_status_label.setStyleSheet("font-size: 10px; color: #888;")
-        self._control_group_layout.addWidget(self._device_status_label)
+        # Status display
+        self._device_status_label = QLabel("No device selected")
+        self._device_status_label.setStyleSheet("font-size: 11px; color: #888; padding: 2px;")
+        self._device_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._control_layout.addWidget(self._device_status_label)
 
-        self._control_layout.addWidget(self._control_group)
         self._control_layout.addStretch()
 
         # Set scroll area content and dock widget

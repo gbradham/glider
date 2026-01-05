@@ -687,16 +687,9 @@ class ADS1115Device(BaseDevice):
 
         def _read():
             from adafruit_ads1x15.analog_in import AnalogIn
-            from adafruit_ads1x15 import ads1x15
 
-            # Map channel number to ADS channel constant
-            channel_map = {
-                0: ads1x15.P0,
-                1: ads1x15.P1,
-                2: ads1x15.P2,
-                3: ads1x15.P3,
-            }
-            chan = AnalogIn(self._ads, channel_map[channel])
+            # Channel is just the integer 0-3
+            chan = AnalogIn(self._ads, channel)
             return chan.value
 
         value = await asyncio.to_thread(_read)
@@ -723,15 +716,9 @@ class ADS1115Device(BaseDevice):
 
         def _read_voltage():
             from adafruit_ads1x15.analog_in import AnalogIn
-            from adafruit_ads1x15 import ads1x15
 
-            channel_map = {
-                0: ads1x15.P0,
-                1: ads1x15.P1,
-                2: ads1x15.P2,
-                3: ads1x15.P3,
-            }
-            chan = AnalogIn(self._ads, channel_map[channel])
+            # Channel is just the integer 0-3
+            chan = AnalogIn(self._ads, channel)
             return chan.voltage
 
         return await asyncio.to_thread(_read_voltage)

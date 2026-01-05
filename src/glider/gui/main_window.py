@@ -2099,6 +2099,7 @@ class MainWindow(QMainWindow):
             "PWM Output (Dimmable LED, Motor)": ("PWMOutput", ["output"]),
             "Servo Motor": ("Servo", ["signal"]),
             "Motor Governor": ("MotorGovernor", ["up", "down", "signal"]),
+            "ADS1115 (I2C ADC)": ("ADS1115", []),  # I2C device, no GPIO pins
         }
 
         dialog = QDialog(self)
@@ -2130,6 +2131,8 @@ class MainWindow(QMainWindow):
 
         # Dictionary to hold pin spinboxes
         pin_spinboxes: Dict[str, QSpinBox] = {}
+        # Dictionary to hold ADS1115 settings spinboxes
+        ads1115_settings: Dict[str, QSpinBox] = {}
 
         def update_pin_inputs():
             """Update pin inputs based on selected device type."""
@@ -2137,6 +2140,7 @@ class MainWindow(QMainWindow):
             while pin_layout.rowCount() > 0:
                 pin_layout.removeRow(0)
             pin_spinboxes.clear()
+            ads1115_settings.clear()
 
             # Get pin names for selected device type
             ui_type = type_combo.currentText()
@@ -2144,29 +2148,61 @@ class MainWindow(QMainWindow):
 
             # Check if this is an analog device
             is_analog = device_type == "AnalogInput"
+            is_ads1115 = device_type == "ADS1115"
 
-            # Create spinbox for each pin
-            for pin_name in pin_names:
-                spin = QSpinBox()
-                spin.setRange(0, 53)
+            if is_ads1115:
+                # ADS1115 I2C settings instead of pin inputs
+                # I2C Address
+                addr_spin = QSpinBox()
+                addr_spin.setRange(72, 75)  # 0x48-0x4B
+                addr_spin.setValue(72)  # Default 0x48
+                addr_spin.setToolTip("I2C address: 72=0x48, 73=0x49, 74=0x4A, 75=0x4B")
+                ads1115_settings["i2c_address"] = addr_spin
+                pin_layout.addRow("I2C Address:", addr_spin)
 
-                # Set default value based on device type
-                if is_analog:
-                    spin.setValue(14)  # Default to A0 (pin 14)
-                    spin.setSpecialValueText("Invalid")
-                else:
-                    spin.setValue(0)
+                # Channel
+                chan_spin = QSpinBox()
+                chan_spin.setRange(0, 3)
+                chan_spin.setValue(0)
+                chan_spin.setToolTip("ADC channel to read (0-3)")
+                ads1115_settings["channel"] = chan_spin
+                pin_layout.addRow("Channel:", chan_spin)
 
-                pin_spinboxes[pin_name] = spin
-                label = f"{pin_name.capitalize()} Pin:"
-                pin_layout.addRow(label, spin)
+                # Gain
+                gain_combo = QComboBox()
+                gain_combo.addItems(["1 (±4.096V)", "2 (±2.048V)", "4 (±1.024V)", "8 (±0.512V)", "16 (±0.256V)"])
+                gain_combo.setCurrentIndex(0)
+                ads1115_settings["gain_combo"] = gain_combo
+                pin_layout.addRow("Gain:", gain_combo)
 
-            # Add helpful note for analog devices
-            if is_analog:
-                note = QLabel("Note: A0=14, A1=15, A2=16, A3=17, A4=18, A5=19")
+                # Note about I2C
+                note = QLabel("Note: Uses I2C on GPIO2 (SDA) and GPIO3 (SCL)")
                 note.setStyleSheet("color: #888; font-size: 10px; font-style: italic;")
                 note.setWordWrap(True)
                 pin_layout.addRow(note)
+            else:
+                # Create spinbox for each pin
+                for pin_name in pin_names:
+                    spin = QSpinBox()
+                    spin.setRange(0, 53)
+
+                    # Set default value based on device type
+                    if is_analog:
+                        spin.setValue(14)  # Default to A0 (pin 14)
+                        spin.setSpecialValueText("Invalid")
+                    else:
+                        spin.setValue(0)
+
+                    pin_spinboxes[pin_name] = spin
+                    label = f"{pin_name.capitalize()} Pin:"
+                    pin_layout.addRow(label, spin)
+
+                # Add helpful note for analog devices
+                if is_analog:
+                    note = QLabel("Note: A0=14, A1=15, A2=16, A3=17, A4=18, A5=19")
+                    note.setStyleSheet("color: #888; font-size: 10px; font-style: italic;")
+                    note.setWordWrap(True)
+                    pin_layout.addRow(note)
 
         # Connect device type change to update pin inputs
         type_combo.currentTextChanged.connect(lambda: update_pin_inputs())
@@ -2196,13 +2232,22 @@ class MainWindow(QMainWindow):
             # Get the actual device type and pin configuration
             device_type, pin_names = device_type_map[ui_device_type]
 
-            # Build pins dictionary from spinboxes
+            # Build pins dictionary from spinboxes (empty for ADS1115)
             pins = {pin_name: pin_spinboxes[pin_name].value() for pin_name in pin_names}
+
+            # Build settings dictionary for ADS1115
+            settings = {}
+            if device_type == "ADS1115" and ads1115_settings:
+                settings["i2c_address"] = ads1115_settings["i2c_address"].value()
+                settings["channel"] = ads1115_settings["channel"].value()
+                # Parse gain from combo text (e.g., "1 (±4.096V)" -> 1)
+                gain_text = ads1115_settings["gain_combo"].currentText()
+                settings["gain"] = int(gain_text.split()[0])
 
             try:
                 # Add to hardware manager for runtime use
                 self._core.hardware_manager.add_device_multi_pin(
-                    device_id, device_type, board_id, pins, name=name
+                    device_id, device_type, board_id, pins, name=name, **settings
                 )
 
                 # Auto-initialize if board is connected
@@ -2224,6 +2269,7 @@ class MainWindow(QMainWindow):
                         name=name,
                         board_id=board_id,
                         pins=pins,
+                        settings=settings,
                     )
                     self._core.session.add_device(device_config)
 
@@ -4463,7 +4509,7 @@ class MainWindow(QMainWindow):
 
         # Enable/disable input reading based on device type
         if hasattr(self, '_input_group'):
-            is_input_device = device_type in ('DigitalInput', 'AnalogInput')
+            is_input_device = device_type in ('DigitalInput', 'AnalogInput', 'ADS1115')
             self._input_group.setEnabled(is_input_device)
 
     def _get_selected_device(self):
@@ -4568,8 +4614,8 @@ class MainWindow(QMainWindow):
             return
 
         device_type = getattr(device, 'device_type', '')
-        if device_type not in ('DigitalInput', 'AnalogInput'):
-            QMessageBox.warning(self, "Invalid Device", "Please select a DigitalInput or AnalogInput device.")
+        if device_type not in ('DigitalInput', 'AnalogInput', 'ADS1115'):
+            QMessageBox.warning(self, "Invalid Device", "Please select a DigitalInput, AnalogInput, or ADS1115 device.")
             return
 
         async def read_value():

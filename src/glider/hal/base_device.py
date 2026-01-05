@@ -687,14 +687,14 @@ class ADS1115Device(BaseDevice):
 
         def _read():
             from adafruit_ads1x15.analog_in import AnalogIn
-            import adafruit_ads1x15.ads1115 as ADS
+            from adafruit_ads1x15 import ads1x15
 
             # Map channel number to ADS channel constant
             channel_map = {
-                0: ADS.P0,
-                1: ADS.P1,
-                2: ADS.P2,
-                3: ADS.P3,
+                0: ads1x15.P0,
+                1: ads1x15.P1,
+                2: ads1x15.P2,
+                3: ads1x15.P3,
             }
             chan = AnalogIn(self._ads, channel_map[channel])
             return chan.value
@@ -723,13 +723,13 @@ class ADS1115Device(BaseDevice):
 
         def _read_voltage():
             from adafruit_ads1x15.analog_in import AnalogIn
-            import adafruit_ads1x15.ads1115 as ADS
+            from adafruit_ads1x15 import ads1x15
 
             channel_map = {
-                0: ADS.P0,
-                1: ADS.P1,
-                2: ADS.P2,
-                3: ADS.P3,
+                0: ads1x15.P0,
+                1: ads1x15.P1,
+                2: ads1x15.P2,
+                3: ads1x15.P3,
             }
             chan = AnalogIn(self._ads, channel_map[channel])
             return chan.voltage

@@ -2112,7 +2112,11 @@ class MainWindow(QMainWindow):
         type_combo = QComboBox()
         type_combo.setMaxVisibleItems(10)  # Ensure dropdown is scrollable
         type_combo.setMinimumWidth(280)  # Ensure full text is visible
-        type_combo.addItems(list(device_type_map.keys()))
+        device_types_list = list(device_type_map.keys())
+        logger.info(f"Available device types ({len(device_types_list)}): {device_types_list}")
+        # DEBUG: Show message box with device types count
+        print(f"DEBUG: Device types = {device_types_list}")
+        type_combo.addItems(device_types_list)
         layout.addRow("Device Type:", type_combo)
 
         # Device ID

@@ -59,6 +59,8 @@ class VideoRecorder:
     Integrates with GliderCore to automatically start/stop recording
     when experiments run. Saves video files alongside CSV data files
     with matching timestamps.
+
+    Supports dual recording: raw video and annotated video with tracking overlays.
     """
 
     def __init__(self, camera_manager: "CameraManager"):
@@ -70,14 +72,18 @@ class VideoRecorder:
         """
         self._camera = camera_manager
         self._writer: Optional[cv2.VideoWriter] = None
+        self._annotated_writer: Optional[cv2.VideoWriter] = None
         self._state = RecordingState.IDLE
         self._output_dir: Path = Path.cwd()
         self._file_path: Optional[Path] = None
+        self._annotated_file_path: Optional[Path] = None
         self._start_time: Optional[datetime] = None
         self._frame_count = 0
+        self._annotated_frame_count = 0
         self._video_format = VideoFormat()
         self._lock = threading.Lock()
         self._frame_callback_registered = False
+        self._record_annotated = False  # Whether to also record annotated video
 
     @property
     def is_recording(self) -> bool:
@@ -96,8 +102,23 @@ class VideoRecorder:
 
     @property
     def file_path(self) -> Optional[Path]:
-        """Path to the current/last video file."""
+        """Path to the current/last raw video file."""
         return self._file_path
+
+    @property
+    def annotated_file_path(self) -> Optional[Path]:
+        """Path to the current/last annotated video file."""
+        return self._annotated_file_path
+
+    @property
+    def record_annotated(self) -> bool:
+        """Whether to record annotated video with tracking overlays."""
+        return self._record_annotated
+
+    @record_annotated.setter
+    def record_annotated(self, value: bool) -> None:
+        """Set whether to record annotated video."""
+        self._record_annotated = value
 
     @property
     def frame_count(self) -> int:
@@ -152,31 +173,36 @@ class VideoRecorder:
         safe_name = safe_name.strip().replace(" ", "_") or "experiment"
         return f"{safe_name}_{timestamp}{self._video_format.extension}"
 
-    async def start(self, experiment_name: str = "experiment") -> Path:
+    async def start(self, experiment_name: str = "experiment", record_annotated: bool = False) -> Path:
         """
         Start recording video.
 
         Args:
             experiment_name: Name for the video file
+            record_annotated: Whether to also record annotated video with overlays
 
         Returns:
-            Path to the video file being created
+            Path to the raw video file being created
         """
         if self._state == RecordingState.RECORDING:
             logger.warning("Recording already in progress")
             return self._file_path
 
-        # Generate filename
+        self._record_annotated = record_annotated
+
+        # Generate filename for raw video
         filename = self._generate_filename(experiment_name)
         self._file_path = self._output_dir / filename
         self._start_time = datetime.now()
         self._frame_count = 0
+        self._annotated_frame_count = 0
 
         # Get camera settings for video writer
         settings = self._camera.settings
         fourcc = cv2.VideoWriter_fourcc(*self._video_format.codec)
 
         with self._lock:
+            # Create raw video writer
             self._writer = cv2.VideoWriter(
                 str(self._file_path),
                 fourcc,
@@ -189,6 +215,22 @@ class VideoRecorder:
                 self._writer = None
                 raise RuntimeError(f"Failed to create video file: {self._file_path}")
 
+            # Create annotated video writer if requested
+            if self._record_annotated:
+                annotated_filename = self._generate_filename(f"{experiment_name}_annotated")
+                self._annotated_file_path = self._output_dir / annotated_filename
+                self._annotated_writer = cv2.VideoWriter(
+                    str(self._annotated_file_path),
+                    fourcc,
+                    settings.fps,
+                    settings.resolution
+                )
+                if not self._annotated_writer.isOpened():
+                    logger.warning(f"Failed to create annotated video writer: {self._annotated_file_path}")
+                    self._annotated_writer = None
+                else:
+                    logger.info(f"Recording annotated video to {self._annotated_file_path}")
+
         # Register frame callback
         if not self._frame_callback_registered:
             self._camera.on_frame(self._on_frame)
@@ -200,7 +242,7 @@ class VideoRecorder:
 
     def _on_frame(self, frame: np.ndarray, timestamp: float) -> None:
         """
-        Handle incoming frame for recording.
+        Handle incoming frame for recording (raw video).
 
         Args:
             frame: Frame from camera
@@ -214,12 +256,38 @@ class VideoRecorder:
                 self._writer.write(frame)
                 self._frame_count += 1
 
-    async def stop(self) -> Optional[Path]:
+    def write_annotated_frame(self, frame: np.ndarray) -> bool:
         """
-        Stop recording and finalize video file.
+        Write an annotated frame (with tracking overlays) to the annotated video.
+
+        This should be called with frames that have been processed by CVProcessor
+        with overlays drawn.
+
+        Args:
+            frame: Annotated frame with overlays
 
         Returns:
-            Path to the saved video file, or None if not recording
+            True if frame was written
+        """
+        if self._state != RecordingState.RECORDING:
+            return False
+
+        if not self._record_annotated:
+            return False
+
+        with self._lock:
+            if self._annotated_writer is not None and self._annotated_writer.isOpened():
+                self._annotated_writer.write(frame)
+                self._annotated_frame_count += 1
+                return True
+        return False
+
+    async def stop(self) -> Optional[Path]:
+        """
+        Stop recording and finalize video files.
+
+        Returns:
+            Path to the saved raw video file, or None if not recording
         """
         if self._state not in (RecordingState.RECORDING, RecordingState.PAUSED):
             return None
@@ -231,6 +299,10 @@ class VideoRecorder:
                 self._writer.release()
                 self._writer = None
 
+            if self._annotated_writer is not None:
+                self._annotated_writer.release()
+                self._annotated_writer = None
+
         saved_path = self._file_path
         self._state = RecordingState.IDLE
 
@@ -239,6 +311,11 @@ class VideoRecorder:
             f"Stopped recording. Saved to {saved_path} "
             f"({self._frame_count} frames, {duration:.1f}s)"
         )
+        if self._record_annotated and self._annotated_file_path:
+            logger.info(
+                f"Annotated video saved to {self._annotated_file_path} "
+                f"({self._annotated_frame_count} frames)"
+            )
         return saved_path
 
     async def pause(self) -> None:
@@ -285,7 +362,10 @@ class VideoRecorder:
         return {
             "state": self._state.name,
             "file_path": str(self._file_path) if self._file_path else None,
+            "annotated_file_path": str(self._annotated_file_path) if self._annotated_file_path else None,
             "frame_count": self._frame_count,
+            "annotated_frame_count": self._annotated_frame_count,
+            "record_annotated": self._record_annotated,
             "duration": self.duration,
             "start_time": self._start_time.isoformat() if self._start_time else None,
             "format": self._video_format.to_dict(),

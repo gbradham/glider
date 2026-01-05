@@ -22,7 +22,8 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(wc:*)",
       "Bash(find:*)",
-      "Bash(git -C /c/Users/Garrett/LaingLab/glider log --oneline -20)"
+      "Bash(git -C /c/Users/Garrett/LaingLab/glider log --oneline -20)",
+      "Bash(ls -la \"C:\\Users\\blain\\LaingLab\\glider\\models\"\" 2>/dev/null || echo \"Models directory structure check \")"
     ]
   }
 }

@@ -52,6 +52,7 @@ from glider.gui.panels.camera_panel import CameraPanel
 from glider.gui.panels.agent_panel import AgentPanel
 from glider.gui.dialogs.camera_settings_dialog import CameraSettingsDialog
 from glider.gui.dialogs.agent_settings_dialog import AgentSettingsDialog
+from glider.gui.dialogs.calibration_dialog import CalibrationDialog
 from glider.hal.base_board import BoardConnectionState
 
 if TYPE_CHECKING:
@@ -934,6 +935,11 @@ class MainWindow(QMainWindow):
             self._core.cv_processor
         )
         self._camera_panel.settings_requested.connect(self._on_camera_settings)
+        self._camera_panel.calibration_requested.connect(self._on_camera_calibration)
+        self._camera_panel.set_video_recorder(self._core.video_recorder)
+        self._camera_panel.set_tracking_logger(self._core.tracking_logger)
+        self._camera_panel.set_calibration(self._core.calibration)
+        self._camera_panel._preview.set_calibration(self._core.calibration)
         self._camera_dock.setWidget(self._camera_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._camera_dock)
 
@@ -2651,6 +2657,25 @@ class MainWindow(QMainWindow):
             self._core.cv_processor.update_settings(cv_settings)
 
             logger.info("Camera settings updated")
+
+    def _on_camera_calibration(self) -> None:
+        """Show camera calibration dialog."""
+        dialog = CalibrationDialog(
+            camera_manager=self._core.camera_manager,
+            calibration=self._core.calibration,
+            parent=self
+        )
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            # Calibration is modified in place, just log
+            calibration = dialog.get_calibration()
+            if calibration.is_calibrated:
+                logger.info(
+                    f"Camera calibrated: {calibration.pixels_per_mm:.2f} pixels/mm "
+                    f"({len(calibration.lines)} lines)"
+                )
+            else:
+                logger.info("Camera calibration cleared")
 
     # Agent operations
     def _on_agent_settings(self) -> None:

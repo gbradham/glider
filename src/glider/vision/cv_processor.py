@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 class DetectionBackend(Enum):
     """Available detection backends."""
     BACKGROUND_SUBTRACTION = auto()  # Fast, no model required
-    YOLO_V8 = auto()                 # Requires ultralytics
+    YOLO_V8 = auto()                 # Requires ultralytics (detection only)
+    YOLO_BYTETRACK = auto()          # YOLO + ByteTrack multi-object tracking
     MOTION_ONLY = auto()             # Just motion detection
 
 
@@ -35,6 +36,7 @@ class Detection:
     confidence: float
     bbox: Tuple[int, int, int, int]  # x, y, w, h
     centroid: Tuple[int, int] = field(default=(0, 0))
+    track_id: Optional[int] = None  # ByteTrack assigned ID
 
     def __post_init__(self):
         # Calculate centroid from bbox
@@ -285,6 +287,9 @@ class CVProcessor:
         self._trail_history: Dict[int, List[Tuple[int, int]]] = {}
         self._max_trail_length = 30
 
+        # ByteTrack age tracking (since ByteTrack doesn't expose this)
+        self._bytetrack_ages: Dict[int, int] = {}
+
     @property
     def settings(self) -> CVSettings:
         """Current CV settings."""
@@ -317,7 +322,7 @@ class CVProcessor:
                     logger.info("Initialized background subtractor")
 
                 # Initialize YOLO if selected
-                elif self._settings.backend == DetectionBackend.YOLO_V8:
+                elif self._settings.backend in (DetectionBackend.YOLO_V8, DetectionBackend.YOLO_BYTETRACK):
                     self._load_yolo_model()
 
                 # Initialize tracker
@@ -384,8 +389,14 @@ class CVProcessor:
 
             # Run tracking
             tracked = []
-            if self._tracker and self._settings.tracking_enabled:
-                tracked = self._tracker.update(detections)
+            if self._settings.tracking_enabled:
+                # ByteTrack provides its own tracking - convert detections to TrackedObjects
+                if self._settings.backend == DetectionBackend.YOLO_BYTETRACK:
+                    tracked = self._bytetrack_to_tracked(detections)
+                elif self._tracker:
+                    # Use centroid tracker for other backends
+                    tracked = self._tracker.update(detections)
+
                 # Update trail history
                 self._update_trails(tracked)
 
@@ -417,6 +428,8 @@ class CVProcessor:
         """Run detection on frame."""
         if self._settings.backend == DetectionBackend.YOLO_V8 and self._yolo_model:
             return self._detect_yolo(frame)
+        elif self._settings.backend == DetectionBackend.YOLO_BYTETRACK and self._yolo_model:
+            return self._detect_yolo_bytetrack(frame)
         elif self._settings.backend == DetectionBackend.MOTION_ONLY:
             return []  # Motion-only mode, no object detection
         else:
@@ -444,6 +457,75 @@ class CVProcessor:
                     confidence=float(box.conf),
                     bbox=(int(x1), int(y1), int(x2 - x1), int(y2 - y1))
                 ))
+        return detections
+
+    def _bytetrack_to_tracked(self, detections: List[Detection]) -> List[TrackedObject]:
+        """
+        Convert ByteTrack detection results to TrackedObjects.
+
+        ByteTrack assigns persistent IDs via the model.track() method,
+        so we just need to convert the format.
+        """
+        tracked = []
+        for det in detections:
+            if det.track_id is not None:
+                # Update age tracking for ByteTrack objects
+                if det.track_id not in self._bytetrack_ages:
+                    self._bytetrack_ages[det.track_id] = 0
+                self._bytetrack_ages[det.track_id] += 1
+
+                tracked.append(TrackedObject(
+                    track_id=det.track_id,
+                    class_name=det.class_name,
+                    bbox=det.bbox,
+                    confidence=det.confidence,
+                    centroid=det.centroid,
+                    age=self._bytetrack_ages[det.track_id],
+                    disappeared=0
+                ))
+        return tracked
+
+    def _detect_yolo_bytetrack(self, frame: np.ndarray) -> List[Detection]:
+        """
+        YOLO detection with ByteTrack multi-object tracking.
+
+        Uses ultralytics built-in ByteTrack tracker for robust
+        multi-object tracking with persistent IDs across frames.
+        """
+        if self._yolo_model is None:
+            return []
+
+        # Use model.track() for ByteTrack integration
+        results = self._yolo_model.track(
+            frame,
+            conf=self._settings.confidence_threshold,
+            persist=True,  # Persist tracks across frames
+            tracker="bytetrack.yaml",  # Use ByteTrack
+            verbose=False
+        )
+
+        detections = []
+        for r in results:
+            if r.boxes is None:
+                continue
+            for i, box in enumerate(r.boxes):
+                x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
+                class_id = int(box.cls)
+
+                # Get track ID if available (ByteTrack assigns these)
+                track_id = None
+                if box.id is not None:
+                    track_id = int(box.id[0])
+
+                detection = Detection(
+                    class_id=class_id,
+                    class_name=r.names[class_id],
+                    confidence=float(box.conf),
+                    bbox=(int(x1), int(y1), int(x2 - x1), int(y2 - y1)),
+                    track_id=track_id
+                )
+                detections.append(detection)
+
         return detections
 
     def _detect_background_subtraction(self, frame: np.ndarray) -> List[Detection]:
@@ -639,6 +721,7 @@ class CVProcessor:
         if self._tracker:
             self._tracker.reset()
         self._trail_history.clear()
+        self._bytetrack_ages.clear()
         if self._bg_subtractor:
             # Recreate background subtractor to reset learning
             self._bg_subtractor = cv2.createBackgroundSubtractorMOG2(

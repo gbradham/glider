@@ -20,6 +20,7 @@ from glider.vision.camera_manager import CameraManager
 from glider.vision.video_recorder import VideoRecorder
 from glider.vision.cv_processor import CVProcessor
 from glider.vision.tracking_logger import TrackingDataLogger
+from glider.vision.calibration import CameraCalibration
 
 if TYPE_CHECKING:
     from glider.plugins.plugin_manager import PluginManager
@@ -52,6 +53,7 @@ class GliderCore:
         self._cv_processor = CVProcessor()
         self._video_recorder = VideoRecorder(self._camera_manager)
         self._tracking_logger = TrackingDataLogger()
+        self._calibration = CameraCalibration()
 
         # Agent (lazy initialization)
         self._agent_controller: Optional["AgentController"] = None
@@ -60,6 +62,7 @@ class GliderCore:
         self._shutting_down = False
         self._recording_enabled = True  # Auto-record experiments by default
         self._video_recording_enabled = True  # Auto-record video when camera connected
+        self._annotated_video_enabled = True  # Also save annotated video with tracking overlays
         self._cv_processing_enabled = True  # Enable CV processing by default
 
         # Callbacks
@@ -113,6 +116,11 @@ class GliderCore:
         return self._tracking_logger
 
     @property
+    def calibration(self) -> CameraCalibration:
+        """Camera calibration instance."""
+        return self._calibration
+
+    @property
     def agent_controller(self) -> "AgentController":
         """
         Agent controller instance (lazy initialization).
@@ -133,6 +141,16 @@ class GliderCore:
     def video_recording_enabled(self, value: bool) -> None:
         """Enable or disable automatic video recording."""
         self._video_recording_enabled = value
+
+    @property
+    def annotated_video_enabled(self) -> bool:
+        """Whether annotated video recording (with tracking overlays) is enabled."""
+        return self._annotated_video_enabled
+
+    @annotated_video_enabled.setter
+    def annotated_video_enabled(self, value: bool) -> None:
+        """Enable or disable annotated video recording."""
+        self._annotated_video_enabled = value
 
     @property
     def cv_processing_enabled(self) -> bool:
@@ -536,15 +554,23 @@ class GliderCore:
         experiment_name = self._session.metadata.name or "experiment"
         if self._video_recording_enabled and self._camera_manager.is_connected:
             try:
-                video_path = await self._video_recorder.start(experiment_name)
+                # Record annotated video with tracking overlays if CV is enabled
+                record_annotated = self._annotated_video_enabled and self._cv_processing_enabled
+                video_path = await self._video_recorder.start(experiment_name, record_annotated=record_annotated)
                 logger.info(f"Recording video to: {video_path}")
-
-                # Start tracking logger if CV processing enabled
-                if self._cv_processing_enabled:
-                    tracking_path = await self._tracking_logger.start(experiment_name)
-                    logger.info(f"Tracking data to: {tracking_path}")
+                if record_annotated:
+                    logger.info(f"Also recording annotated video with tracking overlays")
             except Exception as e:
                 logger.error(f"Failed to start video recording: {e}")
+
+        # Start tracking logger if CV processing enabled and camera is connected
+        # (separate from video recording so tracking works even if video recording is disabled)
+        if self._cv_processing_enabled and self._camera_manager.is_connected:
+            try:
+                tracking_path = await self._tracking_logger.start(experiment_name)
+                logger.info(f"Tracking data to: {tracking_path}")
+            except Exception as e:
+                logger.error(f"Failed to start tracking logger: {e}")
 
         self._session.state = SessionState.RUNNING
         await self._flow_engine.start()

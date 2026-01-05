@@ -176,6 +176,7 @@ class CameraSettingsDialog(QDialog):
         self._backend_combo.addItem("Background Subtraction", DetectionBackend.BACKGROUND_SUBTRACTION)
         self._backend_combo.addItem("Motion Detection Only", DetectionBackend.MOTION_ONLY)
         self._backend_combo.addItem("YOLO v8 (requires ultralytics)", DetectionBackend.YOLO_V8)
+        self._backend_combo.addItem("YOLO + ByteTrack (multi-object tracking)", DetectionBackend.YOLO_BYTETRACK)
         self._backend_combo.currentIndexChanged.connect(self._on_backend_changed)
         detection_layout.addRow("Backend:", self._backend_combo)
 
@@ -354,7 +355,7 @@ class CameraSettingsDialog(QDialog):
     def _on_backend_changed(self, index: int):
         """Handle backend selection change."""
         backend = self._backend_combo.itemData(index)
-        is_yolo = backend == DetectionBackend.YOLO_V8
+        is_yolo = backend in (DetectionBackend.YOLO_V8, DetectionBackend.YOLO_BYTETRACK)
         self._model_path_edit.setVisible(is_yolo)
         self._model_path_label.setVisible(is_yolo)
         self._browse_model_btn.setVisible(is_yolo)

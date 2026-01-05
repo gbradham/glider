@@ -21,6 +21,9 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 if TYPE_CHECKING:
     from glider.vision.camera_manager import CameraManager
     from glider.vision.cv_processor import CVProcessor
+    from glider.vision.video_recorder import VideoRecorder
+    from glider.vision.tracking_logger import TrackingDataLogger
+    from glider.vision.calibration import CameraCalibration
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,8 @@ class CameraPreviewWidget(QLabel):
             }
         """)
         self._placeholder = True
+        self._calibration = None
+        self._show_calibration = True
         self.setText("No Camera")
         # Prevent the widget from resizing based on pixmap content
         self.setScaledContents(False)
@@ -50,12 +55,40 @@ class CameraPreviewWidget(QLabel):
             QSizePolicy.Policy.Ignored
         )
 
+    def set_calibration(self, calibration) -> None:
+        """Set calibration to display on preview."""
+        self._calibration = calibration
+
+    def set_show_calibration(self, show: bool) -> None:
+        """Toggle calibration line display."""
+        self._show_calibration = show
+
     def update_frame(self, frame: np.ndarray) -> None:
         """Update display with new frame."""
         self._placeholder = False
 
+        # Draw calibration lines if enabled
+        display_frame = frame
+        if self._show_calibration and self._calibration and self._calibration.lines:
+            display_frame = frame.copy()
+            h, w = display_frame.shape[:2]
+            for line in self._calibration.lines:
+                x1, y1, x2, y2 = line.get_pixel_coords(w, h)
+                cv2.line(display_frame, (x1, y1), (x2, y2), line.color, 2)
+                cv2.circle(display_frame, (x1, y1), 4, line.color, -1)
+                cv2.circle(display_frame, (x2, y2), 4, line.color, -1)
+                # Draw label
+                mid_x = (x1 + x2) // 2
+                mid_y = (y1 + y2) // 2
+                label = f"{line.length:.1f}{line.unit.value}"
+                cv2.putText(
+                    display_frame, label,
+                    (mid_x + 5, mid_y - 5),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, line.color, 1
+                )
+
         # Convert BGR to RGB
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        rgb_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
         h, w, ch = rgb_frame.shape
         bytes_per_line = ch * w
 
@@ -107,6 +140,7 @@ class CameraPanel(QWidget):
     """
 
     settings_requested = pyqtSignal()
+    calibration_requested = pyqtSignal()
 
     def __init__(
         self,
@@ -117,6 +151,9 @@ class CameraPanel(QWidget):
         super().__init__(parent)
         self._camera = camera_manager
         self._cv_processor = cv_processor
+        self._video_recorder: Optional["VideoRecorder"] = None
+        self._tracking_logger: Optional["TrackingDataLogger"] = None
+        self._calibration: Optional["CameraCalibration"] = None
         self._preview_active = False
         self._last_frame = None
         self._frame_count = 0
@@ -217,6 +254,10 @@ class CameraPanel(QWidget):
         self._settings_btn.clicked.connect(self.settings_requested.emit)
         control_layout.addWidget(self._settings_btn)
 
+        self._calibrate_btn = QPushButton("Calibrate...")
+        self._calibrate_btn.clicked.connect(self.calibration_requested.emit)
+        control_layout.addWidget(self._calibrate_btn)
+
         layout.addLayout(control_layout)
 
         # CV options
@@ -309,19 +350,88 @@ class CameraPanel(QWidget):
 
         self._frame_count += 1
         display_frame = frame
+        annotated_frame = None
+        tracked_objects = []
+        motion_result = None
 
         # Process with CV if enabled
         if self._cv_enabled_cb.isChecked() and self._cv_processor.is_initialized:
             detections, tracked, motion = self._cv_processor.process_frame(
                 frame, timestamp
             )
+            tracked_objects = tracked
+            motion_result = motion
             if self._overlay_cb.isChecked():
                 display_frame = self._cv_processor.draw_overlays(
                     frame, detections, tracked, motion
                 )
+                annotated_frame = display_frame
 
         self._last_frame = display_frame
         self._preview.update_frame(display_frame)
+
+        # Write annotated frame to video recorder if recording
+        if annotated_frame is not None and self._video_recorder is not None:
+            # Draw calibration lines on the annotated frame for the video
+            if self._calibration and self._calibration.lines:
+                annotated_frame = self._draw_calibration_lines(annotated_frame)
+            self._video_recorder.write_annotated_frame(annotated_frame)
+
+        # Log tracking data if tracking logger is active
+        if self._tracking_logger is not None and self._tracking_logger.is_recording:
+            # Set frame size and calibration for distance calculations
+            h, w = frame.shape[:2]
+            self._tracking_logger.set_frame_size(w, h)
+            if self._calibration:
+                self._tracking_logger.set_calibration(self._calibration)
+
+            motion_detected = motion_result.motion_detected if motion_result else False
+            motion_area = motion_result.motion_area if motion_result else 0.0
+
+            # Debug: Log every 100 frames to avoid log spam
+            if self._frame_count % 100 == 0:
+                logger.debug(
+                    f"Tracking frame {self._frame_count}: "
+                    f"objects={len(tracked_objects)}, motion={motion_detected}, "
+                    f"cv_enabled={self._cv_enabled_cb.isChecked()}, "
+                    f"cv_initialized={self._cv_processor.is_initialized}"
+                )
+
+            self._tracking_logger.log_frame(
+                timestamp, tracked_objects, motion_detected, motion_area
+            )
+        elif self._tracking_logger is not None and self._frame_count % 500 == 0:
+            # Debug: Log when tracking logger exists but isn't recording
+            logger.debug(
+                f"Tracking logger exists but is_recording={self._tracking_logger.is_recording}"
+            )
+
+    def _draw_calibration_lines(self, frame: np.ndarray) -> np.ndarray:
+        """Draw calibration lines on a frame for video recording."""
+        if not self._calibration or not self._calibration.lines:
+            return frame
+
+        output = frame.copy()
+        h, w = output.shape[:2]
+
+        for line in self._calibration.lines:
+            x1, y1, x2, y2 = line.get_pixel_coords(w, h)
+            # Draw the line
+            cv2.line(output, (x1, y1), (x2, y2), line.color, 2)
+            # Draw endpoint circles
+            cv2.circle(output, (x1, y1), 4, line.color, -1)
+            cv2.circle(output, (x2, y2), 4, line.color, -1)
+            # Draw measurement label at midpoint
+            mid_x = (x1 + x2) // 2
+            mid_y = (y1 + y2) // 2
+            label = f"{line.length:.1f}{line.unit.value}"
+            cv2.putText(
+                output, label,
+                (mid_x + 5, mid_y - 5),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.4, line.color, 1
+            )
+
+        return output
 
     def _update_fps_display(self) -> None:
         """Update FPS display."""
@@ -339,6 +449,18 @@ class CameraPanel(QWidget):
     def _on_overlay_toggle(self, enabled: bool) -> None:
         """Handle overlay display toggle."""
         self._cv_processor.settings.draw_overlays = enabled
+
+    def set_video_recorder(self, recorder: "VideoRecorder") -> None:
+        """Set the video recorder for annotated frame writing."""
+        self._video_recorder = recorder
+
+    def set_tracking_logger(self, logger: "TrackingDataLogger") -> None:
+        """Set the tracking logger for logging CV results."""
+        self._tracking_logger = logger
+
+    def set_calibration(self, calibration: "CameraCalibration") -> None:
+        """Set the camera calibration for real-world measurements."""
+        self._calibration = calibration
 
     def set_recording(self, recording: bool) -> None:
         """Update recording indicator."""

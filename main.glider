@@ -1,0 +1,564 @@
+{
+  "metadata": {
+    "id": "2ed2d6f2-ad25-4a1a-8c3a-b92faa6e66c5",
+    "name": "Untitled Experiment",
+    "description": "",
+    "author": "",
+    "version": "1.0.0",
+    "created_at": "2026-01-05T17:16:24.375928",
+    "modified_at": "2026-01-05T17:30:25.722348",
+    "glider_version": "1.0.0"
+  },
+  "hardware": {
+    "boards": [
+      {
+        "id": "Arduino",
+        "driver_type": "arduino",
+        "port": null,
+        "board_type": "uno",
+        "auto_reconnect": false,
+        "settings": {}
+      },
+      {
+        "id": "Pi5",
+        "driver_type": "raspberry_pi",
+        "port": null,
+        "board_type": "uno",
+        "auto_reconnect": false,
+        "settings": {}
+      }
+    ],
+    "devices": [
+      {
+        "id": "pi_relay",
+        "device_type": "DigitalOutput",
+        "name": "Pi Relay",
+        "board_id": "Pi5",
+        "pins": {
+          "output": 0
+        },
+        "settings": {}
+      },
+      {
+        "id": "pi_atom",
+        "device_type": "DigitalOutput",
+        "name": "pi_atom",
+        "board_id": "Pi5",
+        "pins": {
+          "output": 1
+        },
+        "settings": {}
+      },
+      {
+        "id": "pi_pump",
+        "device_type": "DigitalOutput",
+        "name": "pi_pump",
+        "board_id": "Pi5",
+        "pins": {
+          "output": 2
+        },
+        "settings": {}
+      },
+      {
+        "id": "pi_atom_up",
+        "device_type": "DigitalOutput",
+        "name": "pi_atom_up",
+        "board_id": "Pi5",
+        "pins": {
+          "output": 3
+        },
+        "settings": {}
+      },
+      {
+        "id": "pi_atom_down",
+        "device_type": "DigitalOutput",
+        "name": "pi_atom_down",
+        "board_id": "Pi5",
+        "pins": {
+          "output": 4
+        },
+        "settings": {}
+      },
+      {
+        "id": "pi_pump_up",
+        "device_type": "DigitalOutput",
+        "name": "pi_pump_up",
+        "board_id": "Pi5",
+        "pins": {
+          "output": 5
+        },
+        "settings": {}
+      },
+      {
+        "id": "pi_pump_down",
+        "device_type": "DigitalOutput",
+        "name": "pi_pump_down",
+        "board_id": "Pi5",
+        "pins": {
+          "output": 6
+        },
+        "settings": {}
+      },
+      {
+        "id": "pi_beam",
+        "device_type": "ADS1115",
+        "name": "pi_beam",
+        "board_id": "Pi5",
+        "pins": {},
+        "settings": {
+          "i2c_address": 72,
+          "channel": 2,
+          "gain": 1
+        }
+      },
+      {
+        "id": "ard_relay",
+        "device_type": "DigitalOutput",
+        "name": "ard_relay",
+        "board_id": "Arduino",
+        "pins": {
+          "output": 0
+        },
+        "settings": {}
+      },
+      {
+        "id": "ard_atom",
+        "device_type": "DigitalOutput",
+        "name": "ard_atom",
+        "board_id": "Arduino",
+        "pins": {
+          "output": 1
+        },
+        "settings": {}
+      },
+      {
+        "id": "ard_pump",
+        "device_type": "DigitalOutput",
+        "name": "ard_pump",
+        "board_id": "Arduino",
+        "pins": {
+          "output": 2
+        },
+        "settings": {}
+      },
+      {
+        "id": "ard_atom_up",
+        "device_type": "DigitalOutput",
+        "name": "ard_atom_up",
+        "board_id": "Arduino",
+        "pins": {
+          "output": 3
+        },
+        "settings": {}
+      },
+      {
+        "id": "ard_atom_down",
+        "device_type": "DigitalOutput",
+        "name": "ard_atom_down",
+        "board_id": "Arduino",
+        "pins": {
+          "output": 4
+        },
+        "settings": {}
+      },
+      {
+        "id": "ard_pump_up",
+        "device_type": "DigitalOutput",
+        "name": "ard_pump_up",
+        "board_id": "Arduino",
+        "pins": {
+          "output": 5
+        },
+        "settings": {}
+      },
+      {
+        "id": "ard_pump_down",
+        "device_type": "DigitalOutput",
+        "name": "ard_pump_down",
+        "board_id": "Arduino",
+        "pins": {
+          "output": 6
+        },
+        "settings": {}
+      },
+      {
+        "id": "ard_beam",
+        "device_type": "AnalogInput",
+        "name": "ard_beam",
+        "board_id": "Arduino",
+        "pins": {
+          "input": 14
+        },
+        "settings": {}
+      }
+    ]
+  },
+  "flow": {
+    "nodes": [
+      {
+        "id": "startexperiment_00a34e59",
+        "node_type": "StartExperiment",
+        "position": [
+          -2169.925409115233,
+          -1778.9586720363136
+        ],
+        "state": {},
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "endexperiment_a344542a",
+        "node_type": "EndExperiment",
+        "position": [
+          -1568.3907142842572,
+          -1782.1831495562487
+        ],
+        "state": {},
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "waitforinput_35c80259",
+        "node_type": "WaitForInput",
+        "position": [
+          -1739.2858749999987,
+          -1986.973097812499
+        ],
+        "state": {
+          "threshold_mode": "analog",
+          "threshold_direction": "below"
+        },
+        "device_id": "pi_beam",
+        "visible_in_runner": true
+      },
+      {
+        "id": "waitforinput_96f7e449",
+        "node_type": "WaitForInput",
+        "position": [
+          -1738.304910624999,
+          -1911.4229709374993
+        ],
+        "state": {
+          "threshold_mode": "analog",
+          "threshold_direction": "below"
+        },
+        "device_id": "ard_beam",
+        "visible_in_runner": true
+      },
+      {
+        "id": "output_e50906ff",
+        "node_type": "Output",
+        "position": [
+          -1551.1569437499998,
+          -1985.2807937499995
+        ],
+        "state": {},
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "loop_d78e6cf5",
+        "node_type": "Loop",
+        "position": [
+          -1941.7467387499985,
+          -1974.6280562499992
+        ],
+        "state": {
+          "delay": 5.0
+        },
+        "device_id": null,
+        "visible_in_runner": true
+      },
+      {
+        "id": "output_eb0b3b15",
+        "node_type": "Output",
+        "position": [
+          -1546.1215249999993,
+          -1902.918799999999
+        ],
+        "state": {},
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "delay_b7c3b4a6",
+        "node_type": "Delay",
+        "position": [
+          -1353.7308374999993,
+          -1985.1220937499993
+        ],
+        "state": {},
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "delay_31dfe6d6",
+        "node_type": "Delay",
+        "position": [
+          -1353.7308374999993,
+          -1899.4207874999988
+        ],
+        "state": {},
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "output_6576a19b",
+        "node_type": "Output",
+        "position": [
+          -1143.8500874999995,
+          -1985.122093749999
+        ],
+        "state": {},
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "output_17e33489",
+        "node_type": "Output",
+        "position": [
+          -1148.2606249999994,
+          -1898.0519999999992
+        ],
+        "state": {},
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "startfunction_f649a0c9",
+        "node_type": "StartFunction",
+        "position": [
+          -2241.3558818906245,
+          -1380.8972770781238
+        ],
+        "state": {
+          "function_name": "Pi_Atom_Up"
+        },
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "endfunction_84aceca7",
+        "node_type": "EndFunction",
+        "position": [
+          -1211.3236550701943,
+          -1378.6593907873814
+        ],
+        "state": {},
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "delay_8dd5296e",
+        "node_type": "Delay",
+        "position": [
+          -1856.4365540226545,
+          -1775.0973349478893
+        ],
+        "state": {},
+        "device_id": null,
+        "visible_in_runner": false
+      },
+      {
+        "id": "output_74294103",
+        "node_type": "Output",
+        "position": [
+          -1433.533620171874,
+          -1376.835210062499
+        ],
+        "state": {
+          "value": 0
+        },
+        "device_id": "pi_atom_down",
+        "visible_in_runner": false
+      },
+      {
+        "id": "output_7783ad73",
+        "node_type": "Output",
+        "position": [
+          -1626.0817182343742,
+          -1378.5842163124992
+        ],
+        "state": {
+          "value": 0
+        },
+        "device_id": "pi_atom_up",
+        "visible_in_runner": false
+      },
+      {
+        "id": "output_6384629c",
+        "node_type": "Output",
+        "position": [
+          -1818.6298162968742,
+          -1378.5842163124992
+        ],
+        "state": {},
+        "device_id": "pi_atom_up",
+        "visible_in_runner": false
+      },
+      {
+        "id": "output_ed216d23",
+        "node_type": "Output",
+        "position": [
+          -2021.615109156249,
+          -1379.148270828124
+        ],
+        "state": {},
+        "device_id": "pi_atom_down",
+        "visible_in_runner": false
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn_0c4a3db9",
+        "from_node": "loop_d78e6cf5",
+        "from_output": 0,
+        "to_node": "waitforinput_35c80259",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_5875cf97",
+        "from_node": "waitforinput_35c80259",
+        "from_output": 0,
+        "to_node": "output_e50906ff",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_babfc3e0",
+        "from_node": "output_e50906ff",
+        "from_output": 0,
+        "to_node": "delay_b7c3b4a6",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_c712feb4",
+        "from_node": "delay_b7c3b4a6",
+        "from_output": 0,
+        "to_node": "output_6576a19b",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_1a716d52",
+        "from_node": "waitforinput_96f7e449",
+        "from_output": 0,
+        "to_node": "output_eb0b3b15",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_dafd072f",
+        "from_node": "output_eb0b3b15",
+        "from_output": 0,
+        "to_node": "delay_31dfe6d6",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_59ceba53",
+        "from_node": "delay_31dfe6d6",
+        "from_output": 0,
+        "to_node": "output_17e33489",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_d62451e6",
+        "from_node": "loop_d78e6cf5",
+        "from_output": 0,
+        "to_node": "waitforinput_96f7e449",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_4d685d5c",
+        "from_node": "startexperiment_00a34e59",
+        "from_output": 0,
+        "to_node": "loop_d78e6cf5",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_def96a8e",
+        "from_node": "startexperiment_00a34e59",
+        "from_output": 0,
+        "to_node": "delay_8dd5296e",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_ff5847ea",
+        "from_node": "delay_8dd5296e",
+        "from_output": 0,
+        "to_node": "endexperiment_a344542a",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_68f3aab5",
+        "from_node": "startfunction_f649a0c9",
+        "from_output": 0,
+        "to_node": "output_ed216d23",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_eac43b7e",
+        "from_node": "output_ed216d23",
+        "from_output": 0,
+        "to_node": "output_6384629c",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_8db90b9d",
+        "from_node": "output_6384629c",
+        "from_output": 0,
+        "to_node": "output_7783ad73",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_667ac83a",
+        "from_node": "output_7783ad73",
+        "from_output": 0,
+        "to_node": "output_74294103",
+        "to_input": 0,
+        "connection_type": "exec"
+      },
+      {
+        "id": "conn_2e41f0c0",
+        "from_node": "output_74294103",
+        "from_output": 0,
+        "to_node": "endfunction_84aceca7",
+        "to_input": 0,
+        "connection_type": "exec"
+      }
+    ]
+  },
+  "dashboard": {
+    "widgets": [],
+    "layout": "vertical",
+    "columns": 1
+  },
+  "camera": {
+    "camera_index": 0,
+    "resolution": [
+      640,
+      480
+    ],
+    "fps": 30,
+    "exposure": -1,
+    "brightness": 128,
+    "contrast": 128,
+    "cv_enabled": true,
+    "cv_backend": "background_subtraction",
+    "confidence_threshold": 0.5,
+    "tracking_enabled": true,
+    "max_disappeared": 50,
+    "video_recording_enabled": true
+  }
+}

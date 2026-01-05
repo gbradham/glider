@@ -4612,6 +4612,14 @@ class MainWindow(QMainWindow):
                         display = f"{raw_value}\n{voltage:.2f}V"
                         self._input_value_label.setText(display)
                         self._device_status_label.setText(f"Status: Analog = {raw_value} ({voltage:.2f}V)")
+                elif device_type == 'ADS1115':
+                    # ADS1115 16-bit ADC via I2C
+                    channel = device._config.settings.get('channel', 0)
+                    raw_value = await device.read(channel)
+                    voltage = await device.read_voltage(channel)
+                    display = f"{raw_value}\n{voltage:.3f}V"
+                    self._input_value_label.setText(display)
+                    self._device_status_label.setText(f"Status: ADS1115 Ch{channel} = {raw_value} ({voltage:.3f}V)")
             except Exception as e:
                 logger.error(f"Read error: {e}")
                 self._input_value_label.setText("ERROR")
@@ -4629,14 +4637,19 @@ class MainWindow(QMainWindow):
                 return
 
             device_type = getattr(device, 'device_type', '')
-            if device_type not in ('DigitalInput', 'AnalogInput'):
+            if device_type not in ('DigitalInput', 'AnalogInput', 'ADS1115'):
                 self._continuous_checkbox.setChecked(False)
-                QMessageBox.warning(self, "Invalid Device", "Please select a DigitalInput or AnalogInput device.")
+                QMessageBox.warning(self, "Invalid Device", "Please select a DigitalInput, AnalogInput, or ADS1115 device.")
                 return
 
             if device_type == 'AnalogInput':
                 # Use real-time callbacks for analog inputs (much faster than polling)
                 self._start_analog_callback(device)
+            elif device_type == 'ADS1115':
+                # ADS1115 uses I2C polling (no pin-based callbacks)
+                interval = self._poll_spinbox.value()
+                self._input_poll_timer.start(interval)
+                self._device_status_label.setText(f"Status: ADS1115 polling ({interval}ms)")
             else:
                 # Use polling for digital inputs
                 interval = self._poll_spinbox.value()
@@ -4719,7 +4732,7 @@ class MainWindow(QMainWindow):
             return
 
         device_type = getattr(device, 'device_type', '')
-        if device_type not in ('DigitalInput', 'AnalogInput'):
+        if device_type not in ('DigitalInput', 'AnalogInput', 'ADS1115'):
             self._input_poll_timer.stop()
             self._continuous_checkbox.setChecked(False)
             return
@@ -4748,6 +4761,15 @@ class MainWindow(QMainWindow):
                         ref_voltage = 5.0
                     voltage = (raw_value / 1023.0) * ref_voltage
                     display = f"{raw_value}\n{voltage:.2f}V"
+                    self._input_value_label.setText(display)
+                elif device_type == 'ADS1115':
+                    # ADS1115 has read() and read_voltage() methods
+                    # Get channel from settings (default 0)
+                    channel = device._config.settings.get('channel', 0)
+                    raw_value = await device.read(channel)
+                    voltage = await device.read_voltage(channel)
+                    # ADS1115 is 16-bit, show full value
+                    display = f"{raw_value}\n{voltage:.3f}V"
                     self._input_value_label.setText(display)
             except Exception as e:
                 logger.error(f"Poll read error: {e}")

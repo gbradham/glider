@@ -2104,12 +2104,14 @@ class MainWindow(QMainWindow):
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Add Device")
-        dialog.setMinimumWidth(380)
+        dialog.setMinimumWidth(400)
 
         layout = QFormLayout(dialog)
 
         # Device type
         type_combo = QComboBox()
+        type_combo.setMaxVisibleItems(10)  # Ensure dropdown is scrollable
+        type_combo.setMinimumWidth(280)  # Ensure full text is visible
         type_combo.addItems(list(device_type_map.keys()))
         layout.addRow("Device Type:", type_combo)
 

@@ -207,6 +207,16 @@ class CameraSettingsDialog(QDialog):
         self._min_area_spin.setSuffix(" px")
         detection_layout.addRow("Min Detection Area:", self._min_area_spin)
 
+        # Frame skip for performance (process every N frames)
+        self._frame_skip_spin = QSpinBox()
+        self._frame_skip_spin.setRange(1, 10)
+        self._frame_skip_spin.setValue(1)
+        self._frame_skip_spin.setToolTip(
+            "Process CV every N frames. Higher values improve FPS but reduce tracking accuracy.\n"
+            "1 = process every frame, 3 = process every 3rd frame (3x faster)"
+        )
+        detection_layout.addRow("Process Every N Frames:", self._frame_skip_spin)
+
         layout.addWidget(detection_group)
 
         # Overlay group
@@ -325,6 +335,7 @@ class CameraSettingsDialog(QDialog):
 
         self._confidence_spin.setValue(self._cv_settings.confidence_threshold)
         self._min_area_spin.setValue(self._cv_settings.min_detection_area)
+        self._frame_skip_spin.setValue(self._cv_settings.process_every_n_frames)
         self._draw_overlays_cb.setChecked(self._cv_settings.draw_overlays)
 
         # Tracking settings
@@ -346,6 +357,7 @@ class CameraSettingsDialog(QDialog):
         self._backend_combo.setEnabled(enabled)
         self._confidence_spin.setEnabled(enabled)
         self._min_area_spin.setEnabled(enabled)
+        self._frame_skip_spin.setEnabled(enabled)
         self._draw_overlays_cb.setEnabled(enabled)
         self._draw_tracks_cb.setEnabled(enabled)
         self._draw_contours_cb.setEnabled(enabled)
@@ -401,6 +413,7 @@ class CameraSettingsDialog(QDialog):
         self._cv_settings.model_path = self._model_path_edit.text() or None
         self._cv_settings.confidence_threshold = self._confidence_spin.value()
         self._cv_settings.min_detection_area = self._min_area_spin.value()
+        self._cv_settings.process_every_n_frames = self._frame_skip_spin.value()
         self._cv_settings.draw_overlays = self._draw_overlays_cb.isChecked()
         self._cv_settings.tracking_enabled = self._tracking_enabled_cb.isChecked()
         self._cv_settings.max_disappeared = self._max_disappeared_spin.value()

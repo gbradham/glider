@@ -80,6 +80,7 @@ class VideoRecorder:
         self._start_time: Optional[datetime] = None
         self._frame_count = 0
         self._annotated_frame_count = 0
+        self._recording_fps = 30.0  # Actual FPS used for recording
         self._video_format = VideoFormat()
         self._lock = threading.Lock()
         self._frame_callback_registered = False
@@ -201,12 +202,19 @@ class VideoRecorder:
         settings = self._camera.settings
         fourcc = cv2.VideoWriter_fourcc(*self._video_format.codec)
 
+        # Use measured FPS if camera is already streaming, otherwise use configured FPS
+        # This helps when actual frame rate is lower due to processing overhead
+        actual_fps = self._camera.current_fps
+        recording_fps = actual_fps if actual_fps > 1.0 else settings.fps
+        self._recording_fps = recording_fps
+        logger.debug(f"Recording at {recording_fps:.1f} fps (measured: {actual_fps:.1f}, configured: {settings.fps})")
+
         with self._lock:
             # Create raw video writer
             self._writer = cv2.VideoWriter(
                 str(self._file_path),
                 fourcc,
-                settings.fps,
+                recording_fps,
                 settings.resolution
             )
 
@@ -222,7 +230,7 @@ class VideoRecorder:
                 self._annotated_writer = cv2.VideoWriter(
                     str(self._annotated_file_path),
                     fourcc,
-                    settings.fps,
+                    recording_fps,
                     settings.resolution
                 )
                 if not self._annotated_writer.isOpened():
@@ -237,7 +245,7 @@ class VideoRecorder:
             self._frame_callback_registered = True
 
         self._state = RecordingState.RECORDING
-        logger.info(f"Started recording to {self._file_path}")
+        logger.info(f"Started recording to {self._file_path} at {recording_fps:.1f} fps")
         return self._file_path
 
     def _on_frame(self, frame: np.ndarray, timestamp: float) -> None:
@@ -304,9 +312,26 @@ class VideoRecorder:
                 self._annotated_writer = None
 
         saved_path = self._file_path
+        duration = self.duration
+
+        # Calculate actual FPS and fix video if needed
+        if duration > 0 and self._frame_count > 0:
+            actual_fps = self._frame_count / duration
+            fps_drift = abs(actual_fps - self._recording_fps) / self._recording_fps
+
+            # If FPS drift is more than 10%, re-encode with correct FPS
+            if fps_drift > 0.1:
+                logger.info(
+                    f"FPS drift detected: recorded at {self._recording_fps:.1f} fps, "
+                    f"actual {actual_fps:.1f} fps. Re-encoding..."
+                )
+                self._fix_video_fps(self._file_path, actual_fps)
+                if self._record_annotated and self._annotated_file_path:
+                    annotated_actual_fps = self._annotated_frame_count / duration
+                    self._fix_video_fps(self._annotated_file_path, annotated_actual_fps)
+
         self._state = RecordingState.IDLE
 
-        duration = self.duration
         logger.info(
             f"Stopped recording. Saved to {saved_path} "
             f"({self._frame_count} frames, {duration:.1f}s)"
@@ -317,6 +342,58 @@ class VideoRecorder:
                 f"({self._annotated_frame_count} frames)"
             )
         return saved_path
+
+    def _fix_video_fps(self, video_path: Path, correct_fps: float) -> bool:
+        """
+        Re-encode a video with the correct FPS.
+
+        Args:
+            video_path: Path to the video file
+            correct_fps: The correct FPS to use
+
+        Returns:
+            True if successful
+        """
+        try:
+            temp_path = video_path.with_suffix('.temp.mp4')
+
+            # Read original video
+            cap = cv2.VideoCapture(str(video_path))
+            if not cap.isOpened():
+                logger.error(f"Failed to open video for FPS fix: {video_path}")
+                return False
+
+            # Get video properties
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fourcc = cv2.VideoWriter_fourcc(*self._video_format.codec)
+
+            # Create new writer with correct FPS
+            writer = cv2.VideoWriter(str(temp_path), fourcc, correct_fps, (width, height))
+            if not writer.isOpened():
+                logger.error(f"Failed to create temp video writer")
+                cap.release()
+                return False
+
+            # Copy all frames
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                writer.write(frame)
+
+            cap.release()
+            writer.release()
+
+            # Replace original with fixed version
+            import os
+            os.replace(str(temp_path), str(video_path))
+            logger.info(f"Fixed video FPS to {correct_fps:.1f}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to fix video FPS: {e}")
+            return False
 
     async def pause(self) -> None:
         """Pause recording (frames will be skipped)."""

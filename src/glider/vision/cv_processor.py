@@ -92,6 +92,7 @@ class CVSettings:
     overlay_thickness: int = 2
     show_labels: bool = True
     show_trails: bool = False
+    process_every_n_frames: int = 1  # Process CV every N frames (1 = every frame)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -109,6 +110,7 @@ class CVSettings:
             "overlay_thickness": self.overlay_thickness,
             "show_labels": self.show_labels,
             "show_trails": self.show_trails,
+            "process_every_n_frames": self.process_every_n_frames,
         }
 
     @classmethod
@@ -131,6 +133,7 @@ class CVSettings:
             overlay_thickness=data.get("overlay_thickness", 2),
             show_labels=data.get("show_labels", True),
             show_trails=data.get("show_trails", False),
+            process_every_n_frames=data.get("process_every_n_frames", 1),
         )
 
 
@@ -290,6 +293,12 @@ class CVProcessor:
         # ByteTrack age tracking (since ByteTrack doesn't expose this)
         self._bytetrack_ages: Dict[int, int] = {}
 
+        # Frame skipping state
+        self._frame_counter = 0
+        self._last_detections: List[Detection] = []
+        self._last_tracked: List[TrackedObject] = []
+        self._last_motion: MotionResult = MotionResult(False, 0.0)
+
     @property
     def settings(self) -> CVSettings:
         """Current CV settings."""
@@ -383,6 +392,13 @@ class CVProcessor:
         if not self._initialized:
             self.initialize()
 
+        # Frame skipping for performance
+        self._frame_counter += 1
+        skip_n = self._settings.process_every_n_frames
+        if skip_n > 1 and (self._frame_counter % skip_n) != 1:
+            # Return cached results (but don't fire callbacks for skipped frames)
+            return self._last_detections, self._last_tracked, self._last_motion
+
         with self._lock:
             # Run detection
             detections = self._detect(frame)
@@ -402,6 +418,11 @@ class CVProcessor:
 
             # Run motion detection
             motion = self._detect_motion(frame)
+
+            # Cache results for frame skipping
+            self._last_detections = detections
+            self._last_tracked = tracked
+            self._last_motion = motion
 
         # Notify callbacks
         for cb in self._detection_callbacks:
@@ -722,6 +743,11 @@ class CVProcessor:
             self._tracker.reset()
         self._trail_history.clear()
         self._bytetrack_ages.clear()
+        # Reset frame skipping state
+        self._frame_counter = 0
+        self._last_detections = []
+        self._last_tracked = []
+        self._last_motion = MotionResult(False, 0.0)
         if self._bg_subtractor:
             # Recreate background subtractor to reset learning
             self._bg_subtractor = cv2.createBackgroundSubtractorMOG2(

@@ -558,9 +558,31 @@ class MainWindow(QMainWindow):
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(12, 4, 12, 4)
 
-        # Experiment name
-        self._runner_exp_name = QLabel("No Experiment")
+        # Experiment name (editable)
+        self._runner_exp_name = QLineEdit("Untitled Experiment")
         self._runner_exp_name.setProperty("title", True)
+        self._runner_exp_name.setPlaceholderText("Enter experiment name...")
+        self._runner_exp_name.setStyleSheet("""
+            QLineEdit {
+                background-color: transparent;
+                border: 1px solid transparent;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 16px;
+                font-weight: bold;
+                color: white;
+                min-width: 200px;
+            }
+            QLineEdit:hover {
+                border: 1px solid #3d3d5c;
+                background-color: rgba(45, 45, 68, 0.5);
+            }
+            QLineEdit:focus {
+                border: 1px solid #4CAF50;
+                background-color: #2d2d44;
+            }
+        """)
+        self._runner_exp_name.textChanged.connect(self._on_experiment_name_changed)
         header_layout.addWidget(self._runner_exp_name)
 
         header_layout.addStretch()
@@ -1403,14 +1425,23 @@ class MainWindow(QMainWindow):
         return card
 
     def _update_runner_experiment_name(self) -> None:
-        """Update the experiment name in runner view."""
+        """Update the experiment name in runner view from session."""
         if not hasattr(self, '_runner_exp_name'):
             return
 
+        # Block signals to prevent feedback loop
+        self._runner_exp_name.blockSignals(True)
         if self._core.session and self._core.session.metadata.name:
             self._runner_exp_name.setText(self._core.session.metadata.name)
         else:
             self._runner_exp_name.setText("Untitled Experiment")
+        self._runner_exp_name.blockSignals(False)
+
+    def _on_experiment_name_changed(self, name: str) -> None:
+        """Handle experiment name change from user input."""
+        if self._core.session:
+            self._core.session.metadata.name = name
+            self._core.session._dirty = True
 
     def _update_elapsed_time(self) -> None:
         """Update the elapsed time display in runner view."""

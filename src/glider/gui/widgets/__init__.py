@@ -14,6 +14,7 @@ from glider.gui.widgets.touch_widgets import (
     TouchLED,
     TouchNumericInput,
 )
+from glider.gui.widgets.device_card import DeviceCard, get_device_state_info
 
 __all__ = [
     "TouchLabel",
@@ -24,4 +25,6 @@ __all__ = [
     "TouchChart",
     "TouchLED",
     "TouchNumericInput",
+    "DeviceCard",
+    "get_device_state_info",
 ]

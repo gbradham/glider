@@ -10,6 +10,9 @@ import logging
 from enum import Enum, auto
 from typing import Any, Callable, Dict, List, Optional, Set, Type, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from glider.nodes.experiment_nodes import StartExperimentNode, EndExperimentNode
+
 logger = logging.getLogger(__name__)
 
 
@@ -447,7 +450,7 @@ class FlowEngine:
                 logger.info(f"Node {to_node_id} execution complete")
 
                 # Check if this was EndExperiment - signal flow completion
-                if type(to_node).__name__ == "EndExperimentNode":
+                if hasattr(to_node, 'definition') and to_node.definition.name == "EndExperiment":
                     self._notify_complete()
             else:
                 logger.warning(f"Node {to_node_id} has no execute method")
@@ -793,9 +796,15 @@ class FlowEngine:
         """Validate the flow graph. Returns list of error messages."""
         errors = []
 
+        def get_node_type_name(node) -> str:
+            """Get node type name from definition or class name."""
+            if hasattr(node, 'definition') and hasattr(node.definition, 'name'):
+                return node.definition.name
+            return type(node).__name__.replace("Node", "")
+
         # Check for StartExperiment node
         has_start = any(
-            type(n).__name__ == "StartExperimentNode"
+            get_node_type_name(n) == "StartExperiment"
             for n in self._nodes.values()
         )
         if not has_start:
@@ -810,9 +819,9 @@ class FlowEngine:
         for node_id in self._nodes:
             if node_id not in connected_nodes and len(self._nodes) > 1:
                 node = self._nodes[node_id]
-                node_type = type(node).__name__
+                node_type = get_node_type_name(node)
                 # Some nodes don't need connections
-                if node_type not in ("StartExperimentNode",):
+                if node_type not in ("StartExperiment",):
                     errors.append(f"Node '{node_id}' is not connected")
 
         return errors

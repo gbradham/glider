@@ -548,7 +548,6 @@ class MainWindow(QMainWindow):
 
         control_widget = QWidget()
         control_widget.setMinimumWidth(200)
-        control_widget.setMaximumWidth(400)
         self._control_layout = QVBoxLayout(control_widget)
         self._control_layout.setContentsMargins(6, 6, 6, 6)
         self._control_layout.setSpacing(8)

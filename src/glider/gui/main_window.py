@@ -610,29 +610,6 @@ class MainWindow(QMainWindow):
         pwm_layout.addWidget(self._pwm_spinbox, 1)
         self._control_group_layout.addLayout(pwm_layout)
 
-        # Servo control row
-        servo_layout = QHBoxLayout()
-        servo_layout.setSpacing(6)
-        servo_label = QLabel("Servo:")
-        servo_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self._servo_spinbox = QSpinBox()
-        self._servo_spinbox.setRange(0, 180)
-        self._servo_spinbox.setValue(90)
-        self._servo_spinbox.setSuffix("°")
-        self._servo_spinbox.setMinimumHeight(28)
-        self._servo_spinbox.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self._servo_spinbox.valueChanged.connect(self._on_servo_changed)
-        # Hidden slider for compatibility
-        self._servo_slider = QSlider(Qt.Orientation.Horizontal)
-        self._servo_slider.setRange(0, 180)
-        self._servo_slider.setValue(90)
-        self._servo_slider.hide()
-        self._servo_spinbox.valueChanged.connect(self._servo_slider.setValue)
-        self._servo_slider.valueChanged.connect(self._servo_spinbox.setValue)
-        servo_layout.addWidget(servo_label)
-        servo_layout.addWidget(self._servo_spinbox, 1)
-        self._control_group_layout.addLayout(servo_layout)
-
         self._control_layout.addWidget(self._control_group)
 
         # Input Reading group (separate from Output Controls)

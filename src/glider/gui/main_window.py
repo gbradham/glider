@@ -1480,17 +1480,6 @@ class MainWindow(QMainWindow):
         for tab_bar in self.findChildren(QTabBar):
             tab_bar.setExpanding(True)
 
-        self.setStyleSheet("""
-            QTabBar::tab {
-                padding: 10px 20px;
-                font-size: 14px;
-            }
-            QMainWindow::separator {
-                width: 0px;
-                height: 0px;
-            }
-        """)
-
         # Raise the first dock to make it visible
         first_dock.raise_()
 

@@ -42,6 +42,7 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit,
     QCheckBox,
     QSizePolicy,
+    QTabBar,
 )
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QDrag
 from PyQt6.QtCore import Qt, QSize, pyqtSignal, pyqtSlot, QMimeData, QTimer
@@ -1474,6 +1475,21 @@ class MainWindow(QMainWindow):
         first_dock = docks[0]
         for dock in docks[1:]:
             self.tabifyDockWidget(first_dock, dock)
+
+        # Make tabs span the full width of the screen
+        for tab_bar in self.findChildren(QTabBar):
+            tab_bar.setExpanding(True)
+
+        self.setStyleSheet("""
+            QTabBar::tab {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+            QMainWindow::separator {
+                width: 0px;
+                height: 0px;
+            }
+        """)
 
         # Raise the first dock to make it visible
         first_dock.raise_()

@@ -458,7 +458,7 @@ class MainWindow(QMainWindow):
         controls_layout.addLayout(top_row)
 
         # Bottom row: E-STOP (full width)
-        self._emergency_btn = QPushButton("⚠  EMERGENCY STOP")
+        self._emergency_btn = QPushButton("EMERGENCY STOP")
         self._emergency_btn.setFixedHeight(60)
         self._emergency_btn.setProperty("runnerAction", "emergency")
         self._emergency_btn.clicked.connect(self._on_emergency_stop)
@@ -723,35 +723,43 @@ class MainWindow(QMainWindow):
         self._files_dock.setAllowedAreas(
             Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.BottomDockWidgetArea
         )
+
+        # Wrap in scroll area for touch screens
+        files_scroll = QScrollArea()
+        files_scroll.setWidgetResizable(True)
+        files_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        files_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
         files_widget = QWidget()
         files_layout = QVBoxLayout(files_widget)
         files_layout.setContentsMargins(4, 4, 4, 4)
         files_layout.setSpacing(4)
 
         # File operation buttons - compact for Pi
-        new_btn = QPushButton("📄 New")
+        new_btn = QPushButton("New")
         new_btn.setFixedHeight(36)
         new_btn.clicked.connect(self._on_new)
         files_layout.addWidget(new_btn)
 
-        open_btn = QPushButton("📂 Open")
+        open_btn = QPushButton("Open")
         open_btn.setFixedHeight(36)
         open_btn.clicked.connect(self._on_open)
         files_layout.addWidget(open_btn)
 
-        save_btn = QPushButton("💾 Save")
+        save_btn = QPushButton("Save")
         save_btn.setFixedHeight(36)
         save_btn.clicked.connect(self._on_save)
         files_layout.addWidget(save_btn)
 
-        save_as_btn = QPushButton("💾 Save As...")
+        save_as_btn = QPushButton("Save As...")
         save_as_btn.setFixedHeight(36)
         save_as_btn.clicked.connect(self._on_save_as)
         files_layout.addWidget(save_as_btn)
 
         files_layout.addStretch()
 
-        self._files_dock.setWidget(files_widget)
+        files_scroll.setWidget(files_widget)
+        self._files_dock.setWidget(files_scroll)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._files_dock)
 
         # Refresh hardware tree (which also refreshes the device combo)
@@ -1310,8 +1318,8 @@ class MainWindow(QMainWindow):
 
         # Warning icon and message
         header_layout = QHBoxLayout()
-        warning_label = QLabel("⚠️")
-        warning_label.setStyleSheet("font-size: 48px;")
+        warning_label = QLabel("Warning")
+        warning_label.setStyleSheet("font-size: 24px; font-weight: bold; color: #f39c12;")
         header_layout.addWidget(warning_label)
 
         message = QLabel(
@@ -1331,18 +1339,18 @@ class MainWindow(QMainWindow):
         button_layout = QVBoxLayout()
         button_layout.setSpacing(8)
 
-        retry_btn = QPushButton("🔄 Retry Connection")
+        retry_btn = QPushButton("Retry Connection")
         retry_btn.setMinimumHeight(40)
         retry_btn.clicked.connect(lambda: self._handle_disconnection_retry(dialog, board_id))
         button_layout.addWidget(retry_btn)
 
-        continue_btn = QPushButton("▶️ Continue Without Hardware")
+        continue_btn = QPushButton("Continue Without Hardware")
         continue_btn.setMinimumHeight(40)
         continue_btn.setToolTip("Resume the experiment without this board (may cause errors)")
         continue_btn.clicked.connect(lambda: self._handle_disconnection_continue(dialog))
         button_layout.addWidget(continue_btn)
 
-        stop_btn = QPushButton("⏹️ Stop Experiment")
+        stop_btn = QPushButton("Stop Experiment")
         stop_btn.setMinimumHeight(40)
         stop_btn.clicked.connect(lambda: self._handle_disconnection_stop(dialog))
         button_layout.addWidget(stop_btn)
@@ -2553,19 +2561,19 @@ class MainWindow(QMainWindow):
         """)
 
         # Open file action
-        open_action = menu.addAction("📂  Open Experiment")
+        open_action = menu.addAction("Open Experiment")
         open_action.triggered.connect(self._on_open)
 
         # Reload action
-        reload_action = menu.addAction("🔄  Reload")
+        reload_action = menu.addAction("Reload")
         reload_action.triggered.connect(self._refresh_runner_devices)
 
         # Board settings action (quick port configuration)
-        board_action = menu.addAction("🔌  Ports")
+        board_action = menu.addAction("Ports")
         board_action.triggered.connect(self._show_board_settings_dialog)
 
         # Switch to desktop/config mode - shows dock panels for full hardware configuration
-        desktop_action = menu.addAction("⚙️  Hardware Config")
+        desktop_action = menu.addAction("Hardware Config")
         desktop_action.triggered.connect(self._switch_to_desktop_mode)
 
         menu.addSeparator()

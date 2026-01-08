@@ -415,9 +415,9 @@ class TelemetrixBoard(BaseBoard):
                         differential=1,
                         callback=self._analog_callbacks[analog_pin]
                     )
-                    logger.info(f"✅ Registered analog callback for pin {pin} (analog pin {analog_pin}), board_id={self._id}")
+                    logger.info(f"Registered analog callback for pin {pin} (analog pin {analog_pin}), board_id={self._id}")
                 except Exception as e:
-                    logger.error(f"❌ Failed to set analog input mode for pin {pin}: {e}")
+                    logger.error(f"Failed to set analog input mode for pin {pin}: {e}")
                     raise
 
             elif pin_type == PinType.PWM:
@@ -531,7 +531,7 @@ class TelemetrixBoard(BaseBoard):
                     found = True
                     break
         except Exception as e:
-            logger.error(f"💥 Error in analog callback: {e}, data={data}", exc_info=True)
+            logger.error(f"Error in analog callback: {e}, data={data}", exc_info=True)
 
     async def emergency_stop(self) -> None:
         """Set all outputs to safe state."""

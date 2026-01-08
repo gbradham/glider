@@ -648,8 +648,8 @@ class MainWindow(QMainWindow):
             "background-color: #2d2d2d; border-radius: 4px; color: #00ff00;"
         )
         self._input_value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._input_value_label.setMinimumHeight(36)
-        self._input_value_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._input_value_label.setMinimumHeight(48)
+        self._input_value_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         input_group_layout.addWidget(self._input_value_label)
 
         # Read controls row

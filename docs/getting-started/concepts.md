@@ -264,6 +264,46 @@ Plugins are discovered from:
 
 See the [Plugin Development Guide](../developer-guide/plugin-development.md) for details.
 
+## Agent System
+
+GLIDER includes an AI-powered agent that can help you build and run experiments using natural language.
+
+### How It Works
+
+1. **Natural Language Input**: Describe what you want in plain English
+2. **Context Awareness**: The agent sees your current session state
+3. **Action Proposals**: The agent proposes changes (add device, connect nodes, etc.)
+4. **Confirmation Flow**: You approve or reject proposed actions
+5. **Execution**: Approved actions are executed on your experiment
+
+### Agent Capabilities
+
+| Capability | Examples |
+|------------|----------|
+| Hardware Setup | "Add an Arduino on COM3 with an LED on pin 13" |
+| Flow Building | "Create a loop that blinks the LED 5 times" |
+| Experiment Control | "Start the experiment", "Stop recording" |
+| Troubleshooting | "Why isn't my sensor working?" |
+| Information | "What node types are available?" |
+
+### Configuration
+
+The agent requires an LLM backend:
+
+| Backend | Description |
+|---------|-------------|
+| Ollama | Local models (free, private) |
+| OpenAI | Cloud API (requires API key) |
+
+Configure in Settings > Agent or edit `~/.glider/agent_config.json`.
+
+### Safety Features
+
+- **Confirmation Required**: Destructive actions require approval
+- **Safe Auto-Execute**: Read-only queries execute automatically
+- **Error Context**: Recent errors are shared for troubleshooting
+- **Conversation History**: Agent remembers the conversation
+
 ## Key Classes
 
 | Class | Purpose |
@@ -279,6 +319,8 @@ See the [Plugin Development Guide](../developer-guide/plugin-development.md) for
 | `CVProcessor` | Computer vision processing |
 | `VideoRecorder` | Video recording synchronized with experiments |
 | `TrackingDataLogger` | CV tracking data to CSV |
+| `AgentController` | AI agent for natural language control |
+| `LLMBackend` | LLM provider abstraction |
 
 ## Next Steps
 

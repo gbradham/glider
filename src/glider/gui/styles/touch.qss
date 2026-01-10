@@ -377,17 +377,32 @@ QTabWidget::pane {
 QTabBar::tab {
     background-color: #16162a;
     color: #888;
-    padding: 16px 24px;
-    font-size: 16px;
-    min-width: 100px;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    min-width: 60px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
 }
 
 QTabBar::tab:selected {
     background-color: #1a1a2e;
     color: #fff;
     border-bottom: 3px solid #3498db;
+}
+
+/* === Dock Widget Tab Bar (compact for Pi screen) === */
+QMainWindow::separator {
+    background-color: #2d2d44;
+    width: 4px;
+    height: 4px;
+}
+
+QTabBar[tabPosition="South"]::tab,
+QTabBar[tabPosition="North"]::tab {
+    padding: 6px 10px;
+    font-size: 11px;
+    min-width: 50px;
+    max-width: 80px;
 }
 
 /* === Tool Tip === */

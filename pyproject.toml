@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "glider"
+name = "GLIDER"
 version = "1.0.0"
 description = "General Laboratory Interface for Design, Experimentation, and Recording"
 readme = "README.md"
@@ -37,19 +37,16 @@ dependencies = [
     "numpy>=1.21.0",
     "opencv-python>=4.8.0",
     "scipy>=1.10.0",
-    "httpx>=0.24.0"
+    "httpx>=0.24.0",
+    "adafruit-circuitpython-ads1x15",
+    "ryvencore>=0.4.0",
+    "ultralytics>=8.0.0",
 ]
 
 [project.optional-dependencies]
 rpi = [
     "gpiozero>=2.0",
     "lgpio>=0.2.0",
-]
-ryven = [
-    "ryvencore>=0.4.0",
-]
-vision = [
-    "ultralytics>=8.0.0",  # YOLO v8 for advanced object detection
 ]
 dev = [
     "pytest>=7.0.0",

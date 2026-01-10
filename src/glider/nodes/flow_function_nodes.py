@@ -54,8 +54,10 @@ class FlowFunctionRunner:
             visited.add(current_id)
 
             node = self._flow_engine.get_node(current_id)
-            if node is not None and type(node).__name__ == "EndFunctionNode":
-                self._end_node_ids.append(current_id)
+            if node is not None:
+                node_name = getattr(getattr(node, 'definition', None), 'name', None) or type(node).__name__
+                if node_name in ("EndFunction", "EndFunctionNode"):
+                    self._end_node_ids.append(current_id)
 
             # Follow connections
             for conn in self._flow_engine._connections:

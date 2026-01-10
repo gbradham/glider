@@ -41,6 +41,8 @@ from PyQt6.QtWidgets import (
     QFrame,
     QPlainTextEdit,
     QCheckBox,
+    QSizePolicy,
+    QTabBar,
 )
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QDrag
 from PyQt6.QtCore import Qt, QSize, pyqtSignal, pyqtSlot, QMimeData, QTimer
@@ -51,264 +53,24 @@ from glider.gui.panels.camera_panel import CameraPanel
 from glider.gui.panels.agent_panel import AgentPanel
 from glider.gui.dialogs.camera_settings_dialog import CameraSettingsDialog
 from glider.gui.dialogs.agent_settings_dialog import AgentSettingsDialog
+from glider.gui.dialogs.calibration_dialog import CalibrationDialog
+from glider.gui.commands import (
+    Command,
+    UndoStack,
+    CreateNodeCommand,
+    DeleteNodeCommand,
+    MoveNodeCommand,
+    CreateConnectionCommand,
+    DeleteConnectionCommand,
+    PropertyChangeCommand,
+)
+from glider.core.config import get_config
 from glider.hal.base_board import BoardConnectionState
 
 if TYPE_CHECKING:
     from glider.core.glider_core import GliderCore
 
 logger = logging.getLogger(__name__)
-
-
-# =============================================================================
-# Undo/Redo Command Pattern Implementation
-# =============================================================================
-
-class Command:
-    """Base class for undoable commands."""
-
-    def execute(self) -> None:
-        """Execute the command."""
-        raise NotImplementedError
-
-    def undo(self) -> None:
-        """Undo the command."""
-        raise NotImplementedError
-
-    def description(self) -> str:
-        """Human-readable description."""
-        return "Unknown command"
-
-
-class CreateNodeCommand(Command):
-    """Command for creating a node."""
-
-    def __init__(self, main_window: "MainWindow", node_id: str, node_type: str, x: float, y: float):
-        self._main_window = main_window
-        self._node_id = node_id
-        self._node_type = node_type
-        self._x = x
-        self._y = y
-
-    def execute(self) -> None:
-        """Create the node."""
-        # Node is already created when command is recorded
-        pass
-
-    def undo(self) -> None:
-        """Delete the node."""
-        self._main_window._graph_view.remove_node(self._node_id)
-        if self._main_window._core.session:
-            self._main_window._core.session.remove_node(self._node_id)
-
-    def description(self) -> str:
-        return f"Create {self._node_type}"
-
-
-class DeleteNodeCommand(Command):
-    """Command for deleting a node."""
-
-    def __init__(self, main_window: "MainWindow", node_id: str, node_data: dict):
-        self._main_window = main_window
-        self._node_id = node_id
-        self._node_data = node_data  # Saved node state for restoration
-
-    def execute(self) -> None:
-        """Delete is already done when command is recorded."""
-        pass
-
-    def undo(self) -> None:
-        """Restore the node."""
-        data = self._node_data
-        node_item = self._main_window._graph_view.add_node(
-            data["id"], data["node_type"], data["x"], data["y"]
-        )
-        self._main_window._setup_node_ports(node_item, data["node_type"])
-        self._main_window._graph_view._connect_port_signals(node_item)
-
-        if self._main_window._core.session:
-            from glider.core.experiment_session import NodeConfig
-            node_config = NodeConfig(
-                id=data["id"],
-                node_type=data["node_type"],
-                position=(data["x"], data["y"]),
-                state=data.get("state", {}),
-                device_id=data.get("device_id"),
-                visible_in_runner=data.get("visible_in_runner", False),
-            )
-            self._main_window._core.session.add_node(node_config)
-
-    def description(self) -> str:
-        return f"Delete {self._node_data.get('node_type', 'node')}"
-
-
-class MoveNodeCommand(Command):
-    """Command for moving a node."""
-
-    def __init__(self, main_window: "MainWindow", node_id: str, old_x: float, old_y: float, new_x: float, new_y: float):
-        self._main_window = main_window
-        self._node_id = node_id
-        self._old_x = old_x
-        self._old_y = old_y
-        self._new_x = new_x
-        self._new_y = new_y
-
-    def execute(self) -> None:
-        """Move is already done when command is recorded."""
-        pass
-
-    def undo(self) -> None:
-        """Move node back to original position."""
-        node_item = self._main_window._graph_view.nodes.get(self._node_id)
-        if node_item:
-            node_item.setPos(self._old_x, self._old_y)
-        if self._main_window._core.session:
-            self._main_window._core.session.update_node_position(self._node_id, self._old_x, self._old_y)
-
-    def description(self) -> str:
-        return "Move node"
-
-
-class CreateConnectionCommand(Command):
-    """Command for creating a connection."""
-
-    def __init__(self, main_window: "MainWindow", conn_id: str, from_node: str, from_port: int, to_node: str, to_port: int, conn_type: str):
-        self._main_window = main_window
-        self._conn_id = conn_id
-        self._from_node = from_node
-        self._from_port = from_port
-        self._to_node = to_node
-        self._to_port = to_port
-        self._conn_type = conn_type
-
-    def execute(self) -> None:
-        """Connection is already created when command is recorded."""
-        pass
-
-    def undo(self) -> None:
-        """Remove the connection."""
-        self._main_window._graph_view.remove_connection(self._conn_id)
-        if self._main_window._core.session:
-            self._main_window._core.session.remove_connection(self._conn_id)
-
-    def description(self) -> str:
-        return "Create connection"
-
-
-class DeleteConnectionCommand(Command):
-    """Command for deleting a connection."""
-
-    def __init__(self, main_window: "MainWindow", conn_id: str, conn_data: dict):
-        self._main_window = main_window
-        self._conn_id = conn_id
-        self._conn_data = conn_data
-
-    def execute(self) -> None:
-        """Deletion is already done when command is recorded."""
-        pass
-
-    def undo(self) -> None:
-        """Restore the connection."""
-        data = self._conn_data
-        self._main_window._graph_view.add_connection(
-            data["id"], data["from_node"], data["from_port"], data["to_node"], data["to_port"]
-        )
-        if self._main_window._core.session:
-            from glider.core.experiment_session import ConnectionConfig
-            conn_config = ConnectionConfig(
-                id=data["id"],
-                from_node=data["from_node"],
-                from_output=data["from_port"],
-                to_node=data["to_node"],
-                to_input=data["to_port"],
-                connection_type=data.get("conn_type", "data"),
-            )
-            self._main_window._core.session.add_connection(conn_config)
-
-    def description(self) -> str:
-        return "Delete connection"
-
-
-class PropertyChangeCommand(Command):
-    """Command for changing a node property."""
-
-    def __init__(self, main_window: "MainWindow", node_id: str, prop_name: str, old_value, new_value):
-        self._main_window = main_window
-        self._node_id = node_id
-        self._prop_name = prop_name
-        self._old_value = old_value
-        self._new_value = new_value
-
-    def execute(self) -> None:
-        """Property is already changed when command is recorded."""
-        pass
-
-    def undo(self) -> None:
-        """Restore old property value."""
-        if self._main_window._core.session:
-            self._main_window._core.session.update_node_state(self._node_id, {self._prop_name: self._old_value})
-
-    def description(self) -> str:
-        return f"Change {self._prop_name}"
-
-
-class UndoStack:
-    """Manages undo/redo history."""
-
-    def __init__(self, max_size: int = 100):
-        self._undo_stack: list[Command] = []
-        self._redo_stack: list[Command] = []
-        self._max_size = max_size
-
-    def push(self, command: Command) -> None:
-        """Add a command to the undo stack."""
-        self._undo_stack.append(command)
-        # Clear redo stack when new command is added
-        self._redo_stack.clear()
-        # Limit stack size
-        if len(self._undo_stack) > self._max_size:
-            self._undo_stack.pop(0)
-
-    def undo(self) -> Optional[Command]:
-        """Undo the last command."""
-        if not self._undo_stack:
-            return None
-        command = self._undo_stack.pop()
-        command.undo()
-        self._redo_stack.append(command)
-        return command
-
-    def redo(self) -> Optional[Command]:
-        """Redo the last undone command."""
-        if not self._redo_stack:
-            return None
-        command = self._redo_stack.pop()
-        # Re-execute by undoing the undo (for property changes, we need to swap values)
-        # For most commands, we need to re-apply the action
-        self._undo_stack.append(command)
-        return command
-
-    def can_undo(self) -> bool:
-        return len(self._undo_stack) > 0
-
-    def can_redo(self) -> bool:
-        return len(self._redo_stack) > 0
-
-    def clear(self) -> None:
-        """Clear both stacks."""
-        self._undo_stack.clear()
-        self._redo_stack.clear()
-
-    def undo_description(self) -> str:
-        """Get description of next undo action."""
-        if self._undo_stack:
-            return self._undo_stack[-1].description()
-        return ""
-
-    def redo_description(self) -> str:
-        """Get description of next redo action."""
-        if self._redo_stack:
-            return self._redo_stack[-1].description()
-        return ""
 
 
 class DraggableNodeButton(QPushButton):
@@ -486,6 +248,7 @@ class MainWindow(QMainWindow):
     def _setup_window(self) -> None:
         """Configure the main window properties."""
         self.setWindowTitle("GLIDER - General Laboratory Interface")
+        config = get_config()
 
         if self._view_manager.is_runner_mode:
             # Runner mode: fullscreen, no frame
@@ -493,8 +256,8 @@ class MainWindow(QMainWindow):
             self.showFullScreen()
         else:
             # Desktop mode: standard window
-            self.setMinimumSize(1024, 768)
-            self.resize(1400, 900)
+            self.setMinimumSize(config.ui.min_window_width, config.ui.min_window_height)
+            self.resize(config.ui.default_window_width, config.ui.default_window_height)
 
     def _setup_ui(self) -> None:
         """Set up the main UI components."""
@@ -556,9 +319,31 @@ class MainWindow(QMainWindow):
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(12, 4, 12, 4)
 
-        # Experiment name
-        self._runner_exp_name = QLabel("No Experiment")
+        # Experiment name (editable)
+        self._runner_exp_name = QLineEdit("Untitled Experiment")
         self._runner_exp_name.setProperty("title", True)
+        self._runner_exp_name.setPlaceholderText("Enter experiment name...")
+        self._runner_exp_name.setStyleSheet("""
+            QLineEdit {
+                background-color: transparent;
+                border: 1px solid transparent;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 16px;
+                font-weight: bold;
+                color: white;
+                min-width: 200px;
+            }
+            QLineEdit:hover {
+                border: 1px solid #3d3d5c;
+                background-color: rgba(45, 45, 68, 0.5);
+            }
+            QLineEdit:focus {
+                border: 1px solid #4CAF50;
+                background-color: #2d2d44;
+            }
+        """)
+        self._runner_exp_name.textChanged.connect(self._on_experiment_name_changed)
         header_layout.addWidget(self._runner_exp_name)
 
         header_layout.addStretch()
@@ -673,7 +458,7 @@ class MainWindow(QMainWindow):
         controls_layout.addLayout(top_row)
 
         # Bottom row: E-STOP (full width)
-        self._emergency_btn = QPushButton("⚠  EMERGENCY STOP")
+        self._emergency_btn = QPushButton("EMERGENCY STOP")
         self._emergency_btn.setFixedHeight(60)
         self._emergency_btn.setProperty("runnerAction", "emergency")
         self._emergency_btn.clicked.connect(self._on_emergency_stop)
@@ -685,14 +470,15 @@ class MainWindow(QMainWindow):
         self._runner_device_cards: Dict[str, QWidget] = {}
 
         # Timer for periodic device state updates in runner view
+        config = get_config()
         self._device_refresh_timer = QTimer()
-        self._device_refresh_timer.setInterval(250)  # 250ms refresh rate
+        self._device_refresh_timer.setInterval(config.timing.device_refresh_interval_ms)
         self._device_refresh_timer.timeout.connect(self._update_runner_device_states)
 
         # Timer for elapsed time display
         self._experiment_start_time: Optional[float] = None
         self._elapsed_timer = QTimer()
-        self._elapsed_timer.setInterval(1000)  # Update every second
+        self._elapsed_timer.setInterval(config.timing.elapsed_timer_interval_ms)
         self._elapsed_timer.timeout.connect(self._update_elapsed_time)
 
     def _setup_dock_widgets(self) -> None:
@@ -754,105 +540,123 @@ class MainWindow(QMainWindow):
         self._control_dock.setAllowedAreas(
             Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.BottomDockWidgetArea
         )
+
+        # Wrap in scroll area for touch screens
+        control_scroll = QScrollArea()
+        control_scroll.setWidgetResizable(True)
+        control_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        control_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
         control_widget = QWidget()
+        control_widget.setMinimumWidth(200)
         self._control_layout = QVBoxLayout(control_widget)
-        self._control_layout.setContentsMargins(4, 4, 4, 4)
+        self._control_layout.setContentsMargins(6, 6, 6, 6)
+        self._control_layout.setSpacing(8)
 
-        # Device selector
-        device_group = QGroupBox("Select Device")
-        device_group_layout = QVBoxLayout(device_group)
-
+        # Device selector row
+        device_layout = QHBoxLayout()
+        device_layout.setSpacing(6)
+        device_label = QLabel("Device:")
+        device_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._device_combo = QComboBox()
+        self._device_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._device_combo.currentTextChanged.connect(self._on_device_selected)
-        device_group_layout.addWidget(self._device_combo)
+        device_layout.addWidget(device_label)
+        device_layout.addWidget(self._device_combo, 1)
+        self._control_layout.addLayout(device_layout)
 
-        self._control_layout.addWidget(device_group)
-
-        # Control buttons group
-        self._control_group = QGroupBox("Controls")
+        # Output Controls group
+        self._control_group = QGroupBox("Output Controls")
         self._control_group_layout = QVBoxLayout(self._control_group)
+        self._control_group_layout.setContentsMargins(8, 12, 8, 8)
+        self._control_group_layout.setSpacing(8)
 
-        # Digital output controls
+        # Digital output controls - evenly spaced buttons
         digital_layout = QHBoxLayout()
-        self._on_btn = QPushButton("ON (HIGH)")
+        digital_layout.setSpacing(4)
+        self._on_btn = QPushButton("ON")
+        self._on_btn.setMinimumHeight(32)
+        self._on_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._on_btn.clicked.connect(lambda: self._set_digital_output(True))
-        self._off_btn = QPushButton("OFF (LOW)")
+        self._off_btn = QPushButton("OFF")
+        self._off_btn.setMinimumHeight(32)
+        self._off_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._off_btn.clicked.connect(lambda: self._set_digital_output(False))
         self._toggle_btn = QPushButton("Toggle")
+        self._toggle_btn.setMinimumHeight(32)
+        self._toggle_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._toggle_btn.clicked.connect(self._toggle_digital_output)
         digital_layout.addWidget(self._on_btn)
         digital_layout.addWidget(self._off_btn)
         digital_layout.addWidget(self._toggle_btn)
         self._control_group_layout.addLayout(digital_layout)
 
-        # PWM/Analog control
+        # PWM control row
         pwm_layout = QHBoxLayout()
-        pwm_label = QLabel("PWM Value:")
-        self._pwm_slider = QSlider(Qt.Orientation.Horizontal)
-        self._pwm_slider.setRange(0, 255)
-        self._pwm_slider.valueChanged.connect(self._on_pwm_changed)
+        pwm_layout.setSpacing(6)
+        pwm_label = QLabel("PWM:")
+        pwm_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._pwm_spinbox = QSpinBox()
         self._pwm_spinbox.setRange(0, 255)
+        self._pwm_spinbox.setMinimumHeight(28)
+        self._pwm_spinbox.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._pwm_spinbox.valueChanged.connect(self._on_pwm_changed)
+        # Hidden slider for compatibility
+        self._pwm_slider = QSlider(Qt.Orientation.Horizontal)
+        self._pwm_slider.setRange(0, 255)
+        self._pwm_slider.hide()
         self._pwm_spinbox.valueChanged.connect(self._pwm_slider.setValue)
         self._pwm_slider.valueChanged.connect(self._pwm_spinbox.setValue)
         pwm_layout.addWidget(pwm_label)
-        pwm_layout.addWidget(self._pwm_slider)
-        pwm_layout.addWidget(self._pwm_spinbox)
+        pwm_layout.addWidget(self._pwm_spinbox, 1)
         self._control_group_layout.addLayout(pwm_layout)
 
-        # Servo control
-        servo_layout = QHBoxLayout()
-        servo_label = QLabel("Servo Angle:")
-        self._servo_slider = QSlider(Qt.Orientation.Horizontal)
-        self._servo_slider.setRange(0, 180)
-        self._servo_slider.setValue(90)
-        self._servo_slider.valueChanged.connect(self._on_servo_changed)
-        self._servo_spinbox = QSpinBox()
-        self._servo_spinbox.setRange(0, 180)
-        self._servo_spinbox.setValue(90)
-        self._servo_spinbox.valueChanged.connect(self._servo_slider.setValue)
-        self._servo_slider.valueChanged.connect(self._servo_spinbox.setValue)
-        servo_layout.addWidget(servo_label)
-        servo_layout.addWidget(self._servo_slider)
-        servo_layout.addWidget(self._servo_spinbox)
-        self._control_group_layout.addLayout(servo_layout)
+        self._control_layout.addWidget(self._control_group)
 
-        # Input reading section
+        # Input Reading group (separate from Output Controls)
         input_group = QGroupBox("Input Reading")
         input_group_layout = QVBoxLayout(input_group)
+        input_group_layout.setContentsMargins(8, 12, 8, 8)
+        input_group_layout.setSpacing(8)
 
         # Value display
         self._input_value_label = QLabel("--")
         self._input_value_label.setStyleSheet(
-            "font-size: 24px; font-weight: bold; padding: 10px; "
+            "font-size: 20px; font-weight: bold; padding: 6px; "
             "background-color: #2d2d2d; border-radius: 4px; color: #00ff00;"
         )
         self._input_value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._input_value_label.setMinimumHeight(50)
+        self._input_value_label.setMinimumHeight(48)
+        self._input_value_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         input_group_layout.addWidget(self._input_value_label)
 
-        # Read button and continuous checkbox
-        input_control_layout = QHBoxLayout()
-        self._read_btn = QPushButton("Read Once")
+        # Read controls row
+        input_row = QHBoxLayout()
+        input_row.setSpacing(6)
+        self._read_btn = QPushButton("Read")
+        self._read_btn.setMinimumHeight(32)
+        self._read_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._read_btn.clicked.connect(self._read_input_once)
-        input_control_layout.addWidget(self._read_btn)
+        input_row.addWidget(self._read_btn)
 
-        self._continuous_checkbox = QCheckBox("Continuous")
+        self._continuous_checkbox = QCheckBox("Auto")
+        self._continuous_checkbox.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._continuous_checkbox.stateChanged.connect(self._on_continuous_changed)
-        input_control_layout.addWidget(self._continuous_checkbox)
+        input_row.addWidget(self._continuous_checkbox)
 
-        poll_label = QLabel("Interval:")
         self._poll_spinbox = QSpinBox()
         self._poll_spinbox.setRange(50, 5000)
         self._poll_spinbox.setValue(100)
-        self._poll_spinbox.setSuffix(" ms")
+        self._poll_spinbox.setSuffix("ms")
+        self._poll_spinbox.setMinimumWidth(75)
+        self._poll_spinbox.setMinimumHeight(28)
+        self._poll_spinbox.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._poll_spinbox.valueChanged.connect(self._on_poll_interval_changed)
-        input_control_layout.addWidget(poll_label)
-        input_control_layout.addWidget(self._poll_spinbox)
+        input_row.addWidget(self._poll_spinbox)
 
-        input_group_layout.addLayout(input_control_layout)
+        input_group_layout.addLayout(input_row)
         self._input_group = input_group
-        self._control_group_layout.addWidget(input_group)
+        self._control_layout.addWidget(input_group)
 
         # Timer for continuous reading (fallback for digital inputs)
         self._input_poll_timer = QTimer(self)
@@ -865,13 +669,16 @@ class MainWindow(QMainWindow):
         self.analog_value_received.connect(self._on_analog_value_received)
 
         # Status display
-        self._device_status_label = QLabel("Status: Not connected")
-        self._control_group_layout.addWidget(self._device_status_label)
+        self._device_status_label = QLabel("No device selected")
+        self._device_status_label.setStyleSheet("font-size: 11px; color: #888; padding: 2px;")
+        self._device_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._control_layout.addWidget(self._device_status_label)
 
-        self._control_layout.addWidget(self._control_group)
         self._control_layout.addStretch()
 
-        self._control_dock.setWidget(control_widget)
+        # Set scroll area content and dock widget
+        control_scroll.setWidget(control_widget)
+        self._control_dock.setWidget(control_scroll)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._control_dock)
 
         # Stack the control dock below the hardware dock
@@ -888,6 +695,11 @@ class MainWindow(QMainWindow):
             self._core.cv_processor
         )
         self._camera_panel.settings_requested.connect(self._on_camera_settings)
+        self._camera_panel.calibration_requested.connect(self._on_camera_calibration)
+        self._camera_panel.set_video_recorder(self._core.video_recorder)
+        self._camera_panel.set_tracking_logger(self._core.tracking_logger)
+        self._camera_panel.set_calibration(self._core.calibration)
+        self._camera_panel._preview.set_calibration(self._core.calibration)
         self._camera_dock.setWidget(self._camera_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._camera_dock)
 
@@ -905,6 +717,50 @@ class MainWindow(QMainWindow):
         # Tabify agent dock with camera dock
         self.tabifyDockWidget(self._camera_dock, self._agent_dock)
         self._camera_dock.raise_()
+
+        # Files dock (for Pi touchscreen access to file operations)
+        self._files_dock = QDockWidget("Files", self)
+        self._files_dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.BottomDockWidgetArea
+        )
+
+        # Wrap in scroll area for touch screens
+        files_scroll = QScrollArea()
+        files_scroll.setWidgetResizable(True)
+        files_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        files_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+        files_widget = QWidget()
+        files_layout = QVBoxLayout(files_widget)
+        files_layout.setContentsMargins(4, 4, 4, 4)
+        files_layout.setSpacing(4)
+
+        # File operation buttons - compact for Pi
+        new_btn = QPushButton("New")
+        new_btn.setFixedHeight(36)
+        new_btn.clicked.connect(self._on_new)
+        files_layout.addWidget(new_btn)
+
+        open_btn = QPushButton("Open")
+        open_btn.setFixedHeight(36)
+        open_btn.clicked.connect(self._on_open)
+        files_layout.addWidget(open_btn)
+
+        save_btn = QPushButton("Save")
+        save_btn.setFixedHeight(36)
+        save_btn.clicked.connect(self._on_save)
+        files_layout.addWidget(save_btn)
+
+        save_as_btn = QPushButton("Save As...")
+        save_as_btn.setFixedHeight(36)
+        save_as_btn.clicked.connect(self._on_save_as)
+        files_layout.addWidget(save_as_btn)
+
+        files_layout.addStretch()
+
+        files_scroll.setWidget(files_widget)
+        self._files_dock.setWidget(files_scroll)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._files_dock)
 
         # Refresh hardware tree (which also refreshes the device combo)
         self._refresh_hardware_tree()
@@ -1315,14 +1171,23 @@ class MainWindow(QMainWindow):
         return card
 
     def _update_runner_experiment_name(self) -> None:
-        """Update the experiment name in runner view."""
+        """Update the experiment name in runner view from session."""
         if not hasattr(self, '_runner_exp_name'):
             return
 
+        # Block signals to prevent feedback loop
+        self._runner_exp_name.blockSignals(True)
         if self._core.session and self._core.session.metadata.name:
             self._runner_exp_name.setText(self._core.session.metadata.name)
         else:
             self._runner_exp_name.setText("Untitled Experiment")
+        self._runner_exp_name.blockSignals(False)
+
+    def _on_experiment_name_changed(self, name: str) -> None:
+        """Handle experiment name change from user input."""
+        if self._core.session:
+            self._core.session.metadata.name = name
+            self._core.session._dirty = True
 
     def _update_elapsed_time(self) -> None:
         """Update the elapsed time display in runner view."""
@@ -1453,8 +1318,8 @@ class MainWindow(QMainWindow):
 
         # Warning icon and message
         header_layout = QHBoxLayout()
-        warning_label = QLabel("⚠️")
-        warning_label.setStyleSheet("font-size: 48px;")
+        warning_label = QLabel("Warning")
+        warning_label.setStyleSheet("font-size: 24px; font-weight: bold; color: #f39c12;")
         header_layout.addWidget(warning_label)
 
         message = QLabel(
@@ -1474,18 +1339,18 @@ class MainWindow(QMainWindow):
         button_layout = QVBoxLayout()
         button_layout.setSpacing(8)
 
-        retry_btn = QPushButton("🔄 Retry Connection")
+        retry_btn = QPushButton("Retry Connection")
         retry_btn.setMinimumHeight(40)
         retry_btn.clicked.connect(lambda: self._handle_disconnection_retry(dialog, board_id))
         button_layout.addWidget(retry_btn)
 
-        continue_btn = QPushButton("▶️ Continue Without Hardware")
+        continue_btn = QPushButton("Continue Without Hardware")
         continue_btn.setMinimumHeight(40)
         continue_btn.setToolTip("Resume the experiment without this board (may cause errors)")
         continue_btn.clicked.connect(lambda: self._handle_disconnection_continue(dialog))
         button_layout.addWidget(continue_btn)
 
-        stop_btn = QPushButton("⏹️ Stop Experiment")
+        stop_btn = QPushButton("Stop Experiment")
         stop_btn.setMinimumHeight(40)
         stop_btn.clicked.connect(lambda: self._handle_disconnection_stop(dialog))
         button_layout.addWidget(stop_btn)
@@ -1570,38 +1435,58 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Window resized to {width}x{height}", 2000)
 
     def _set_pi_touchscreen_layout(self) -> None:
-        """Set up Pi Touchscreen layout with tabbed panels."""
+        """Set up Pi Touchscreen layout with tabbed panels.
+
+        Pi desktop mode focuses on hardware management and experiment running,
+        not flow creation. Shows runner view with dock panels for configuration.
+        """
         # Resize window for Pi display
         self.setMinimumSize(480, 480)
         self.resize(480, 800)
 
-        # Collect all dock widgets
+        # Show runner view as main content (Pi is for running, not creating flows)
+        if hasattr(self, '_stack') and self._stack is not None:
+            self._stack.setCurrentIndex(1)  # Runner view
+
+        # Collect dock widgets relevant for Pi: Files, Hardware, Control, Camera
+        # Excludes: Node Library, Properties (flow creation), Agent
         docks = []
-        if getattr(self, '_node_library_dock', None) is not None:
-            docks.append(self._node_library_dock)
-        if getattr(self, '_properties_dock', None) is not None:
-            docks.append(self._properties_dock)
+        if getattr(self, '_files_dock', None) is not None:
+            docks.append(self._files_dock)
         if getattr(self, '_hardware_dock', None) is not None:
             docks.append(self._hardware_dock)
         if getattr(self, '_control_dock', None) is not None:
             docks.append(self._control_dock)
         if getattr(self, '_camera_dock', None) is not None:
             docks.append(self._camera_dock)
+
+        # Hide flow-creation docks on Pi
+        if getattr(self, '_node_library_dock', None) is not None:
+            self._node_library_dock.setVisible(False)
+        if getattr(self, '_properties_dock', None) is not None:
+            self._properties_dock.setVisible(False)
         if getattr(self, '_agent_dock', None) is not None:
-            docks.append(self._agent_dock)
+            self._agent_dock.setVisible(False)
 
         if len(docks) < 2:
             return
 
-        # Move all docks to bottom area for better touch access
+        # Move all docks to bottom area and lock them (no dragging/floating on Pi)
         for dock in docks:
             dock.setVisible(True)
+            # Disable dragging and floating - only allow closing via tab
+            dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable)
+            dock.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea)
             self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock)
 
         # Tabify all docks together (stack them as tabs)
         first_dock = docks[0]
         for dock in docks[1:]:
             self.tabifyDockWidget(first_dock, dock)
+
+        # Make tabs span the full width of the screen
+        for tab_bar in self.findChildren(QTabBar):
+            tab_bar.setExpanding(True)
 
         # Raise the first dock to make it visible
         first_dock.raise_()
@@ -1613,34 +1498,58 @@ class MainWindow(QMainWindow):
         """Restore default desktop layout."""
         self.resize(1400, 900)
 
-        # Restore dock positions
+        # Default dock features for desktop (movable, floatable, closable)
+        default_features = (
+            QDockWidget.DockWidgetFeature.DockWidgetMovable |
+            QDockWidget.DockWidgetFeature.DockWidgetFloatable |
+            QDockWidget.DockWidgetFeature.DockWidgetClosable
+        )
+        default_areas = Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+
+        # Restore dock positions and features
         if getattr(self, '_node_library_dock', None) is not None:
+            self._node_library_dock.setFeatures(default_features)
+            self._node_library_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._node_library_dock)
             self._node_library_dock.setVisible(True)
 
         if getattr(self, '_properties_dock', None) is not None:
+            self._properties_dock.setFeatures(default_features)
+            self._properties_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._properties_dock)
             self._properties_dock.setVisible(True)
 
         if getattr(self, '_hardware_dock', None) is not None:
+            self._hardware_dock.setFeatures(default_features)
+            self._hardware_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._hardware_dock)
             self._hardware_dock.setVisible(True)
 
         if getattr(self, '_control_dock', None) is not None:
+            self._control_dock.setFeatures(default_features)
+            self._control_dock.setAllowedAreas(default_areas | Qt.DockWidgetArea.BottomDockWidgetArea)
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._control_dock)
             if getattr(self, '_hardware_dock', None) is not None:
                 self.tabifyDockWidget(self._hardware_dock, self._control_dock)
                 self._hardware_dock.raise_()
 
         if getattr(self, '_camera_dock', None) is not None:
+            self._camera_dock.setFeatures(default_features)
+            self._camera_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._camera_dock)
             self._camera_dock.setVisible(True)
 
         if getattr(self, '_agent_dock', None) is not None:
+            self._agent_dock.setFeatures(default_features)
+            self._agent_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._agent_dock)
             if getattr(self, '_camera_dock', None) is not None:
                 self.tabifyDockWidget(self._camera_dock, self._agent_dock)
                 self._camera_dock.raise_()
+
+        # Hide files dock on large screens (menu/toolbar available)
+        if getattr(self, '_files_dock', None) is not None:
+            self._files_dock.setVisible(False)
 
         self.statusBar().showMessage("Default layout restored", 2000)
         logger.info("Restored default desktop layout")
@@ -1977,16 +1886,19 @@ class MainWindow(QMainWindow):
             "PWM Output (Dimmable LED, Motor)": ("PWMOutput", ["output"]),
             "Servo Motor": ("Servo", ["signal"]),
             "Motor Governor": ("MotorGovernor", ["up", "down", "signal"]),
+            "ADS1115 (I2C ADC)": ("ADS1115", []),  # I2C device, no GPIO pins
         }
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Add Device")
-        dialog.setMinimumWidth(380)
+        dialog.setMinimumWidth(400)
 
         layout = QFormLayout(dialog)
 
         # Device type
         type_combo = QComboBox()
+        type_combo.setMaxVisibleItems(10)  # Ensure dropdown is scrollable
+        type_combo.setMinimumWidth(280)  # Ensure full text is visible
         type_combo.addItems(list(device_type_map.keys()))
         layout.addRow("Device Type:", type_combo)
 
@@ -2008,6 +1920,8 @@ class MainWindow(QMainWindow):
 
         # Dictionary to hold pin spinboxes
         pin_spinboxes: Dict[str, QSpinBox] = {}
+        # Dictionary to hold ADS1115 settings spinboxes
+        ads1115_settings: Dict[str, QSpinBox] = {}
 
         def update_pin_inputs():
             """Update pin inputs based on selected device type."""
@@ -2015,6 +1929,7 @@ class MainWindow(QMainWindow):
             while pin_layout.rowCount() > 0:
                 pin_layout.removeRow(0)
             pin_spinboxes.clear()
+            ads1115_settings.clear()
 
             # Get pin names for selected device type
             ui_type = type_combo.currentText()
@@ -2022,29 +1937,61 @@ class MainWindow(QMainWindow):
 
             # Check if this is an analog device
             is_analog = device_type == "AnalogInput"
+            is_ads1115 = device_type == "ADS1115"
 
-            # Create spinbox for each pin
-            for pin_name in pin_names:
-                spin = QSpinBox()
-                spin.setRange(0, 53)
+            if is_ads1115:
+                # ADS1115 I2C settings instead of pin inputs
+                # I2C Address
+                addr_spin = QSpinBox()
+                addr_spin.setRange(72, 75)  # 0x48-0x4B
+                addr_spin.setValue(72)  # Default 0x48
+                addr_spin.setToolTip("I2C address: 72=0x48, 73=0x49, 74=0x4A, 75=0x4B")
+                ads1115_settings["i2c_address"] = addr_spin
+                pin_layout.addRow("I2C Address:", addr_spin)
 
-                # Set default value based on device type
-                if is_analog:
-                    spin.setValue(14)  # Default to A0 (pin 14)
-                    spin.setSpecialValueText("Invalid")
-                else:
-                    spin.setValue(0)
+                # Channel
+                chan_spin = QSpinBox()
+                chan_spin.setRange(0, 3)
+                chan_spin.setValue(0)
+                chan_spin.setToolTip("ADC channel to read (0-3)")
+                ads1115_settings["channel"] = chan_spin
+                pin_layout.addRow("Channel:", chan_spin)
 
-                pin_spinboxes[pin_name] = spin
-                label = f"{pin_name.capitalize()} Pin:"
-                pin_layout.addRow(label, spin)
+                # Gain
+                gain_combo = QComboBox()
+                gain_combo.addItems(["1 (±4.096V)", "2 (±2.048V)", "4 (±1.024V)", "8 (±0.512V)", "16 (±0.256V)"])
+                gain_combo.setCurrentIndex(0)
+                ads1115_settings["gain_combo"] = gain_combo
+                pin_layout.addRow("Gain:", gain_combo)
 
-            # Add helpful note for analog devices
-            if is_analog:
-                note = QLabel("Note: A0=14, A1=15, A2=16, A3=17, A4=18, A5=19")
+                # Note about I2C
+                note = QLabel("Note: Uses I2C on GPIO2 (SDA) and GPIO3 (SCL)")
                 note.setStyleSheet("color: #888; font-size: 10px; font-style: italic;")
                 note.setWordWrap(True)
                 pin_layout.addRow(note)
+            else:
+                # Create spinbox for each pin
+                for pin_name in pin_names:
+                    spin = QSpinBox()
+                    spin.setRange(0, 53)
+
+                    # Set default value based on device type
+                    if is_analog:
+                        spin.setValue(14)  # Default to A0 (pin 14)
+                        spin.setSpecialValueText("Invalid")
+                    else:
+                        spin.setValue(0)
+
+                    pin_spinboxes[pin_name] = spin
+                    label = f"{pin_name.capitalize()} Pin:"
+                    pin_layout.addRow(label, spin)
+
+                # Add helpful note for analog devices
+                if is_analog:
+                    note = QLabel("Note: A0=14, A1=15, A2=16, A3=17, A4=18, A5=19")
+                    note.setStyleSheet("color: #888; font-size: 10px; font-style: italic;")
+                    note.setWordWrap(True)
+                    pin_layout.addRow(note)
 
         # Connect device type change to update pin inputs
         type_combo.currentTextChanged.connect(lambda: update_pin_inputs())
@@ -2074,13 +2021,22 @@ class MainWindow(QMainWindow):
             # Get the actual device type and pin configuration
             device_type, pin_names = device_type_map[ui_device_type]
 
-            # Build pins dictionary from spinboxes
+            # Build pins dictionary from spinboxes (empty for ADS1115)
             pins = {pin_name: pin_spinboxes[pin_name].value() for pin_name in pin_names}
+
+            # Build settings dictionary for ADS1115
+            settings = {}
+            if device_type == "ADS1115" and ads1115_settings:
+                settings["i2c_address"] = ads1115_settings["i2c_address"].value()
+                settings["channel"] = ads1115_settings["channel"].value()
+                # Parse gain from combo text (e.g., "1 (±4.096V)" -> 1)
+                gain_text = ads1115_settings["gain_combo"].currentText()
+                settings["gain"] = int(gain_text.split()[0])
 
             try:
                 # Add to hardware manager for runtime use
                 self._core.hardware_manager.add_device_multi_pin(
-                    device_id, device_type, board_id, pins, name=name
+                    device_id, device_type, board_id, pins, name=name, **settings
                 )
 
                 # Auto-initialize if board is connected
@@ -2102,6 +2058,7 @@ class MainWindow(QMainWindow):
                         name=name,
                         board_id=board_id,
                         pins=pins,
+                        settings=settings,
                     )
                     self._core.session.add_device(device_config)
 
@@ -2109,6 +2066,192 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, "Success", f"Added device: {device_id}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to add device: {e}")
+
+    def _on_edit_board(self, board_id: str) -> None:
+        """Show dialog to edit an existing board."""
+        board = self._core.hardware_manager.get_board(board_id)
+        if board is None:
+            QMessageBox.warning(self, "Error", f"Board '{board_id}' not found.")
+            return
+
+        # Get session config for current values
+        board_config = self._core.session.get_board(board_id) if self._core.session else None
+        current_port = board_config.port if board_config else getattr(board, 'port', None)
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Edit Board: {board_id}")
+        dialog.setMinimumWidth(350)
+
+        layout = QFormLayout(dialog)
+
+        # Board ID (read-only)
+        id_label = QLabel(board_id)
+        id_label.setStyleSheet("color: #888;")
+        layout.addRow("Board ID:", id_label)
+
+        # Port selection with refresh button
+        port_layout = QHBoxLayout()
+        port_combo = QComboBox()
+        port_combo.setMinimumWidth(200)
+
+        def refresh_ports():
+            port_combo.clear()
+            port_combo.addItem("Auto-detect", None)
+            try:
+                import serial.tools.list_ports
+                ports = serial.tools.list_ports.comports()
+                for port in ports:
+                    label = f"{port.device}"
+                    if port.description and port.description != "n/a":
+                        label += f" - {port.description}"
+                    port_combo.addItem(label, port.device)
+            except ImportError:
+                pass
+
+            # Select current port if set
+            if current_port:
+                for i in range(port_combo.count()):
+                    if port_combo.itemData(i) == current_port:
+                        port_combo.setCurrentIndex(i)
+                        break
+
+        refresh_ports()
+        port_layout.addWidget(port_combo)
+
+        refresh_btn = QPushButton("↻")
+        refresh_btn.setMaximumWidth(30)
+        refresh_btn.clicked.connect(refresh_ports)
+        port_layout.addWidget(refresh_btn)
+
+        layout.addRow("Serial Port:", port_layout)
+
+        # Buttons
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addRow(buttons)
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            new_port = port_combo.currentData()
+
+            try:
+                # Update board in hardware manager via internal attribute
+                if hasattr(board, '_port'):
+                    board._port = new_port
+
+                # Update session config
+                if self._core.session:
+                    self._core.session.update_board(board_id, port=new_port)
+
+                self._refresh_hardware_tree()
+                QMessageBox.information(
+                    self, "Success",
+                    f"Updated board: {board_id}\n\n"
+                    "Note: Port changes take effect after reconnecting."
+                )
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to update board: {e}")
+
+    def _on_edit_device(self, device_id: str) -> None:
+        """Show dialog to edit an existing device."""
+        device = self._core.hardware_manager.get_device(device_id)
+        if device is None:
+            QMessageBox.warning(self, "Error", f"Device '{device_id}' not found.")
+            return
+
+        # Get session config for current values
+        device_config = self._core.session.get_device(device_id) if self._core.session else None
+
+        # Get current values
+        current_name = device_config.name if device_config else getattr(device, 'name', device_id)
+        current_pins = device_config.pins if device_config else {}
+        device_type = device_config.device_type if device_config else type(device).__name__
+
+        # If no pins in config, try to get from device
+        if not current_pins and hasattr(device, 'pin'):
+            current_pins = {"output": device.pin} if hasattr(device, 'pin') else {}
+        if not current_pins and hasattr(device, 'pins'):
+            current_pins = device.pins if isinstance(device.pins, dict) else {}
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Edit Device: {device_id}")
+        dialog.setMinimumWidth(380)
+
+        layout = QFormLayout(dialog)
+
+        # Device ID (read-only)
+        id_label = QLabel(device_id)
+        id_label.setStyleSheet("color: #888;")
+        layout.addRow("Device ID:", id_label)
+
+        # Device type (read-only)
+        type_label = QLabel(device_type)
+        type_label.setStyleSheet("color: #888;")
+        layout.addRow("Device Type:", type_label)
+
+        # Name (editable)
+        name_edit = QLineEdit(current_name)
+        layout.addRow("Name:", name_edit)
+
+        # Pin inputs
+        pin_spinboxes: Dict[str, QSpinBox] = {}
+
+        # Determine if this is an analog device
+        is_analog = "Analog" in device_type
+
+        for pin_name, pin_value in current_pins.items():
+            spin = QSpinBox()
+            spin.setRange(0, 53)
+            spin.setValue(pin_value)
+            pin_spinboxes[pin_name] = spin
+            label = f"{pin_name.capitalize()} Pin:"
+            layout.addRow(label, spin)
+
+        # Add helpful note for analog devices
+        if is_analog:
+            note = QLabel("Note: A0=14, A1=15, A2=16, A3=17, A4=18, A5=19")
+            note.setStyleSheet("color: #888; font-size: 10px; font-style: italic;")
+            note.setWordWrap(True)
+            layout.addRow(note)
+
+        # Buttons
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addRow(buttons)
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            new_name = name_edit.text().strip() or device_id
+            new_pins = {pin_name: spin.value() for pin_name, spin in pin_spinboxes.items()}
+
+            try:
+                # Update device in hardware manager
+                # Update name via _name attribute (name property may not have setter)
+                if hasattr(device, '_name'):
+                    device._name = new_name
+
+                # Update pins via the config object
+                if hasattr(device, 'config') and hasattr(device.config, 'pins'):
+                    device.config.pins.update(new_pins)
+                elif hasattr(device, '_config') and hasattr(device._config, 'pins'):
+                    device._config.pins.update(new_pins)
+
+                # Update session config
+                if self._core.session:
+                    self._core.session.update_device(device_id, name=new_name, pins=new_pins)
+
+                self._refresh_hardware_tree()
+                QMessageBox.information(
+                    self, "Success",
+                    f"Updated device: {device_id}\n\n"
+                    "Note: Pin changes take effect after reconnecting the board."
+                )
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to update device: {e}")
 
     def _refresh_hardware_tree(self) -> None:
         """Refresh the hardware tree widget."""
@@ -2174,10 +2317,16 @@ class MainWindow(QMainWindow):
 
             menu.addSeparator()
 
+            edit_action = menu.addAction("Edit Board")
+            edit_action.triggered.connect(lambda: self._on_edit_board(item_id))
+
             remove_action = menu.addAction("Remove Board")
             remove_action.triggered.connect(lambda: self._remove_board(item_id))
 
         elif item_type == "device":
+            edit_action = menu.addAction("Edit Device")
+            edit_action.triggered.connect(lambda: self._on_edit_device(item_id))
+
             remove_action = menu.addAction("Remove Device")
             remove_action.triggered.connect(lambda: self._remove_device(item_id))
 
@@ -2290,6 +2439,25 @@ class MainWindow(QMainWindow):
 
             logger.info("Camera settings updated")
 
+    def _on_camera_calibration(self) -> None:
+        """Show camera calibration dialog."""
+        dialog = CalibrationDialog(
+            camera_manager=self._core.camera_manager,
+            calibration=self._core.calibration,
+            parent=self
+        )
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            # Calibration is modified in place, just log
+            calibration = dialog.get_calibration()
+            if calibration.is_calibrated:
+                logger.info(
+                    f"Camera calibrated: {calibration.pixels_per_mm:.2f} pixels/mm "
+                    f"({len(calibration.lines)} lines)"
+                )
+            else:
+                logger.info("Camera calibration cleared")
+
     # Agent operations
     def _on_agent_settings(self) -> None:
         """Show agent settings dialog."""
@@ -2393,21 +2561,19 @@ class MainWindow(QMainWindow):
         """)
 
         # Open file action
-        open_action = menu.addAction("📂  Open Experiment")
+        open_action = menu.addAction("Open Experiment")
         open_action.triggered.connect(self._on_open)
 
         # Reload action
-        reload_action = menu.addAction("🔄  Reload")
+        reload_action = menu.addAction("Reload")
         reload_action.triggered.connect(self._refresh_runner_devices)
 
-        # Board settings action
-        board_action = menu.addAction("⚙️  Board Settings")
+        # Board settings action (quick port configuration)
+        board_action = menu.addAction("Ports")
         board_action.triggered.connect(self._show_board_settings_dialog)
 
-        menu.addSeparator()
-
-        # Switch to desktop mode (always available)
-        desktop_action = menu.addAction("🖥️  Desktop Mode")
+        # Switch to desktop/config mode - shows dock panels for full hardware configuration
+        desktop_action = menu.addAction("Hardware Config")
         desktop_action.triggered.connect(self._switch_to_desktop_mode)
 
         menu.addSeparator()
@@ -4151,7 +4317,7 @@ class MainWindow(QMainWindow):
 
         # Enable/disable input reading based on device type
         if hasattr(self, '_input_group'):
-            is_input_device = device_type in ('DigitalInput', 'AnalogInput')
+            is_input_device = device_type in ('DigitalInput', 'AnalogInput', 'ADS1115')
             self._input_group.setEnabled(is_input_device)
 
     def _get_selected_device(self):
@@ -4256,8 +4422,8 @@ class MainWindow(QMainWindow):
             return
 
         device_type = getattr(device, 'device_type', '')
-        if device_type not in ('DigitalInput', 'AnalogInput'):
-            QMessageBox.warning(self, "Invalid Device", "Please select a DigitalInput or AnalogInput device.")
+        if device_type not in ('DigitalInput', 'AnalogInput', 'ADS1115'):
+            QMessageBox.warning(self, "Invalid Device", "Please select a DigitalInput, AnalogInput, or ADS1115 device.")
             return
 
         async def read_value():
@@ -4300,6 +4466,14 @@ class MainWindow(QMainWindow):
                         display = f"{raw_value}\n{voltage:.2f}V"
                         self._input_value_label.setText(display)
                         self._device_status_label.setText(f"Status: Analog = {raw_value} ({voltage:.2f}V)")
+                elif device_type == 'ADS1115':
+                    # ADS1115 16-bit ADC via I2C
+                    channel = device._config.settings.get('channel', 0)
+                    raw_value = await device.read(channel)
+                    voltage = await device.read_voltage(channel)
+                    display = f"{raw_value}\n{voltage:.3f}V"
+                    self._input_value_label.setText(display)
+                    self._device_status_label.setText(f"Status: ADS1115 Ch{channel} = {raw_value} ({voltage:.3f}V)")
             except Exception as e:
                 logger.error(f"Read error: {e}")
                 self._input_value_label.setText("ERROR")
@@ -4317,14 +4491,19 @@ class MainWindow(QMainWindow):
                 return
 
             device_type = getattr(device, 'device_type', '')
-            if device_type not in ('DigitalInput', 'AnalogInput'):
+            if device_type not in ('DigitalInput', 'AnalogInput', 'ADS1115'):
                 self._continuous_checkbox.setChecked(False)
-                QMessageBox.warning(self, "Invalid Device", "Please select a DigitalInput or AnalogInput device.")
+                QMessageBox.warning(self, "Invalid Device", "Please select a DigitalInput, AnalogInput, or ADS1115 device.")
                 return
 
             if device_type == 'AnalogInput':
                 # Use real-time callbacks for analog inputs (much faster than polling)
                 self._start_analog_callback(device)
+            elif device_type == 'ADS1115':
+                # ADS1115 uses I2C polling (no pin-based callbacks)
+                interval = self._poll_spinbox.value()
+                self._input_poll_timer.start(interval)
+                self._device_status_label.setText(f"Status: ADS1115 polling ({interval}ms)")
             else:
                 # Use polling for digital inputs
                 interval = self._poll_spinbox.value()
@@ -4407,7 +4586,7 @@ class MainWindow(QMainWindow):
             return
 
         device_type = getattr(device, 'device_type', '')
-        if device_type not in ('DigitalInput', 'AnalogInput'):
+        if device_type not in ('DigitalInput', 'AnalogInput', 'ADS1115'):
             self._input_poll_timer.stop()
             self._continuous_checkbox.setChecked(False)
             return
@@ -4436,6 +4615,15 @@ class MainWindow(QMainWindow):
                         ref_voltage = 5.0
                     voltage = (raw_value / 1023.0) * ref_voltage
                     display = f"{raw_value}\n{voltage:.2f}V"
+                    self._input_value_label.setText(display)
+                elif device_type == 'ADS1115':
+                    # ADS1115 has read() and read_voltage() methods
+                    # Get channel from settings (default 0)
+                    channel = device._config.settings.get('channel', 0)
+                    raw_value = await device.read(channel)
+                    voltage = await device.read_voltage(channel)
+                    # ADS1115 is 16-bit, show full value
+                    display = f"{raw_value}\n{voltage:.3f}V"
                     self._input_value_label.setText(display)
             except Exception as e:
                 logger.error(f"Poll read error: {e}")

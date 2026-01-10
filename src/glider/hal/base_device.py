@@ -548,6 +548,204 @@ class ServoDevice(BaseDevice):
         return instance
 
 
+class ADS1115Device(BaseDevice):
+    """
+    ADS1115 16-bit ADC device for analog input via I2C.
+
+    The ADS1115 is a 16-bit ADC with 4 single-ended channels (A0-A3)
+    or 2 differential channels. Connected to Raspberry Pi via I2C
+    (SDA on GPIO2, SCL on GPIO3).
+
+    Settings:
+    - i2c_address: I2C address (default 0x48, can be 0x49, 0x4A, 0x4B)
+    - gain: Programmable gain amplifier setting (default 1)
+        - 2/3: +/- 6.144V (not for single-ended use)
+        - 1: +/- 4.096V
+        - 2: +/- 2.048V
+        - 4: +/- 1.024V
+        - 8: +/- 0.512V
+        - 16: +/- 0.256V
+    - data_rate: Samples per second (8, 16, 32, 64, 128, 250, 475, 860)
+    """
+
+    # Gain settings mapping to voltage ranges
+    GAIN_RANGES = {
+        2/3: 6.144,
+        1: 4.096,
+        2: 2.048,
+        4: 1.024,
+        8: 0.512,
+        16: 0.256,
+    }
+
+    @property
+    def device_type(self) -> str:
+        return "ADS1115"
+
+    @property
+    def required_pins(self) -> List[str]:
+        # I2C doesn't use traditional pin assignments in the same way
+        # The SDA/SCL are fixed on the Pi (GPIO2/GPIO3)
+        return []
+
+    @property
+    def actions(self) -> Dict[str, Callable]:
+        return {
+            "read": self.read,
+            "read_channel": self.read_channel,
+            "read_voltage": self.read_voltage,
+            "read_all": self.read_all,
+        }
+
+    def __init__(self, board: "BaseBoard", config: DeviceConfig, name: Optional[str] = None):
+        super().__init__(board, config, name)
+        self._i2c_address = config.settings.get("i2c_address", 0x48)
+        self._gain = config.settings.get("gain", 1)
+        self._data_rate = config.settings.get("data_rate", 128)
+        self._ads = None  # Will hold the ADS1115 object
+        self._last_values: Dict[int, int] = {}  # Channel -> raw value
+
+    @property
+    def i2c_address(self) -> int:
+        """I2C address of the ADS1115."""
+        return self._i2c_address
+
+    @property
+    def gain(self) -> float:
+        """Current gain setting."""
+        return self._gain
+
+    @property
+    def voltage_range(self) -> float:
+        """Maximum voltage for current gain setting."""
+        return self.GAIN_RANGES.get(self._gain, 4.096)
+
+    async def initialize(self) -> None:
+        """Initialize the ADS1115 via I2C."""
+        import asyncio
+
+        def _init_ads():
+            try:
+                import board
+                import busio
+                import adafruit_ads1x15.ads1115 as ADS
+                from adafruit_ads1x15.analog_in import AnalogIn
+
+                # Create I2C bus
+                i2c = busio.I2C(board.SCL, board.SDA)
+
+                # Create ADS1115 object
+                ads = ADS.ADS1115(i2c, address=self._i2c_address)
+                ads.gain = self._gain
+                ads.data_rate = self._data_rate
+
+                return ads
+            except ImportError as e:
+                raise RuntimeError(
+                    f"ADS1115 libraries not installed. Run: "
+                    f"pip install adafruit-circuitpython-ads1x15"
+                ) from e
+
+        self._ads = await asyncio.to_thread(_init_ads)
+        self._initialized = True
+        logger.info(f"ADS1115 initialized at address 0x{self._i2c_address:02X}")
+
+    async def shutdown(self) -> None:
+        """Shutdown the ADS1115."""
+        self._ads = None
+
+    async def read(self, channel: int = 0) -> int:
+        """
+        Read raw ADC value from a channel.
+
+        Args:
+            channel: Channel number (0-3)
+
+        Returns:
+            Raw 16-bit ADC value (-32768 to 32767 for differential,
+            0 to 32767 for single-ended)
+        """
+        return await self.read_channel(channel)
+
+    async def read_channel(self, channel: int = 0) -> int:
+        """
+        Read raw ADC value from a specific channel.
+
+        Args:
+            channel: Channel number (0-3)
+
+        Returns:
+            Raw ADC value
+        """
+        import asyncio
+
+        if not self._initialized or self._ads is None:
+            raise RuntimeError("ADS1115 not initialized")
+
+        if channel < 0 or channel > 3:
+            raise ValueError(f"Invalid channel {channel}. Must be 0-3.")
+
+        def _read():
+            from adafruit_ads1x15.analog_in import AnalogIn
+
+            # Channel is just the integer 0-3
+            chan = AnalogIn(self._ads, channel)
+            return chan.value
+
+        value = await asyncio.to_thread(_read)
+        self._last_values[channel] = value
+        return value
+
+    async def read_voltage(self, channel: int = 0) -> float:
+        """
+        Read voltage from a channel.
+
+        Args:
+            channel: Channel number (0-3)
+
+        Returns:
+            Voltage reading
+        """
+        import asyncio
+
+        if not self._initialized or self._ads is None:
+            raise RuntimeError("ADS1115 not initialized")
+
+        if channel < 0 or channel > 3:
+            raise ValueError(f"Invalid channel {channel}. Must be 0-3.")
+
+        def _read_voltage():
+            from adafruit_ads1x15.analog_in import AnalogIn
+
+            # Channel is just the integer 0-3
+            chan = AnalogIn(self._ads, channel)
+            return chan.voltage
+
+        return await asyncio.to_thread(_read_voltage)
+
+    async def read_all(self) -> Dict[int, int]:
+        """
+        Read raw values from all 4 channels.
+
+        Returns:
+            Dictionary mapping channel number to raw value
+        """
+        results = {}
+        for channel in range(4):
+            results[channel] = await self.read_channel(channel)
+        return results
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "ADS1115Device":
+        config = DeviceConfig(
+            pins=data["config"].get("pins", {}),
+            settings=data["config"].get("settings", {}),
+        )
+        instance = cls(board, config, data.get("name"))
+        instance._id = data.get("id", instance._id)
+        return instance
+
+
 class MotorGovernorDevice(BaseDevice):
     """
     Motor Governor device for controlling motorized positioning.
@@ -679,6 +877,7 @@ DEVICE_REGISTRY: Dict[str, type] = {
     "PWMOutput": PWMOutputDevice,
     "Servo": ServoDevice,
     "MotorGovernor": MotorGovernorDevice,
+    "ADS1115": ADS1115Device,
 }
 
 

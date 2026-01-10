@@ -3,16 +3,19 @@ Tracking Data Logger - Log CV results to CSV.
 
 Logs computer vision tracking data to CSV file synchronized
 with experiment timestamps, matching DataRecorder output format.
+Includes real-world distance calculations when calibration is available.
 """
 
 import csv
+import math
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional, Dict, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from glider.vision.cv_processor import TrackedObject, MotionResult
+    from glider.vision.calibration import CameraCalibration
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +25,8 @@ class TrackingDataLogger:
     Logs computer vision results to CSV file.
 
     Output format matches DataRecorder pattern with columns:
-    frame, timestamp, elapsed_ms, object_id, class, x, y, w, h, confidence
+    frame, timestamp, elapsed_ms, object_id, class, x, y, w, h, confidence,
+    center_x, center_y, distance_px, distance_mm, cumulative_mm
     """
 
     def __init__(self, output_dir: Optional[Path] = None):
@@ -40,6 +44,12 @@ class TrackingDataLogger:
         self._start_timestamp: float = 0.0
         self._frame_count = 0
         self._recording = False
+        self._calibration: Optional["CameraCalibration"] = None
+        self._frame_width: int = 0
+        self._frame_height: int = 0
+        # Track previous positions and cumulative distances for each object
+        self._prev_positions: Dict[int, Tuple[float, float]] = {}
+        self._cumulative_distances: Dict[int, float] = {}
 
     @property
     def is_recording(self) -> bool:
@@ -65,6 +75,26 @@ class TrackingDataLogger:
         """
         self._output_dir = Path(path)
         self._output_dir.mkdir(parents=True, exist_ok=True)
+
+    def set_calibration(self, calibration: "CameraCalibration") -> None:
+        """
+        Set calibration for real-world distance calculations.
+
+        Args:
+            calibration: CameraCalibration instance
+        """
+        self._calibration = calibration
+
+    def set_frame_size(self, width: int, height: int) -> None:
+        """
+        Set frame dimensions for distance calculations.
+
+        Args:
+            width: Frame width in pixels
+            height: Frame height in pixels
+        """
+        self._frame_width = width
+        self._frame_height = height
 
     def _generate_filename(self, experiment_name: str) -> str:
         """
@@ -106,6 +136,10 @@ class TrackingDataLogger:
         self._start_timestamp = self._start_time.timestamp()
         self._frame_count = 0
 
+        # Clear tracking state
+        self._prev_positions.clear()
+        self._cumulative_distances.clear()
+
         # Open file and create writer
         self._file = open(self._file_path, 'w', newline='', encoding='utf-8')
         self._writer = csv.writer(self._file)
@@ -114,6 +148,15 @@ class TrackingDataLogger:
         self._writer.writerow(["# GLIDER Tracking Data"])
         self._writer.writerow(["# Experiment", experiment_name])
         self._writer.writerow(["# Start Time", self._start_time.isoformat()])
+
+        # Write calibration info if available
+        if self._calibration and self._calibration.is_calibrated:
+            self._writer.writerow(["# Pixels/mm", f"{self._calibration.pixels_per_mm:.4f}"])
+            self._writer.writerow(["# Calibration Resolution",
+                                   f"{self._calibration.calibration_width}x{self._calibration.calibration_height}"])
+        else:
+            self._writer.writerow(["# Calibration", "Not calibrated (distances in pixels)"])
+
         self._writer.writerow([])
 
         # Write column headers
@@ -127,7 +170,12 @@ class TrackingDataLogger:
             "y",
             "w",
             "h",
-            "confidence"
+            "confidence",
+            "center_x",
+            "center_y",
+            "distance_px",
+            "distance_mm",
+            "cumulative_mm"
         ])
         self._file.flush()
 
@@ -155,12 +203,56 @@ class TrackingDataLogger:
             return
 
         self._frame_count += 1
+
+        # Debug: Log when we actually write data
+        if tracked_objects or motion_detected:
+            if self._frame_count <= 5 or self._frame_count % 100 == 0:
+                logger.debug(
+                    f"Logging data: frame={self._frame_count}, "
+                    f"objects={len(tracked_objects)}, motion={motion_detected}"
+                )
         elapsed_ms = (timestamp - self._start_timestamp) * 1000
         iso_timestamp = datetime.fromtimestamp(timestamp).isoformat(timespec='milliseconds')
 
         # Log each tracked object
         for obj in tracked_objects:
             x, y, w, h = obj.bbox
+
+            # Calculate center position
+            center_x = x + w / 2
+            center_y = y + h / 2
+
+            # Calculate distance from previous position
+            distance_px = 0.0
+            distance_mm = 0.0
+            cumulative_mm = 0.0
+
+            if obj.track_id in self._prev_positions:
+                prev_x, prev_y = self._prev_positions[obj.track_id]
+                dx = center_x - prev_x
+                dy = center_y - prev_y
+                distance_px = math.sqrt(dx * dx + dy * dy)
+
+                # Convert to mm if calibrated
+                if self._calibration and self._calibration.is_calibrated:
+                    distance_mm = self._calibration.pixels_to_mm(
+                        distance_px, self._frame_width, self._frame_height
+                    )
+                else:
+                    distance_mm = distance_px  # Use pixels if not calibrated
+
+                # Update cumulative distance
+                if obj.track_id not in self._cumulative_distances:
+                    self._cumulative_distances[obj.track_id] = 0.0
+                self._cumulative_distances[obj.track_id] += distance_mm
+                cumulative_mm = self._cumulative_distances[obj.track_id]
+            else:
+                # First time seeing this object
+                self._cumulative_distances[obj.track_id] = 0.0
+
+            # Update previous position
+            self._prev_positions[obj.track_id] = (center_x, center_y)
+
             self._writer.writerow([
                 self._frame_count,
                 iso_timestamp,
@@ -171,7 +263,12 @@ class TrackingDataLogger:
                 y,
                 w,
                 h,
-                f"{obj.confidence:.3f}"
+                f"{obj.confidence:.3f}",
+                f"{center_x:.1f}",
+                f"{center_y:.1f}",
+                f"{distance_px:.2f}",
+                f"{distance_mm:.2f}",
+                f"{cumulative_mm:.2f}"
             ])
 
         # Log motion event if no objects but motion detected
@@ -183,8 +280,25 @@ class TrackingDataLogger:
                 -1,  # No object ID for motion-only
                 "motion",
                 0, 0, 0, 0,  # No bbox
-                f"{motion_area:.3f}"
+                f"{motion_area:.3f}",
+                "", "", "", "", ""  # Empty distance fields
             ])
+
+        # Log periodic heartbeat frames when no activity (every 30 seconds)
+        # This helps confirm tracking is running even with no detections
+        if not tracked_objects and not motion_detected:
+            # Log a heartbeat every ~900 frames (30 seconds at 30fps)
+            if self._frame_count == 1 or self._frame_count % 900 == 0:
+                self._writer.writerow([
+                    self._frame_count,
+                    iso_timestamp,
+                    f"{elapsed_ms:.1f}",
+                    -1,
+                    "heartbeat",
+                    0, 0, 0, 0,
+                    "0.000",
+                    "", "", "", "", ""
+                ])
 
         self._file.flush()
 

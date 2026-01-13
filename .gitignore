@@ -1,2 +1,5 @@
 venv/*
 .claude/*
+.venv/*
+*.pyc
+__pycache__/

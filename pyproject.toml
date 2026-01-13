@@ -28,7 +28,6 @@ classifiers = [
 ]
 
 dependencies = [
-    "PyQt6>=6.4.0",
     "qasync>=0.24.0",
     "telemetrix-aio>=1.0.0",
     "pyserial>=3.5",
@@ -54,6 +53,9 @@ dev = [
     "pytest-qt>=4.2.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
+]
+pc = [
+    "PyQt6>=6.4.0",
 ]
 
 [project.scripts]

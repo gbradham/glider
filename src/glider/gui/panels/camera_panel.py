@@ -347,8 +347,10 @@ class CameraPanel(QWidget):
         if camera_idx is None or camera_idx < 0:
             return
 
-        from glider.vision.camera_manager import CameraSettings
-        settings = CameraSettings(camera_index=camera_idx)
+        # Use the camera manager's existing settings (configured via Settings dialog)
+        # but update the camera index to the selected one
+        settings = self._camera.settings
+        settings.camera_index = camera_idx
 
         if self._camera.connect(settings):
             self._camera.start_streaming()

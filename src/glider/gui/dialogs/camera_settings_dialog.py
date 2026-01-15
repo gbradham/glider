@@ -83,6 +83,7 @@ class CameraSettingsDialog(QDialog):
 
         self._resolution_combo = QComboBox()
         self._resolution_combo.addItem("320x240", (320, 240))
+        self._resolution_combo.addItem("608x608 (Miniscope)", (608, 608))
         self._resolution_combo.addItem("640x480", (640, 480))
         self._resolution_combo.addItem("800x600", (800, 600))
         self._resolution_combo.addItem("1280x720 (HD)", (1280, 720))
@@ -180,6 +181,17 @@ class CameraSettingsDialog(QDialog):
             "Increase this for slow USB cameras like miniscopes (try 10-15s)."
         )
         conn_layout.addRow("Connection Timeout:", self._timeout_spin)
+
+        self._pixel_format_combo = QComboBox()
+        self._pixel_format_combo.addItem("Auto-detect", None)
+        self._pixel_format_combo.addItem("YUYV (Miniscope)", "YUYV")
+        self._pixel_format_combo.addItem("MJPG (Compressed)", "MJPG")
+        self._pixel_format_combo.setToolTip(
+            "Pixel format for video capture.\n"
+            "Use YUYV for miniscopes.\n"
+            "Use MJPG for most webcams."
+        )
+        conn_layout.addRow("Pixel Format:", self._pixel_format_combo)
 
         layout.addWidget(conn_group)
         layout.addStretch()
@@ -356,6 +368,10 @@ class CameraSettingsDialog(QDialog):
             if self._backend_camera_combo.itemData(i) == self._camera_settings.force_backend:
                 self._backend_camera_combo.setCurrentIndex(i)
                 break
+        for i in range(self._pixel_format_combo.count()):
+            if self._pixel_format_combo.itemData(i) == self._camera_settings.pixel_format:
+                self._pixel_format_combo.setCurrentIndex(i)
+                break
 
         # CV settings
         self._cv_enabled_cb.setChecked(self._cv_settings.enabled)
@@ -443,6 +459,7 @@ class CameraSettingsDialog(QDialog):
         self._camera_settings.contrast = self._contrast_slider.value()
         self._camera_settings.connection_timeout = self._timeout_spin.value()
         self._camera_settings.force_backend = self._backend_camera_combo.currentData()
+        self._camera_settings.pixel_format = self._pixel_format_combo.currentData()
 
         # CV settings
         self._cv_settings.enabled = self._cv_enabled_cb.isChecked()

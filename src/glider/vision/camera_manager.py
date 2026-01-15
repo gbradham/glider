@@ -72,6 +72,7 @@ class CameraSettings:
     auto_exposure: bool = True
     connection_timeout: float = 5.0  # Seconds to wait for camera connection
     force_backend: Optional[str] = None  # "v4l2", "picamera2", or None for auto
+    pixel_format: Optional[str] = None  # "YUYV", "MJPG", or None for auto
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
@@ -87,6 +88,7 @@ class CameraSettings:
             "auto_exposure": self.auto_exposure,
             "connection_timeout": self.connection_timeout,
             "force_backend": self.force_backend,
+            "pixel_format": self.pixel_format,
         }
 
     @classmethod
@@ -104,6 +106,7 @@ class CameraSettings:
             auto_exposure=data.get("auto_exposure", True),
             connection_timeout=data.get("connection_timeout", 5.0),
             force_backend=data.get("force_backend", None),
+            pixel_format=data.get("pixel_format", None),
         )
 
 
@@ -561,9 +564,17 @@ class CameraManager:
         if self._capture is None:
             return
 
-        # On Linux with V4L2, try MJPEG format for better compatibility
-        # Some cameras don't support it, so we don't fail if it doesn't work
-        if sys.platform == "linux":
+        # Set pixel format FIRST (before resolution) - important for miniscopes
+        if self._settings.pixel_format:
+            try:
+                fourcc = cv2.VideoWriter_fourcc(*self._settings.pixel_format)
+                self._capture.set(cv2.CAP_PROP_FOURCC, fourcc)
+                logger.debug(f"Set pixel format to {self._settings.pixel_format}")
+            except Exception as e:
+                logger.warning(f"Failed to set pixel format {self._settings.pixel_format}: {e}")
+        elif sys.platform == "linux":
+            # On Linux with V4L2, try MJPEG format for better compatibility
+            # Some cameras don't support it, so we don't fail if it doesn't work
             try:
                 fourcc = cv2.VideoWriter_fourcc(*'MJPG')
                 self._capture.set(cv2.CAP_PROP_FOURCC, fourcc)

@@ -18,6 +18,8 @@ from glider.core.flow_engine import FlowEngine, FlowState
 from glider.core.data_recorder import DataRecorder
 from glider.vision.camera_manager import CameraManager
 from glider.vision.video_recorder import VideoRecorder
+from glider.vision.multi_camera_manager import MultiCameraManager
+from glider.vision.multi_video_recorder import MultiVideoRecorder
 from glider.vision.cv_processor import CVProcessor
 from glider.vision.tracking_logger import TrackingDataLogger
 from glider.vision.calibration import CameraCalibration
@@ -54,6 +56,11 @@ class GliderCore:
         self._video_recorder = VideoRecorder(self._camera_manager)
         self._tracking_logger = TrackingDataLogger()
         self._calibration = CameraCalibration()
+
+        # Multi-camera support
+        self._multi_camera_manager = MultiCameraManager()
+        self._multi_video_recorder = MultiVideoRecorder(self._multi_camera_manager)
+        self._multi_camera_enabled = False
 
         # Agent (lazy initialization)
         self._agent_controller: Optional["AgentController"] = None
@@ -121,6 +128,27 @@ class GliderCore:
         return self._calibration
 
     @property
+    def multi_camera_manager(self) -> MultiCameraManager:
+        """Multi-camera manager instance."""
+        return self._multi_camera_manager
+
+    @property
+    def multi_video_recorder(self) -> MultiVideoRecorder:
+        """Multi-video recorder instance."""
+        return self._multi_video_recorder
+
+    @property
+    def multi_camera_enabled(self) -> bool:
+        """Whether multi-camera mode is enabled."""
+        return self._multi_camera_enabled
+
+    @multi_camera_enabled.setter
+    def multi_camera_enabled(self, value: bool) -> None:
+        """Enable or disable multi-camera mode."""
+        self._multi_camera_enabled = value
+        self._multi_camera_manager.enabled = value
+
+    @property
     def agent_controller(self) -> "AgentController":
         """
         Agent controller instance (lazy initialization).
@@ -176,6 +204,7 @@ class GliderCore:
         """Set the directory for recording data files (CSV, video, tracking)."""
         self._data_recorder._output_dir = path
         self._video_recorder.set_output_directory(path)
+        self._multi_video_recorder.set_output_directory(path)
         self._tracking_logger.set_output_directory(path)
 
     def set_recording_interval(self, interval: float) -> None:
@@ -259,7 +288,14 @@ class GliderCore:
                 logger.error(f"Failed to stop recording: {e}")
 
         # Stop video recording
-        if self._video_recorder.is_recording:
+        if self._multi_video_recorder.is_recording:
+            try:
+                video_paths = await self._multi_video_recorder.stop()
+                for cam_id, path in video_paths.items():
+                    logger.info(f"Video {cam_id} saved to: {path}")
+            except Exception as e:
+                logger.error(f"Failed to stop multi-camera video recording: {e}")
+        elif self._video_recorder.is_recording:
             try:
                 video_path = await self._video_recorder.stop()
                 logger.info(f"Video saved to: {video_path}")
@@ -552,16 +588,29 @@ class GliderCore:
 
         # Start video recording if enabled and camera is connected
         experiment_name = self._session.metadata.name or "experiment"
-        if self._video_recording_enabled and self._camera_manager.is_connected:
-            try:
-                # Record annotated video with tracking overlays if CV is enabled
-                record_annotated = self._annotated_video_enabled and self._cv_processing_enabled
-                video_path = await self._video_recorder.start(experiment_name, record_annotated=record_annotated)
-                logger.info(f"Recording video to: {video_path}")
-                if record_annotated:
-                    logger.info(f"Also recording annotated video with tracking overlays")
-            except Exception as e:
-                logger.error(f"Failed to start video recording: {e}")
+        if self._video_recording_enabled:
+            # Check for multi-camera mode
+            if self._multi_camera_enabled and self._multi_camera_manager.camera_count > 0:
+                try:
+                    # Record annotated video with tracking overlays if CV is enabled (primary only)
+                    record_annotated = self._annotated_video_enabled and self._cv_processing_enabled
+                    video_paths = await self._multi_video_recorder.start(experiment_name, record_annotated=record_annotated)
+                    for cam_id, path in video_paths.items():
+                        logger.info(f"Recording {cam_id} video to: {path}")
+                    if record_annotated:
+                        logger.info(f"Also recording annotated video (primary camera only)")
+                except Exception as e:
+                    logger.error(f"Failed to start multi-camera video recording: {e}")
+            elif self._camera_manager.is_connected:
+                try:
+                    # Single camera mode
+                    record_annotated = self._annotated_video_enabled and self._cv_processing_enabled
+                    video_path = await self._video_recorder.start(experiment_name, record_annotated=record_annotated)
+                    logger.info(f"Recording video to: {video_path}")
+                    if record_annotated:
+                        logger.info(f"Also recording annotated video with tracking overlays")
+                except Exception as e:
+                    logger.error(f"Failed to start video recording: {e}")
 
         # Start tracking logger if CV processing enabled and camera is connected
         # (separate from video recording so tracking works even if video recording is disabled)
@@ -593,7 +642,14 @@ class GliderCore:
                 logger.error(f"Failed to stop recording: {e}")
 
         # Stop video recording
-        if self._video_recorder.is_recording:
+        if self._multi_video_recorder.is_recording:
+            try:
+                video_paths = await self._multi_video_recorder.stop()
+                for cam_id, path in video_paths.items():
+                    logger.info(f"Video {cam_id} saved to: {path}")
+            except Exception as e:
+                logger.error(f"Failed to stop multi-camera video recording: {e}")
+        elif self._video_recorder.is_recording:
             try:
                 video_path = await self._video_recorder.stop()
                 logger.info(f"Video saved to: {video_path}")
@@ -672,10 +728,13 @@ class GliderCore:
         if self._session and self._session.state == SessionState.RUNNING:
             await self.stop_experiment()
 
-        # Disconnect camera
+        # Disconnect cameras
         if self._camera_manager.is_connected:
             self._camera_manager.disconnect()
             logger.info("Camera disconnected")
+
+        # Shutdown multi-camera manager
+        self._multi_camera_manager.shutdown()
 
         # Shutdown flow engine
         self._flow_engine.shutdown()

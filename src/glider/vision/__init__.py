@@ -20,6 +20,8 @@ from glider.vision.video_recorder import (
     RecordingState,
     VideoFormat,
 )
+from glider.vision.multi_camera_manager import MultiCameraManager
+from glider.vision.multi_video_recorder import MultiVideoRecorder
 from glider.vision.cv_processor import (
     CVProcessor,
     CVSettings,
@@ -42,6 +44,9 @@ __all__ = [
     "CameraInfo",
     "CameraSettings",
     "CameraState",
+    # Multi-Camera
+    "MultiCameraManager",
+    "MultiVideoRecorder",
     # Video Recording
     "VideoRecorder",
     "RecordingState",

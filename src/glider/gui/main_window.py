@@ -692,11 +692,13 @@ class MainWindow(QMainWindow):
         )
         self._camera_panel = CameraPanel(
             self._core.camera_manager,
-            self._core.cv_processor
+            self._core.cv_processor,
+            multi_camera_manager=self._core.multi_camera_manager
         )
         self._camera_panel.settings_requested.connect(self._on_camera_settings)
         self._camera_panel.calibration_requested.connect(self._on_camera_calibration)
         self._camera_panel.set_video_recorder(self._core.video_recorder)
+        self._camera_panel.set_multi_video_recorder(self._core.multi_video_recorder)
         self._camera_panel.set_tracking_logger(self._core.tracking_logger)
         self._camera_panel.set_calibration(self._core.calibration)
         self._camera_panel._preview.set_calibration(self._core.calibration)

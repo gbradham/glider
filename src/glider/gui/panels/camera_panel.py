@@ -13,7 +13,7 @@ from typing import Optional, TYPE_CHECKING
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QCheckBox, QComboBox, QFrame,
-    QSizePolicy, QScrollArea
+    QSizePolicy, QScrollArea, QStackedWidget
 )
 from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
@@ -22,6 +22,8 @@ if TYPE_CHECKING:
     from glider.vision.camera_manager import CameraManager
     from glider.vision.cv_processor import CVProcessor
     from glider.vision.video_recorder import VideoRecorder
+    from glider.vision.multi_camera_manager import MultiCameraManager
+    from glider.vision.multi_video_recorder import MultiVideoRecorder
     from glider.vision.tracking_logger import TrackingDataLogger
     from glider.vision.calibration import CameraCalibration
 
@@ -146,15 +148,19 @@ class CameraPanel(QWidget):
         self,
         camera_manager: "CameraManager",
         cv_processor: "CVProcessor",
+        multi_camera_manager: Optional["MultiCameraManager"] = None,
         parent=None
     ):
         super().__init__(parent)
         self._camera = camera_manager
         self._cv_processor = cv_processor
+        self._multi_cam = multi_camera_manager
         self._video_recorder: Optional["VideoRecorder"] = None
+        self._multi_video_recorder: Optional["MultiVideoRecorder"] = None
         self._tracking_logger: Optional["TrackingDataLogger"] = None
         self._calibration: Optional["CameraCalibration"] = None
         self._preview_active = False
+        self._multi_camera_mode = False
         self._last_frame = None
         self._frame_count = 0
 
@@ -184,9 +190,19 @@ class CameraPanel(QWidget):
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(8)
 
-        # Camera preview
+        # Camera preview (single camera mode)
         self._preview = CameraPreviewWidget()
-        layout.addWidget(self._preview, 1)  # Stretch factor 1
+
+        # Multi-camera preview (grid mode)
+        from glider.gui.widgets.multi_camera_preview import MultiCameraPreviewWidget
+        self._multi_preview = MultiCameraPreviewWidget()
+        self._multi_preview.primary_changed.connect(self._on_primary_camera_changed)
+
+        # Stacked widget to switch between single and multi-camera preview
+        self._preview_stack = QStackedWidget()
+        self._preview_stack.addWidget(self._preview)
+        self._preview_stack.addWidget(self._multi_preview)
+        layout.addWidget(self._preview_stack, 1)  # Stretch factor 1
 
         # Status bar
         status_frame = QFrame()
@@ -276,6 +292,19 @@ class CameraPanel(QWidget):
         cv_layout.addStretch()
         layout.addLayout(cv_layout)
 
+        # Multi-camera options
+        multi_cam_layout = QHBoxLayout()
+
+        self._multi_cam_cb = QCheckBox("Multi-Camera")
+        self._multi_cam_cb.setChecked(False)
+        self._multi_cam_cb.toggled.connect(self._on_multi_camera_toggle)
+        # Disable if multi-camera manager not provided
+        self._multi_cam_cb.setEnabled(self._multi_cam is not None)
+        multi_cam_layout.addWidget(self._multi_cam_cb)
+
+        multi_cam_layout.addStretch()
+        layout.addLayout(multi_cam_layout)
+
         # Set up scroll area
         scroll_area.setWidget(content_widget)
         main_layout.addWidget(scroll_area)
@@ -302,9 +331,15 @@ class CameraPanel(QWidget):
     def _toggle_preview(self) -> None:
         """Start/stop camera preview."""
         if self._preview_active:
-            self._stop_preview()
+            if self._multi_camera_mode:
+                self._stop_multi_cameras()
+            else:
+                self._stop_preview()
         else:
-            self._start_preview()
+            if self._multi_camera_mode:
+                self._setup_multi_cameras()
+            else:
+                self._start_preview()
 
     def _start_preview(self) -> None:
         """Start camera preview."""
@@ -436,8 +471,15 @@ class CameraPanel(QWidget):
     def _update_fps_display(self) -> None:
         """Update FPS display."""
         if self._preview_active:
-            fps = self._camera.current_fps
-            self._fps_label.setText(f"{fps:.1f} FPS")
+            if self._multi_camera_mode and self._multi_cam:
+                # Show primary camera FPS in status bar
+                primary_id = self._multi_cam.primary_camera_id
+                if primary_id:
+                    fps = self._multi_cam.get_camera_fps(primary_id)
+                    self._fps_label.setText(f"{fps:.1f} FPS")
+            else:
+                fps = self._camera.current_fps
+                self._fps_label.setText(f"{fps:.1f} FPS")
 
     def _on_cv_toggle(self, enabled: bool) -> None:
         """Handle CV processing toggle."""
@@ -450,9 +492,176 @@ class CameraPanel(QWidget):
         """Handle overlay display toggle."""
         self._cv_processor.settings.draw_overlays = enabled
 
+    def _on_multi_camera_toggle(self, enabled: bool) -> None:
+        """Handle multi-camera mode toggle."""
+        if self._multi_cam is None:
+            return
+
+        self._multi_camera_mode = enabled
+        self._multi_cam.enabled = enabled
+
+        if enabled:
+            # Switch to multi-camera preview
+            self._preview_stack.setCurrentWidget(self._multi_preview)
+
+            # Stop single-camera preview if active
+            if self._preview_active:
+                self._stop_preview()
+
+            # Add all available cameras to multi-camera manager
+            self._setup_multi_cameras()
+        else:
+            # Switch back to single-camera preview
+            self._preview_stack.setCurrentWidget(self._preview)
+
+            # Stop multi-camera streaming
+            self._stop_multi_cameras()
+
+        logger.info(f"Multi-camera mode {'enabled' if enabled else 'disabled'}")
+
+    def _setup_multi_cameras(self) -> None:
+        """Set up all available cameras in multi-camera mode."""
+        if self._multi_cam is None:
+            return
+
+        from glider.vision.camera_manager import CameraSettings
+
+        # Get all available cameras
+        cameras = self._camera.enumerate_cameras()
+
+        for i, cam_info in enumerate(cameras):
+            camera_id = self._multi_cam.camera_id_from_index(cam_info.index)
+            settings = CameraSettings(camera_index=cam_info.index)
+
+            # Add camera to manager
+            if self._multi_cam.add_camera(camera_id, settings):
+                # Add preview tile
+                is_primary = (i == 0)
+                self._multi_preview.add_camera(camera_id, is_primary)
+
+                # Register frame callback
+                self._multi_cam.on_frame(camera_id, self._on_multi_camera_frame)
+
+        # Start streaming on all cameras
+        self._multi_cam.start_all_streaming()
+
+        # Initialize CV processor for primary camera
+        if self._cv_enabled_cb.isChecked():
+            self._cv_processor.initialize()
+
+        self._preview_active = True
+        self._preview_btn.setText("Stop Preview")
+
+        # Update resolution display for primary camera
+        primary_id = self._multi_cam.primary_camera_id
+        if primary_id:
+            res = self._multi_cam.get_camera_resolution(primary_id)
+            if res:
+                self._resolution_label.setText(f"{res[0]}x{res[1]}")
+
+        logger.info(f"Started multi-camera preview with {self._multi_cam.camera_count} cameras")
+
+    def _stop_multi_cameras(self) -> None:
+        """Stop all cameras in multi-camera mode."""
+        if self._multi_cam is None:
+            return
+
+        self._multi_cam.stop_all_streaming()
+        self._multi_cam.remove_all_cameras()
+        self._multi_preview.remove_all_cameras()
+
+        self._preview_active = False
+        self._preview_btn.setText("Start Preview")
+        self._resolution_label.setText("---")
+        self._fps_label.setText("-- FPS")
+
+        logger.info("Stopped multi-camera preview")
+
+    def _on_multi_camera_frame(self, camera_id: str, frame: np.ndarray, timestamp: float) -> None:
+        """Handle incoming frame from multi-camera manager."""
+        if not self._preview_active or not self._multi_camera_mode:
+            return
+
+        # Update the preview tile
+        self._multi_preview.update_frame(camera_id, frame)
+
+        # Get FPS for this camera
+        if self._multi_cam:
+            fps = self._multi_cam.get_camera_fps(camera_id)
+            self._multi_preview.update_fps(camera_id, fps)
+
+        # Only process CV on primary camera
+        if self._multi_cam and camera_id == self._multi_cam.primary_camera_id:
+            self._frame_count += 1
+            display_frame = frame
+            annotated_frame = None
+            tracked_objects = []
+            motion_result = None
+
+            # Process with CV if enabled
+            if self._cv_enabled_cb.isChecked() and self._cv_processor.is_initialized:
+                detections, tracked, motion = self._cv_processor.process_frame(
+                    frame, timestamp
+                )
+                tracked_objects = tracked
+                motion_result = motion
+                if self._overlay_cb.isChecked():
+                    display_frame = self._cv_processor.draw_overlays(
+                        frame, detections, tracked, motion
+                    )
+                    annotated_frame = display_frame
+
+                    # Update the preview tile with CV overlays
+                    self._multi_preview.update_frame(camera_id, display_frame)
+
+            self._last_frame = display_frame
+
+            # Write annotated frame to video recorder if recording
+            if annotated_frame is not None:
+                if self._multi_video_recorder is not None:
+                    if self._calibration and self._calibration.lines:
+                        annotated_frame = self._draw_calibration_lines(annotated_frame)
+                    self._multi_video_recorder.write_annotated_frame(annotated_frame)
+                elif self._video_recorder is not None:
+                    if self._calibration and self._calibration.lines:
+                        annotated_frame = self._draw_calibration_lines(annotated_frame)
+                    self._video_recorder.write_annotated_frame(annotated_frame)
+
+            # Log tracking data if tracking logger is active
+            if self._tracking_logger is not None and self._tracking_logger.is_recording:
+                h, w = frame.shape[:2]
+                self._tracking_logger.set_frame_size(w, h)
+                if self._calibration:
+                    self._tracking_logger.set_calibration(self._calibration)
+
+                motion_detected = motion_result.motion_detected if motion_result else False
+                motion_area = motion_result.motion_area if motion_result else 0.0
+
+                self._tracking_logger.log_frame(
+                    timestamp, tracked_objects, motion_detected, motion_area
+                )
+
+    def _on_primary_camera_changed(self, camera_id: str) -> None:
+        """Handle primary camera change from UI."""
+        if self._multi_cam is None:
+            return
+
+        self._multi_cam.set_primary_camera(camera_id)
+
+        # Update resolution display
+        res = self._multi_cam.get_camera_resolution(camera_id)
+        if res:
+            self._resolution_label.setText(f"{res[0]}x{res[1]}")
+
+        logger.info(f"Primary camera changed to {camera_id}")
+
     def set_video_recorder(self, recorder: "VideoRecorder") -> None:
         """Set the video recorder for annotated frame writing."""
         self._video_recorder = recorder
+
+    def set_multi_video_recorder(self, recorder: "MultiVideoRecorder") -> None:
+        """Set the multi-video recorder for annotated frame writing."""
+        self._multi_video_recorder = recorder
 
     def set_tracking_logger(self, logger: "TrackingDataLogger") -> None:
         """Set the tracking logger for logging CV results."""
@@ -469,6 +678,10 @@ class CameraPanel(QWidget):
         else:
             self._recording_indicator.hide()
 
+        # Update multi-camera preview recording indicators
+        if self._multi_camera_mode:
+            self._multi_preview.set_recording(recording)
+
     def get_current_frame(self) -> Optional[np.ndarray]:
         """Get the current frame (for snapshots)."""
         return self._last_frame.copy() if self._last_frame is not None else None
@@ -476,6 +689,9 @@ class CameraPanel(QWidget):
     def closeEvent(self, event):
         """Clean up on close."""
         if self._preview_active:
-            self._stop_preview()
+            if self._multi_camera_mode:
+                self._stop_multi_cameras()
+            else:
+                self._stop_preview()
         self._fps_timer.stop()
         super().closeEvent(event)

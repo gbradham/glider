@@ -154,6 +154,34 @@ class CameraSettingsDialog(QDialog):
         image_layout.addRow("Contrast:", contrast_layout)
 
         layout.addWidget(image_group)
+
+        # Connection settings group (for USB cameras like miniscopes)
+        conn_group = QGroupBox("Connection Settings")
+        conn_layout = QFormLayout(conn_group)
+
+        self._backend_camera_combo = QComboBox()
+        self._backend_camera_combo.addItem("Auto-detect", None)
+        self._backend_camera_combo.addItem("V4L2 (USB cameras/miniscopes)", "v4l2")
+        self._backend_camera_combo.addItem("Picamera2 (Pi Camera module)", "picamera2")
+        self._backend_camera_combo.setToolTip(
+            "Force a specific camera backend.\n"
+            "Use V4L2 for USB cameras like miniscopes.\n"
+            "Use Picamera2 for Raspberry Pi camera modules."
+        )
+        conn_layout.addRow("Camera Backend:", self._backend_camera_combo)
+
+        self._timeout_spin = QDoubleSpinBox()
+        self._timeout_spin.setRange(1.0, 30.0)
+        self._timeout_spin.setValue(5.0)
+        self._timeout_spin.setSingleStep(1.0)
+        self._timeout_spin.setSuffix(" seconds")
+        self._timeout_spin.setToolTip(
+            "Connection timeout for camera initialization.\n"
+            "Increase this for slow USB cameras like miniscopes (try 10-15s)."
+        )
+        conn_layout.addRow("Connection Timeout:", self._timeout_spin)
+
+        layout.addWidget(conn_group)
         layout.addStretch()
 
         return widget
@@ -322,6 +350,13 @@ class CameraSettingsDialog(QDialog):
         self._brightness_slider.setValue(self._camera_settings.brightness)
         self._contrast_slider.setValue(self._camera_settings.contrast)
 
+        # Connection settings
+        self._timeout_spin.setValue(self._camera_settings.connection_timeout)
+        for i in range(self._backend_camera_combo.count()):
+            if self._backend_camera_combo.itemData(i) == self._camera_settings.force_backend:
+                self._backend_camera_combo.setCurrentIndex(i)
+                break
+
         # CV settings
         self._cv_enabled_cb.setChecked(self._cv_settings.enabled)
 
@@ -406,6 +441,8 @@ class CameraSettingsDialog(QDialog):
 
         self._camera_settings.brightness = self._brightness_slider.value()
         self._camera_settings.contrast = self._contrast_slider.value()
+        self._camera_settings.connection_timeout = self._timeout_spin.value()
+        self._camera_settings.force_backend = self._backend_camera_combo.currentData()
 
         # CV settings
         self._cv_settings.enabled = self._cv_enabled_cb.isChecked()

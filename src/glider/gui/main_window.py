@@ -221,7 +221,6 @@ class MainWindow(QMainWindow):
         self._setup_window()
         self._setup_ui()
         self._setup_menu()
-        self._setup_toolbar()
         self._setup_status_bar()
         self._connect_signals()
 
@@ -371,8 +370,8 @@ class MainWindow(QMainWindow):
         header_layout.addWidget(self._status_label)
 
         # Menu button for settings/exit
-        self._runner_menu_btn = QPushButton("☰")
-        self._runner_menu_btn.setFixedSize(40, 40)
+        self._runner_menu_btn = QPushButton("⚙️")
+        #self._runner_menu_btn.setFixedSize(40, 40)
         self._runner_menu_btn.setStyleSheet("""
             QPushButton {
                 background-color: #2d2d44;

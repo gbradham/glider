@@ -70,6 +70,8 @@ class CameraSettings:
     saturation: int = 128
     auto_focus: bool = True
     auto_exposure: bool = True
+    connection_timeout: float = 5.0  # Seconds to wait for camera connection
+    force_backend: Optional[str] = None  # "v4l2", "picamera2", or None for auto
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
@@ -83,6 +85,8 @@ class CameraSettings:
             "saturation": self.saturation,
             "auto_focus": self.auto_focus,
             "auto_exposure": self.auto_exposure,
+            "connection_timeout": self.connection_timeout,
+            "force_backend": self.force_backend,
         }
 
     @classmethod
@@ -98,6 +102,8 @@ class CameraSettings:
             saturation=data.get("saturation", 128),
             auto_focus=data.get("auto_focus", True),
             auto_exposure=data.get("auto_exposure", True),
+            connection_timeout=data.get("connection_timeout", 5.0),
+            force_backend=data.get("force_backend", None),
         )
 
 
@@ -257,19 +263,24 @@ class CameraManager:
         # Apply settings
         self._apply_camera_settings()
 
+        # Calculate timeout based on settings (miniscopes/USB cameras may need longer)
+        timeout = self._settings.connection_timeout
+        max_attempts = max(10, int(timeout / 0.1))  # At least 10 attempts
+        wait_time = timeout / max_attempts
+
         # Warmup and verify we can actually read frames
         success_count = 0
-        for _ in range(10):
+        for attempt in range(max_attempts):
             if self._capture.grab():
                 ret, frame = self._capture.retrieve()
                 if ret and frame is not None:
                     success_count += 1
                     if success_count >= 3:
-                        logger.debug(f"Camera working with backend {backend}")
+                        logger.debug(f"Camera working with backend {backend} after {attempt + 1} attempts")
                         return True
-            time.sleep(0.05)
+            time.sleep(wait_time)
 
-        logger.debug(f"Camera opened but failed to read frames with backend {backend}")
+        logger.debug(f"Camera opened but failed to read frames with backend {backend} after {max_attempts} attempts")
         self._capture.release()
         self._capture = None
         return False
@@ -373,15 +384,33 @@ class CameraManager:
         try:
             # Use platform-appropriate backend
             backend = _get_camera_backend()
+            force_backend = self._settings.force_backend
 
-            # On Raspberry Pi, try picamera2 first (for Pi Camera modules)
-            if _is_raspberry_pi():
-                logger.info("Raspberry Pi detected, trying picamera2 first")
+            # Check if user forced a specific backend
+            if force_backend == "picamera2":
+                logger.info("Forcing picamera2 backend")
                 if self._try_connect_picamera2():
                     self._state = CameraState.CONNECTED
                     logger.info(f"Connected to Pi camera via picamera2")
                     return True
-                logger.info("picamera2 failed, falling back to V4L2")
+                self._state = CameraState.ERROR
+                return False
+            elif force_backend == "v4l2":
+                logger.info("Forcing V4L2 backend")
+                backend = cv2.CAP_V4L2
+
+            # On Raspberry Pi, only try picamera2 for camera index 0 (Pi Camera module)
+            # USB cameras (miniscopes, webcams) should use V4L2 directly
+            if _is_raspberry_pi() and force_backend is None:
+                if self._settings.camera_index == 0:
+                    logger.info("Raspberry Pi detected, trying picamera2 for camera 0")
+                    if self._try_connect_picamera2():
+                        self._state = CameraState.CONNECTED
+                        logger.info(f"Connected to Pi camera via picamera2")
+                        return True
+                    logger.info("picamera2 failed, falling back to V4L2")
+                else:
+                    logger.info(f"Camera index {self._settings.camera_index} - using V4L2 (USB camera)")
 
             # Try connecting with the preferred backend
             if not self._try_connect_with_backend(backend):

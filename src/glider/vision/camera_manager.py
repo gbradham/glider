@@ -40,6 +40,57 @@ def _is_raspberry_pi() -> bool:
         return False
 
 
+def _wake_up_miniscope(device_index: int) -> bool:
+    """
+    Wake up miniscope hardware using v4l2-ctl commands.
+
+    Miniscopes require specific initialization to turn on the LED
+    and configure the sensor properly.
+
+    Args:
+        device_index: Camera device index (e.g., 2 for /dev/video2)
+
+    Returns:
+        True if wake-up commands succeeded
+    """
+    import subprocess
+
+    device_path = f'/dev/video{device_index}'
+
+    try:
+        # Set exposure time
+        subprocess.run(
+            ['v4l2-ctl', '-d', device_path, '--set-ctrl=exposure_time_absolute=100'],
+            capture_output=True, timeout=2
+        )
+        # Reset saturation to kick the LED
+        subprocess.run(
+            ['v4l2-ctl', '-d', device_path, '--set-ctrl=saturation=0'],
+            capture_output=True, timeout=2
+        )
+        time.sleep(0.1)
+        subprocess.run(
+            ['v4l2-ctl', '-d', device_path, '--set-ctrl=saturation=128'],
+            capture_output=True, timeout=2
+        )
+        # Set brightness
+        subprocess.run(
+            ['v4l2-ctl', '-d', device_path, '--set-ctrl=brightness=50'],
+            capture_output=True, timeout=2
+        )
+        logger.info(f"Miniscope wake-up sequence completed for {device_path}")
+        return True
+    except FileNotFoundError:
+        logger.warning("v4l2-ctl not found - miniscope wake-up skipped")
+        return False
+    except subprocess.TimeoutExpired:
+        logger.warning("Miniscope wake-up timed out")
+        return False
+    except Exception as e:
+        logger.warning(f"Miniscope wake-up failed: {e}")
+        return False
+
+
 # Picamera2 is imported lazily to avoid crashes from numpy version conflicts
 _picamera2_available = None  # None = not checked yet, True/False = checked
 _Picamera2 = None  # Will hold the class if available
@@ -73,6 +124,8 @@ class CameraSettings:
     connection_timeout: float = 5.0  # Seconds to wait for camera connection
     force_backend: Optional[str] = None  # "v4l2", "picamera2", or None for auto
     pixel_format: Optional[str] = None  # "YUYV", "MJPG", or None for auto
+    miniscope_mode: bool = False  # Enable miniscope-specific initialization
+    buffer_size: int = 1  # Frame buffer size (1 = lowest latency)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
@@ -89,6 +142,8 @@ class CameraSettings:
             "connection_timeout": self.connection_timeout,
             "force_backend": self.force_backend,
             "pixel_format": self.pixel_format,
+            "miniscope_mode": self.miniscope_mode,
+            "buffer_size": self.buffer_size,
         }
 
     @classmethod
@@ -107,6 +162,8 @@ class CameraSettings:
             connection_timeout=data.get("connection_timeout", 5.0),
             force_backend=data.get("force_backend", None),
             pixel_format=data.get("pixel_format", None),
+            miniscope_mode=data.get("miniscope_mode", False),
+            buffer_size=data.get("buffer_size", 1),
         )
 
 
@@ -259,11 +316,12 @@ class CameraManager:
             logger.debug(f"Failed to open camera with backend {backend}")
             return False
 
-        # Set buffer size to reduce latency (especially helpful for V4L2)
-        if backend == cv2.CAP_V4L2:
-            self._capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        # Set buffer size (must be set early, before reading frames)
+        buffer_size = self._settings.buffer_size
+        self._capture.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
+        logger.debug(f"Set buffer size to {buffer_size}")
 
-        # Apply settings
+        # Apply settings (format, resolution, etc.)
         self._apply_camera_settings()
 
         # Calculate timeout based on settings (miniscopes/USB cameras may need longer)
@@ -385,6 +443,11 @@ class CameraManager:
             self._settings = settings
 
         try:
+            # Miniscope wake-up sequence (must happen BEFORE opening the camera)
+            if self._settings.miniscope_mode:
+                logger.info("Miniscope mode enabled - running wake-up sequence")
+                _wake_up_miniscope(self._settings.camera_index)
+
             # Use platform-appropriate backend
             backend = _get_camera_backend()
             force_backend = self._settings.force_backend
@@ -622,6 +685,8 @@ class CameraManager:
         logger.debug("Capture loop started")
         consecutive_failures = 0
         max_failures_before_log = 30  # Only log every 30 failures to avoid spam
+        miniscope_check_interval = 30  # Check brightness every N frames
+        miniscope_frame_count = 0
 
         while self._running:
             frame = None
@@ -666,6 +731,15 @@ class CameraManager:
                 continue
 
             consecutive_failures = 0  # Reset on success
+
+            # Miniscope watchdog: kick LED if image goes dark
+            if self._settings.miniscope_mode:
+                miniscope_frame_count += 1
+                if miniscope_frame_count % miniscope_check_interval == 0:
+                    mean_brightness = np.mean(frame)
+                    if mean_brightness < 1.0:
+                        logger.warning(f"Miniscope darkness detected ({mean_brightness:.2f}) - kicking LED")
+                        _wake_up_miniscope(self._settings.camera_index)
 
             timestamp = time.time()
 

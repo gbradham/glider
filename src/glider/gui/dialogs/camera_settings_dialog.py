@@ -193,6 +193,15 @@ class CameraSettingsDialog(QDialog):
         )
         conn_layout.addRow("Pixel Format:", self._pixel_format_combo)
 
+        self._miniscope_mode_cb = QCheckBox("Enable Miniscope Mode")
+        self._miniscope_mode_cb.setToolTip(
+            "Enable special initialization for UCLA Miniscope cameras.\n"
+            "This runs v4l2-ctl commands to wake up the LED and\n"
+            "includes a watchdog to re-trigger if image goes dark."
+        )
+        self._miniscope_mode_cb.toggled.connect(self._on_miniscope_mode_toggle)
+        conn_layout.addRow(self._miniscope_mode_cb)
+
         layout.addWidget(conn_group)
         layout.addStretch()
 
@@ -372,6 +381,7 @@ class CameraSettingsDialog(QDialog):
             if self._pixel_format_combo.itemData(i) == self._camera_settings.pixel_format:
                 self._pixel_format_combo.setCurrentIndex(i)
                 break
+        self._miniscope_mode_cb.setChecked(self._camera_settings.miniscope_mode)
 
         # CV settings
         self._cv_enabled_cb.setChecked(self._cv_settings.enabled)
@@ -428,6 +438,28 @@ class CameraSettingsDialog(QDialog):
         self._max_disappeared_spin.setEnabled(enabled)
         self._max_distance_spin.setEnabled(enabled)
 
+    def _on_miniscope_mode_toggle(self, enabled: bool):
+        """Handle miniscope mode toggle - auto-set recommended values."""
+        if enabled:
+            # Auto-set recommended miniscope settings
+            # Set resolution to 608x608
+            for i in range(self._resolution_combo.count()):
+                if self._resolution_combo.itemData(i) == (608, 608):
+                    self._resolution_combo.setCurrentIndex(i)
+                    break
+            # Set pixel format to YUYV
+            for i in range(self._pixel_format_combo.count()):
+                if self._pixel_format_combo.itemData(i) == "YUYV":
+                    self._pixel_format_combo.setCurrentIndex(i)
+                    break
+            # Set backend to V4L2
+            for i in range(self._backend_camera_combo.count()):
+                if self._backend_camera_combo.itemData(i) == "v4l2":
+                    self._backend_camera_combo.setCurrentIndex(i)
+                    break
+            # Increase timeout
+            self._timeout_spin.setValue(10.0)
+
     def _browse_model(self):
         """Browse for YOLO model file."""
         path, _ = QFileDialog.getOpenFileName(
@@ -460,6 +492,7 @@ class CameraSettingsDialog(QDialog):
         self._camera_settings.connection_timeout = self._timeout_spin.value()
         self._camera_settings.force_backend = self._backend_camera_combo.currentData()
         self._camera_settings.pixel_format = self._pixel_format_combo.currentData()
+        self._camera_settings.miniscope_mode = self._miniscope_mode_cb.isChecked()
 
         # CV settings
         self._cv_settings.enabled = self._cv_enabled_cb.isChecked()

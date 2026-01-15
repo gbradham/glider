@@ -2426,7 +2426,8 @@ class MainWindow(QMainWindow):
         dialog = CameraSettingsDialog(
             camera_settings=self._core.camera_manager.settings,
             cv_settings=self._core.cv_processor.settings,
-            parent=self
+            parent=self,
+            view_manager=self._view_manager
         )
 
         if dialog.exec() == QDialog.DialogCode.Accepted:

@@ -527,13 +527,18 @@ class CameraPanel(QWidget):
             return
 
         from glider.vision.camera_manager import CameraSettings
+        from dataclasses import replace
+
+        # Get base settings from camera manager (configured via Settings dialog)
+        base_settings = self._camera.settings
 
         # Get all available cameras
         cameras = self._camera.enumerate_cameras()
 
         for i, cam_info in enumerate(cameras):
             camera_id = self._multi_cam.camera_id_from_index(cam_info.index)
-            settings = CameraSettings(camera_index=cam_info.index)
+            # Copy base settings but change camera index
+            settings = replace(base_settings, camera_index=cam_info.index)
 
             # Add camera to manager
             if self._multi_cam.add_camera(camera_id, settings):

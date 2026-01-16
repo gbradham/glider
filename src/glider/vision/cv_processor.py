@@ -13,9 +13,12 @@ import logging
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Callable, Any
+from typing import Dict, List, Optional, Tuple, Callable, Any, TYPE_CHECKING
 from enum import Enum, auto
 from scipy.spatial import distance as dist
+
+if TYPE_CHECKING:
+    from glider.vision.zones import ZoneConfiguration, ZoneState, ZoneTracker
 
 logger = logging.getLogger(__name__)
 
@@ -299,6 +302,11 @@ class CVProcessor:
         self._last_tracked: List[TrackedObject] = []
         self._last_motion: MotionResult = MotionResult(False, 0.0)
 
+        # Zone tracking
+        self._zone_tracker: Optional["ZoneTracker"] = None
+        self._zone_config: Optional["ZoneConfiguration"] = None
+        self._zone_callbacks: List[Callable[[Dict[str, "ZoneState"]], None]] = []
+
     @property
     def settings(self) -> CVSettings:
         """Current CV settings."""
@@ -308,6 +316,38 @@ class CVProcessor:
     def is_initialized(self) -> bool:
         """Whether CV processor is initialized."""
         return self._initialized
+
+    def set_zone_configuration(self, config: "ZoneConfiguration") -> None:
+        """
+        Set zone configuration for zone tracking.
+
+        Args:
+            config: ZoneConfiguration instance
+        """
+        from glider.vision.zones import ZoneTracker
+        self._zone_config = config
+        if config and config.zones:
+            if self._zone_tracker is None:
+                self._zone_tracker = ZoneTracker()
+            self._zone_tracker.set_zone_configuration(config)
+            logger.info(f"Set zone configuration with {len(config.zones)} zones")
+        else:
+            self._zone_tracker = None
+
+    def get_zone_states(self) -> Dict[str, "ZoneState"]:
+        """
+        Get current zone states.
+
+        Returns:
+            Dictionary of zone_id -> ZoneState
+        """
+        if self._zone_tracker:
+            return self._zone_tracker.get_zone_states()
+        return {}
+
+    def on_zone_update(self, callback: Callable[[Dict[str, "ZoneState"]], None]) -> None:
+        """Register callback for zone state updates."""
+        self._zone_callbacks.append(callback)
 
     def initialize(self) -> bool:
         """
@@ -419,10 +459,24 @@ class CVProcessor:
             # Run motion detection
             motion = self._detect_motion(frame)
 
+            # Update zone tracking
+            zone_states = {}
+            if self._zone_tracker and tracked:
+                h, w = frame.shape[:2]
+                zone_states = self._zone_tracker.update(tracked, w, h)
+
             # Cache results for frame skipping
             self._last_detections = detections
             self._last_tracked = tracked
             self._last_motion = motion
+
+        # Notify zone callbacks
+        if zone_states:
+            for cb in self._zone_callbacks:
+                try:
+                    cb(zone_states)
+                except Exception as e:
+                    logger.error(f"Zone callback error: {e}")
 
         # Notify callbacks
         for cb in self._detection_callbacks:
@@ -748,6 +802,9 @@ class CVProcessor:
         self._last_detections = []
         self._last_tracked = []
         self._last_motion = MotionResult(False, 0.0)
+        # Reset zone tracker
+        if self._zone_tracker:
+            self._zone_tracker.reset()
         if self._bg_subtractor:
             # Recreate background subtractor to reset learning
             self._bg_subtractor = cv2.createBackgroundSubtractorMOG2(

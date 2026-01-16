@@ -16,6 +16,7 @@ from typing import List, Optional, Dict, Tuple, TYPE_CHECKING
 if TYPE_CHECKING:
     from glider.vision.cv_processor import TrackedObject, MotionResult
     from glider.vision.calibration import CameraCalibration
+    from glider.vision.zones import ZoneConfiguration
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class TrackingDataLogger:
         self._frame_count = 0
         self._recording = False
         self._calibration: Optional["CameraCalibration"] = None
+        self._zone_config: Optional["ZoneConfiguration"] = None
         self._frame_width: int = 0
         self._frame_height: int = 0
         # Track previous positions and cumulative distances for each object
@@ -84,6 +86,38 @@ class TrackingDataLogger:
             calibration: CameraCalibration instance
         """
         self._calibration = calibration
+
+    def set_zone_configuration(self, zone_config: "ZoneConfiguration") -> None:
+        """
+        Set zone configuration for logging zone occupancy.
+
+        Args:
+            zone_config: ZoneConfiguration instance
+        """
+        self._zone_config = zone_config
+
+    def _get_zones_for_point(self, center_x: float, center_y: float) -> str:
+        """
+        Get comma-separated list of zone names containing a point.
+
+        Args:
+            center_x: X coordinate in pixels
+            center_y: Y coordinate in pixels
+
+        Returns:
+            Comma-separated string of zone names, or empty string
+        """
+        if not self._zone_config or not self._zone_config.zones:
+            return ""
+
+        if self._frame_width == 0 or self._frame_height == 0:
+            return ""
+
+        zone_names = self._zone_config.get_zone_names_for_point(
+            center_x / self._frame_width,
+            center_y / self._frame_height
+        )
+        return ",".join(zone_names)
 
     def set_frame_size(self, width: int, height: int) -> None:
         """
@@ -175,7 +209,8 @@ class TrackingDataLogger:
             "center_y",
             "distance_px",
             "distance_mm",
-            "cumulative_mm"
+            "cumulative_mm",
+            "zone_ids"
         ])
         self._file.flush()
 
@@ -253,6 +288,9 @@ class TrackingDataLogger:
             # Update previous position
             self._prev_positions[obj.track_id] = (center_x, center_y)
 
+            # Get zone IDs for this object's position
+            zone_ids = self._get_zones_for_point(center_x, center_y)
+
             self._writer.writerow([
                 self._frame_count,
                 iso_timestamp,
@@ -268,7 +306,8 @@ class TrackingDataLogger:
                 f"{center_y:.1f}",
                 f"{distance_px:.2f}",
                 f"{distance_mm:.2f}",
-                f"{cumulative_mm:.2f}"
+                f"{cumulative_mm:.2f}",
+                zone_ids
             ])
 
         # Log motion event if no objects but motion detected
@@ -281,7 +320,8 @@ class TrackingDataLogger:
                 "motion",
                 0, 0, 0, 0,  # No bbox
                 f"{motion_area:.3f}",
-                "", "", "", "", ""  # Empty distance fields
+                "", "", "", "", "",  # Empty distance fields
+                ""  # Empty zone_ids
             ])
 
         # Log periodic heartbeat frames when no activity (every 30 seconds)
@@ -297,7 +337,8 @@ class TrackingDataLogger:
                     "heartbeat",
                     0, 0, 0, 0,
                     "0.000",
-                    "", "", "", "", ""
+                    "", "", "", "", "",  # Empty distance fields
+                    ""  # Empty zone_ids
                 ])
 
         self._file.flush()

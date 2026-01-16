@@ -310,6 +310,29 @@ class DashboardConfig:
         )
 
 
+@dataclass
+class ZoneConfig:
+    """Configuration for zones within the camera view."""
+    zones: List[Dict[str, Any]] = field(default_factory=list)  # Serialized Zone objects
+    config_width: int = 0
+    config_height: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "zones": self.zones,
+            "config_width": self.config_width,
+            "config_height": self.config_height,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ZoneConfig":
+        return cls(
+            zones=data.get("zones", []),
+            config_width=data.get("config_width", 0),
+            config_height=data.get("config_height", 0),
+        )
+
+
 class ExperimentSession:
     """
     Represents the complete state of an experiment.
@@ -326,6 +349,7 @@ class ExperimentSession:
         self._flow = FlowConfig()
         self._dashboard = DashboardConfig()
         self._camera = CameraConfig()
+        self._zones = ZoneConfig()
         self._state = SessionState.IDLE
         self._dirty = False  # Has unsaved changes
         self._file_path: Optional[str] = None
@@ -362,6 +386,11 @@ class ExperimentSession:
     def camera(self) -> CameraConfig:
         """Camera configuration."""
         return self._camera
+
+    @property
+    def zones(self) -> ZoneConfig:
+        """Zone configuration."""
+        return self._zones
 
     @property
     def custom_device_definitions(self) -> Dict[str, Any]:
@@ -601,6 +630,7 @@ class ExperimentSession:
             "flow": self._flow.to_dict(),
             "dashboard": self._dashboard.to_dict(),
             "camera": self._camera.to_dict(),
+            "zones": self._zones.to_dict(),
         }
         # Only include custom definitions if there are any
         if self._custom_device_definitions:
@@ -618,6 +648,7 @@ class ExperimentSession:
         session._flow = FlowConfig.from_dict(data.get("flow", {}))
         session._dashboard = DashboardConfig.from_dict(data.get("dashboard", {}))
         session._camera = CameraConfig.from_dict(data.get("camera", {}))
+        session._zones = ZoneConfig.from_dict(data.get("zones", {}))
         # Load custom definitions
         session._custom_device_definitions = data.get("custom_devices", {})
         session._flow_function_definitions = data.get("flow_functions", {})
@@ -682,6 +713,7 @@ class ExperimentSession:
         self._flow = FlowConfig()
         self._dashboard = DashboardConfig()
         self._camera = CameraConfig()
+        self._zones = ZoneConfig()
         self._custom_device_definitions = {}
         self._flow_function_definitions = {}
         self._state = SessionState.IDLE

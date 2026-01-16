@@ -54,6 +54,8 @@ from glider.gui.panels.agent_panel import AgentPanel
 from glider.gui.dialogs.camera_settings_dialog import CameraSettingsDialog
 from glider.gui.dialogs.agent_settings_dialog import AgentSettingsDialog
 from glider.gui.dialogs.calibration_dialog import CalibrationDialog
+from glider.gui.dialogs.zone_dialog import ZoneDialog
+from glider.vision.zones import ZoneConfiguration
 from glider.gui.commands import (
     Command,
     UndoStack,
@@ -216,6 +218,9 @@ class MainWindow(QMainWindow):
         self._runner_view: Optional[QWidget] = None
         self._node_library_dock: Optional[QDockWidget] = None
         self._properties_dock: Optional[QDockWidget] = None
+
+        # Zone configuration
+        self._zone_config = ZoneConfiguration()
 
         # Setup UI
         self._setup_window()
@@ -696,11 +701,14 @@ class MainWindow(QMainWindow):
         )
         self._camera_panel.settings_requested.connect(self._on_camera_settings)
         self._camera_panel.calibration_requested.connect(self._on_camera_calibration)
+        self._camera_panel.zones_requested.connect(self._on_zones_requested)
         self._camera_panel.set_video_recorder(self._core.video_recorder)
         self._camera_panel.set_multi_video_recorder(self._core.multi_video_recorder)
         self._camera_panel.set_tracking_logger(self._core.tracking_logger)
         self._camera_panel.set_calibration(self._core.calibration)
         self._camera_panel._preview.set_calibration(self._core.calibration)
+        # Set zone configuration if available
+        self._camera_panel.set_zone_configuration(self._zone_config)
         self._camera_dock.setWidget(self._camera_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._camera_dock)
 
@@ -1592,6 +1600,8 @@ class MainWindow(QMainWindow):
                 self._populate_hardware_from_session()
                 # Populate graph view from session
                 self._populate_graph_from_session()
+                # Load zone configuration from session
+                self._load_zones_from_session()
                 self.session_changed.emit()
                 self._refresh_hardware_tree()
                 self._refresh_custom_devices()
@@ -2459,6 +2469,72 @@ class MainWindow(QMainWindow):
                 )
             else:
                 logger.info("Camera calibration cleared")
+
+    def _on_zones_requested(self) -> None:
+        """Show zone configuration dialog."""
+        dialog = ZoneDialog(
+            camera_manager=self._core.camera_manager,
+            zone_config=self._zone_config,
+            parent=self
+        )
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._zone_config = dialog.get_zone_configuration()
+            # Update camera panel display
+            self._camera_panel.set_zone_configuration(self._zone_config)
+            # Update CV processor for zone tracking
+            self._core.cv_processor.set_zone_configuration(self._zone_config)
+            # Update tracking logger for CSV zone columns
+            self._core.tracking_logger.set_zone_configuration(self._zone_config)
+            # Update data recorder for zone columns
+            if hasattr(self._core, 'data_recorder'):
+                self._core.data_recorder.set_zone_configuration(self._zone_config)
+                self._core.data_recorder.set_cv_processor(self._core.cv_processor)
+
+            # Save zones to session
+            self._save_zones_to_session()
+
+            logger.info(f"Zone configuration updated: {len(self._zone_config.zones)} zones")
+
+    def _load_zones_from_session(self) -> None:
+        """Load zone configuration from the current session."""
+        if not self._core.session:
+            return
+
+        session_zones = self._core.session.zones
+        if session_zones.zones:
+            # Convert session ZoneConfig to vision ZoneConfiguration
+            from glider.vision.zones import Zone
+            self._zone_config.zones.clear()
+            for zone_dict in session_zones.zones:
+                zone = Zone.from_dict(zone_dict)
+                self._zone_config.zones.append(zone)
+            self._zone_config.config_width = session_zones.config_width
+            self._zone_config.config_height = session_zones.config_height
+
+            # Update components with loaded zones
+            self._camera_panel.set_zone_configuration(self._zone_config)
+            self._core.cv_processor.set_zone_configuration(self._zone_config)
+            self._core.tracking_logger.set_zone_configuration(self._zone_config)
+
+            logger.info(f"Loaded {len(self._zone_config.zones)} zones from session")
+        else:
+            # Clear zones if session has none
+            self._zone_config = ZoneConfiguration()
+            self._camera_panel.set_zone_configuration(self._zone_config)
+
+    def _save_zones_to_session(self) -> None:
+        """Save zone configuration to the current session."""
+        if not self._core.session:
+            return
+
+        # Convert ZoneConfiguration to session ZoneConfig
+        self._core.session.zones.zones = [
+            zone.to_dict() for zone in self._zone_config.zones
+        ]
+        self._core.session.zones.config_width = self._zone_config.config_width
+        self._core.session.zones.config_height = self._zone_config.config_height
+        self._core.session._mark_dirty()
 
     # Agent operations
     def _on_agent_settings(self) -> None:

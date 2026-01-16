@@ -244,6 +244,7 @@ class CameraSettingsDialog(QDialog):
         self._resolution_combo.addItem("320x240", (320, 240))
         self._resolution_combo.addItem("608x608 (Miniscope)", (608, 608))
         self._resolution_combo.addItem("640x480", (640, 480))
+        self._resolution_combo.addItem("720x540", (720, 540))
         self._resolution_combo.addItem("800x600", (800, 600))
         self._resolution_combo.addItem("1280x720 (HD)", (1280, 720))
         self._resolution_combo.addItem("1920x1080 (Full HD)", (1920, 1080))
@@ -338,12 +339,15 @@ class CameraSettingsDialog(QDialog):
 
         self._backend_camera_combo = QComboBox()
         self._backend_camera_combo.addItem("Auto-detect", None)
-        self._backend_camera_combo.addItem("V4L2 (USB)", "v4l2")
-        self._backend_camera_combo.addItem("Picamera2", "picamera2")
+        self._backend_camera_combo.addItem("DirectShow (Windows)", "dshow")
+        self._backend_camera_combo.addItem("MediaFoundation (Windows)", "msmf")
+        self._backend_camera_combo.addItem("V4L2 (Linux)", "v4l2")
+        self._backend_camera_combo.addItem("Picamera2 (Pi)", "picamera2")
         self._backend_camera_combo.setToolTip(
             "Force a specific camera backend.\n"
-            "Use V4L2 for USB cameras like miniscopes.\n"
-            "Use Picamera2 for Raspberry Pi camera modules."
+            "Windows: DirectShow or MediaFoundation.\n"
+            "Linux: V4L2 for USB cameras, Picamera2 for Pi camera module.\n"
+            "For cameras that don't work, use OBS Virtual Camera."
         )
         conn_layout.addRow("Backend:", self._backend_camera_combo)
 
@@ -360,12 +364,20 @@ class CameraSettingsDialog(QDialog):
 
         self._pixel_format_combo = QComboBox()
         self._pixel_format_combo.addItem("Auto-detect", None)
+        self._pixel_format_combo.addItem("MJPG (Most cameras)", "MJPG")
+        self._pixel_format_combo.addItem("YUY2", "YUY2")
         self._pixel_format_combo.addItem("YUYV (Miniscope)", "YUYV")
-        self._pixel_format_combo.addItem("MJPG", "MJPG")
+        self._pixel_format_combo.addItem("NV12", "NV12")
+        self._pixel_format_combo.addItem("I420", "I420")
+        self._pixel_format_combo.addItem("GREY (Grayscale)", "GREY")
+        self._pixel_format_combo.addItem("Y800 (Grayscale)", "Y800")
         self._pixel_format_combo.setToolTip(
             "Pixel format for video capture.\n"
-            "Use YUYV for miniscopes.\n"
-            "Use MJPG for most webcams."
+            "Auto-detect: Tries multiple formats automatically.\n"
+            "MJPG: Motion JPEG, works with most webcams.\n"
+            "YUY2/YUYV: Raw YUV, good for miniscopes and USB cameras.\n"
+            "GREY/Y800: Grayscale, for scientific/industrial cameras.\n"
+            "Try different formats if your camera doesn't work."
         )
         conn_layout.addRow("Format:", self._pixel_format_combo)
 

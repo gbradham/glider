@@ -5,12 +5,17 @@ Provides thread-safe webcam capture with configurable settings
 and frame callbacks for video recording and CV processing.
 """
 
+import os
+# Suppress OpenCV warnings before importing cv2
+os.environ['OPENCV_LOG_LEVEL'] = 'ERROR'
+
 import cv2
 import numpy as np
 import threading
 import time
 import logging
 import sys
+import subprocess
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Callable, Any
 from enum import Enum, auto
@@ -30,6 +35,30 @@ def _get_camera_backend() -> int:
         return cv2.CAP_ANY
 
 
+def _get_windows_fallback_backends() -> List[int]:
+    """Get list of backends to try on Windows in order of preference."""
+    return [
+        cv2.CAP_DSHOW,  # DirectShow - most compatible with USB cameras
+        cv2.CAP_ANY,    # Auto-detect - needed for some cameras like ANYMAZE
+    ]
+
+
+# Common pixel formats to try for problematic cameras
+# Y800/GREY first for scientific cameras like ANYMAZE
+PIXEL_FORMATS_TO_TRY = [
+    "Y800",  # 8-bit grayscale - ANYMAZE and scientific cameras
+    "GREY",  # 8-bit grayscale (alternate name)
+    "Y8  ",  # 8-bit grayscale (with padding)
+    None,    # Let camera choose default
+    "MJPG",  # Motion JPEG - widely supported
+    "YUY2",  # YUV 4:2:2 - common USB camera format
+    "YUYV",  # Same as YUY2, different name
+    "NV12",  # YUV 4:2:0 - used by some cameras
+    "I420",  # YUV 4:2:0 planar
+    "RAW ",  # Raw format
+]
+
+
 def _is_raspberry_pi() -> bool:
     """Check if running on a Raspberry Pi."""
     try:
@@ -38,6 +67,74 @@ def _is_raspberry_pi() -> bool:
             return 'raspberry pi' in model
     except (FileNotFoundError, PermissionError):
         return False
+
+
+def _get_windows_camera_names() -> List[str]:
+    """
+    Get camera device names on Windows using DirectShow enumeration.
+
+    Returns:
+        List of camera device names in order (index 0, 1, 2, ...)
+    """
+    camera_names = []
+
+    if sys.platform != "win32":
+        return camera_names
+
+    try:
+        # Use DirectShow device enumeration via ffmpeg/ffprobe if available
+        import subprocess
+
+        # Try ffmpeg device listing (most reliable for DirectShow order)
+        try:
+            result = subprocess.run(
+                ['ffmpeg', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+            )
+            # Parse output - device names appear after "DirectShow video devices"
+            output = result.stderr  # ffmpeg outputs to stderr
+            in_video_section = False
+            for line in output.split('\n'):
+                if 'DirectShow video devices' in line:
+                    in_video_section = True
+                    continue
+                if 'DirectShow audio devices' in line:
+                    break
+                if in_video_section and ']  "' in line:
+                    # Extract name between quotes
+                    start = line.find('"') + 1
+                    end = line.rfind('"')
+                    if start > 0 and end > start:
+                        camera_names.append(line[start:end])
+        except FileNotFoundError:
+            pass  # ffmpeg not installed
+
+        # Fallback: Use PowerShell WMI query
+        if not camera_names:
+            ps_command = '''
+            Get-CimInstance Win32_PnPEntity |
+            Where-Object { $_.PNPClass -eq 'Camera' -or $_.PNPClass -eq 'Image' } |
+            Select-Object -ExpandProperty Name
+            '''
+
+            result = subprocess.run(
+                ['powershell', '-Command', ps_command],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+            )
+
+            if result.returncode == 0 and result.stdout.strip():
+                camera_names = [n.strip() for n in result.stdout.strip().split('\n') if n.strip()]
+
+    except Exception as e:
+        logger.debug(f"Failed to get camera names: {e}")
+
+    return camera_names
 
 
 def _wake_up_miniscope(device_index: int) -> bool:
@@ -450,6 +547,7 @@ class CameraManager:
     # Common resolutions to test
     COMMON_RESOLUTIONS = [
         (640, 480),
+        (720, 540),
         (800, 600),
         (1280, 720),
         (1920, 1080),
@@ -503,6 +601,9 @@ class CameraManager:
         """
         Enumerate all available camera devices.
 
+        This does a quick scan - just checks if cameras can be opened,
+        without trying to read frames. Format negotiation happens during connect.
+
         Args:
             max_cameras: Maximum number of camera indices to check
 
@@ -510,101 +611,490 @@ class CameraManager:
             List of available cameras
         """
         cameras = []
+        found_indices = set()  # Track which indices we've already found
 
-        # Suppress OpenCV warnings during enumeration by redirecting stderr
+        # Suppress OpenCV warnings during enumeration
         import sys
         import io
+        import os
         old_stderr = sys.stderr
         sys.stderr = io.StringIO()
 
+        # Also suppress OpenCV's internal logging
+        old_log_level = os.environ.get('OPENCV_LOG_LEVEL', '')
+        os.environ['OPENCV_LOG_LEVEL'] = 'SILENT'
+
         try:
-            backend = _get_camera_backend()
-            for i in range(max_cameras):
-                # Use platform-appropriate backend
-                cap = cv2.VideoCapture(i, backend)
-                if cap.isOpened():
-                    # Try to get camera name (not always available)
-                    name = f"Camera {i}"
+            # Get camera names on Windows
+            camera_names = _get_windows_camera_names() if sys.platform == "win32" else []
 
-                    # Test which resolutions are supported
-                    supported_resolutions = []
-                    for res in CameraManager.COMMON_RESOLUTIONS:
-                        cap.set(cv2.CAP_PROP_FRAME_WIDTH, res[0])
-                        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, res[1])
-                        actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                        actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                        if (actual_w, actual_h) == res:
-                            supported_resolutions.append(res)
+            # On Windows, try multiple backends to find all cameras
+            if sys.platform == "win32":
+                # Use DirectShow first - it's more stable than MSMF for enumeration
+                # MSMF can cause obsensor errors and crashes with some cameras
+                backends_to_try = [cv2.CAP_DSHOW, cv2.CAP_ANY]
+            else:
+                backends_to_try = [_get_camera_backend()]
 
-                    # Get max FPS
-                    max_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+            for backend in backends_to_try:
+                for i in range(max_cameras):
+                    # Skip if we already found this camera index
+                    if i in found_indices:
+                        continue
 
-                    cameras.append(CameraInfo(
-                        index=i,
-                        name=name,
-                        resolutions=supported_resolutions or [(640, 480)],
-                        max_fps=max_fps,
-                        is_available=True
-                    ))
-                    cap.release()
+                    try:
+                        # Quick check - just see if camera opens
+                        # Don't try to read frames here (too slow for problematic cameras)
+                        cap = cv2.VideoCapture(i, backend)
+                        if cap.isOpened():
+                            # Camera found - add it to the list
+                            # Use detected name if available, otherwise fallback
+                            if i < len(camera_names) and camera_names[i]:
+                                name = camera_names[i]
+                            else:
+                                name = f"Camera {i}"
+
+                            # Get basic info without reading frames
+                            w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or 640
+                            h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or 480
+                            max_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+
+                            cameras.append(CameraInfo(
+                                index=i,
+                                name=name,
+                                resolutions=[(w, h)] + CameraManager.COMMON_RESOLUTIONS,
+                                max_fps=max_fps,
+                                is_available=True
+                            ))
+                            found_indices.add(i)
+                            cap.release()
+                            break  # Found with this backend, move to next index
+
+                        cap.release()
+                    except Exception as e:
+                        # Some cameras/backends can throw exceptions during enumeration
+                        logger.debug(f"Error enumerating camera {i} with backend {backend}: {e}")
         finally:
-            # Restore stderr
+            # Restore stderr and log level
             sys.stderr = old_stderr
+            if old_log_level:
+                os.environ['OPENCV_LOG_LEVEL'] = old_log_level
+            elif 'OPENCV_LOG_LEVEL' in os.environ:
+                del os.environ['OPENCV_LOG_LEVEL']
 
         logger.info(f"Found {len(cameras)} camera(s)")
         return cameras
 
-    def _try_connect_with_backend(self, backend: int) -> bool:
+    def _try_connect_with_backend(self, backend: int, pixel_format: Optional[str] = None,
+                                    quick_test: bool = False) -> bool:
         """
-        Try to connect to the camera with a specific backend.
+        Try to connect to the camera with a specific backend and pixel format.
 
         Args:
             backend: OpenCV backend (e.g., cv2.CAP_V4L2, cv2.CAP_ANY)
+            pixel_format: Optional pixel format to try (e.g., "MJPG", "YUY2")
+            quick_test: If True, use shorter timeout for faster fallback iteration
 
         Returns:
             True if connection successful and frames can be read
         """
-        if self._capture is not None:
+        try:
+            if self._capture is not None:
+                self._capture.release()
+                self._capture = None
+
+            self._capture = cv2.VideoCapture(
+                self._settings.camera_index,
+                backend
+            )
+
+            if not self._capture.isOpened():
+                logger.debug(f"Failed to open camera with backend {backend}")
+                return False
+
+            # Set buffer size (must be set early, before reading frames)
+            buffer_size = self._settings.buffer_size
+            self._capture.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
+
+            # Try the specified pixel format if provided (overrides settings)
+            format_to_use = pixel_format if pixel_format else self._settings.pixel_format
+            if format_to_use:
+                try:
+                    fourcc = cv2.VideoWriter_fourcc(*format_to_use[:4])
+                    self._capture.set(cv2.CAP_PROP_FOURCC, fourcc)
+
+                    # For grayscale formats, disable RGB conversion
+                    if format_to_use in ("Y800", "GREY", "Y8  ", "Y16 "):
+                        self._capture.set(cv2.CAP_PROP_CONVERT_RGB, 0)
+                except Exception as e:
+                    logger.debug(f"Failed to set pixel format {format_to_use}: {e}")
+
+            # Apply settings (resolution, etc.)
+            self._apply_camera_settings_basic()
+
+            # Use shorter timeout for quick tests during fallback iteration
+            if quick_test:
+                timeout = 1.0  # 1 second for quick test
+                max_attempts = 5
+            else:
+                timeout = self._settings.connection_timeout
+                max_attempts = max(10, int(timeout / 0.1))
+
+            wait_time = timeout / max_attempts
+
+            # Warmup and verify we can actually read frames
+            success_count = 0
+            for attempt in range(max_attempts):
+                try:
+                    if self._capture.grab():
+                        ret, frame = self._capture.retrieve()
+                        if ret and frame is not None:
+                            success_count += 1
+                            if success_count >= 2:  # Reduced from 3 to 2
+                                backend_name = self._get_backend_name(backend)
+                                format_desc = format_to_use or "default"
+                                logger.info(f"Camera working with backend {backend_name}, format {format_desc}")
+                                return True
+                except Exception as e:
+                    logger.debug(f"Frame grab error: {e}")
+                time.sleep(wait_time)
+
+            logger.debug(f"Camera opened but failed to read frames with backend {backend}")
             self._capture.release()
-
-        self._capture = cv2.VideoCapture(
-            self._settings.camera_index,
-            backend
-        )
-
-        if not self._capture.isOpened():
-            logger.debug(f"Failed to open camera with backend {backend}")
+            self._capture = None
             return False
 
-        # Set buffer size (must be set early, before reading frames)
-        buffer_size = self._settings.buffer_size
-        self._capture.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
-        logger.debug(f"Set buffer size to {buffer_size}")
+        except Exception as e:
+            logger.debug(f"Connection attempt failed: {e}")
+            if self._capture is not None:
+                try:
+                    self._capture.release()
+                except Exception:
+                    pass
+                self._capture = None
+            return False
 
-        # Apply settings (format, resolution, etc.)
-        self._apply_camera_settings()
+    def _try_connect_with_fallbacks(self) -> bool:
+        """
+        Try connecting with multiple backends and pixel formats.
 
-        # Calculate timeout based on settings (miniscopes/USB cameras may need longer)
-        timeout = self._settings.connection_timeout
-        max_attempts = max(10, int(timeout / 0.1))  # At least 10 attempts
-        wait_time = timeout / max_attempts
+        On Windows, some USB cameras (like ANYMAZE) require specific backends
+        or pixel formats to work properly. Grayscale cameras (Y800 format)
+        need special handling.
 
-        # Warmup and verify we can actually read frames
-        success_count = 0
-        for attempt in range(max_attempts):
-            if self._capture.grab():
-                ret, frame = self._capture.retrieve()
-                if ret and frame is not None:
-                    success_count += 1
-                    if success_count >= 3:
-                        logger.debug(f"Camera working with backend {backend} after {attempt + 1} attempts")
+        Returns:
+            True if connection successful
+        """
+        # Get backends to try based on platform
+        # Note: We exclude MSMF from grayscale attempts as it can crash with Y800 cameras
+        if sys.platform == "win32":
+            grayscale_backends = _get_windows_fallback_backends()  # DirectShow + AUTO only
+        else:
+            grayscale_backends = [_get_camera_backend()]
+
+        # FIRST: Try specialized grayscale camera connection methods
+        # This is most likely to work for scientific cameras like ANYMAZE
+        # that use Y800/GREY format and don't support RGB conversion
+        logger.info("Trying specialized grayscale camera connection methods...")
+        for backend in grayscale_backends:
+            backend_name = self._get_backend_name(backend)
+
+            # Try the dedicated grayscale method
+            try:
+                logger.debug(f"Trying grayscale connection with {backend_name}")
+                if self._try_connect_grayscale_camera(backend):
+                    return True
+            except Exception as e:
+                logger.debug(f"Grayscale connection with {backend_name} failed: {e}")
+                self._cleanup_capture()
+
+            # Try the MODE-based connection
+            try:
+                logger.debug(f"Trying MODE-based connection with {backend_name}")
+                if self._try_connect_with_mode_setting(backend):
+                    return True
+            except Exception as e:
+                logger.debug(f"MODE-based connection with {backend_name} failed: {e}")
+                self._cleanup_capture()
+
+        # SECOND: Try standard connection with various pixel formats
+        # Use only DirectShow for this - MSMF can crash with problematic cameras
+        logger.info("Grayscale methods failed, trying standard connection...")
+
+        # If user specified a pixel format, only try that
+        if self._settings.pixel_format:
+            formats_to_try = [self._settings.pixel_format]
+        else:
+            # Limit formats to try for faster iteration
+            formats_to_try = [None, "MJPG", "YUY2"]
+
+        # Only use DirectShow for standard connection attempts on Windows
+        if sys.platform == "win32":
+            standard_backends = [cv2.CAP_DSHOW]
+        else:
+            standard_backends = [_get_camera_backend()]
+
+        for backend in standard_backends:
+            backend_name = self._get_backend_name(backend)
+            for pixel_format in formats_to_try:
+                format_desc = pixel_format or "default"
+
+                try:
+                    logger.debug(f"Trying backend {backend_name} with format {format_desc}")
+                    if self._try_connect_with_backend(backend, pixel_format, quick_test=True):
+                        # Store the working format for future reference
+                        if pixel_format and not self._settings.pixel_format:
+                            logger.info(f"Auto-detected working pixel format: {pixel_format}")
                         return True
-            time.sleep(wait_time)
+                except Exception as e:
+                    logger.debug(f"Backend {backend_name} with {format_desc} failed: {e}")
+                    self._cleanup_capture()
+                    continue
 
-        logger.debug(f"Camera opened but failed to read frames with backend {backend} after {max_attempts} attempts")
-        self._capture.release()
-        self._capture = None
         return False
+
+    def _cleanup_capture(self) -> None:
+        """Safely release the capture object."""
+        if self._capture is not None:
+            try:
+                self._capture.release()
+            except Exception:
+                pass
+            self._capture = None
+
+    def _try_connect_grayscale_camera(self, backend: int) -> bool:
+        """
+        Specialized connection method for grayscale cameras like ANYMAZE.
+
+        Grayscale cameras (Y800/GREY format) often fail with OpenCV's default
+        format negotiation because the backends request RGB32 which these
+        cameras don't support.
+
+        Args:
+            backend: OpenCV backend to use (CAP_DSHOW recommended for grayscale)
+
+        Returns:
+            True if connection successful
+        """
+        backend_name = self._get_backend_name(backend)
+        logger.info(f"Trying grayscale connection with {backend_name}...")
+
+        try:
+            if self._capture is not None:
+                self._capture.release()
+                self._capture = None
+
+            # Open the camera
+            self._capture = cv2.VideoCapture(
+                self._settings.camera_index,
+                backend
+            )
+
+            if not self._capture.isOpened():
+                logger.info(f"Camera {self._settings.camera_index} failed to open with {backend_name}")
+                return False
+
+            logger.info(f"Camera opened with {backend_name}, configuring...")
+
+            # Disable hardware acceleration first (MSMF issue workaround)
+            try:
+                self._capture.set(cv2.CAP_PROP_HW_ACCELERATION, cv2.VIDEO_ACCELERATION_NONE)
+            except Exception:
+                pass  # Property might not exist in older OpenCV
+
+            # Set resolution
+            width, height = self._settings.resolution
+            logger.info(f"Setting resolution to {width}x{height}...")
+            self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+            self._capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+            self._capture.set(cv2.CAP_PROP_FPS, self._settings.fps)
+
+            # Try setting Y800/GREY format explicitly
+            for fourcc_str in ["Y800", "GREY"]:
+                try:
+                    fourcc = cv2.VideoWriter_fourcc(*fourcc_str)
+                    if self._capture.set(cv2.CAP_PROP_FOURCC, fourcc):
+                        logger.info(f"Set FOURCC to {fourcc_str}")
+                        break
+                except Exception as e:
+                    logger.debug(f"Failed to set FOURCC {fourcc_str}: {e}")
+
+            # Disable RGB conversion - critical for Y800 cameras
+            self._capture.set(cv2.CAP_PROP_CONVERT_RGB, 0)
+
+            # Set buffer size - try larger buffer for problematic cameras
+            self._capture.set(cv2.CAP_PROP_BUFFERSIZE, 4)
+
+            # Give camera time to initialize stream
+            time.sleep(1.0)
+
+            # Log current camera state
+            actual_w = int(self._capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+            actual_h = int(self._capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            actual_fps = self._capture.get(cv2.CAP_PROP_FPS)
+            actual_fourcc = int(self._capture.get(cv2.CAP_PROP_FOURCC))
+            fourcc_chars = "".join([chr((actual_fourcc >> 8 * i) & 0xFF) for i in range(4)])
+            logger.info(f"Camera reports: {actual_w}x{actual_h} @ {actual_fps}fps, format={fourcc_chars}")
+
+            # Try to read frames - try both read() and grab()/retrieve()
+            logger.info("Reading test frames...")
+            success_count = 0
+
+            # First try direct read()
+            for attempt in range(15):
+                try:
+                    ret, frame = self._capture.read()
+                    if ret and frame is not None and frame.size > 0:
+                        success_count += 1
+                        logger.info(f"Frame {success_count} via read(): shape={frame.shape}, dtype={frame.dtype}")
+                        if success_count >= 2:
+                            logger.info(
+                                f"Grayscale camera connected via {backend_name}: "
+                                f"{actual_w}x{actual_h}, format={fourcc_chars}, frame_shape={frame.shape}"
+                            )
+                            return True
+                    else:
+                        if attempt < 3:
+                            logger.debug(f"read() returned empty on attempt {attempt + 1}")
+                except Exception as e:
+                    logger.debug(f"read() error on attempt {attempt + 1}: {e}")
+                time.sleep(0.1)
+
+            # If read() failed, try grab()/retrieve()
+            if success_count == 0:
+                logger.info("Trying grab/retrieve method...")
+                for attempt in range(10):
+                    try:
+                        if self._capture.grab():
+                            ret, frame = self._capture.retrieve()
+                            if ret and frame is not None and frame.size > 0:
+                                success_count += 1
+                                logger.info(f"Frame {success_count} via grab/retrieve: shape={frame.shape}")
+                                if success_count >= 2:
+                                    logger.info(
+                                        f"Grayscale camera connected via {backend_name}: "
+                                        f"{actual_w}x{actual_h}, format={fourcc_chars}"
+                                    )
+                                    return True
+                    except Exception as e:
+                        logger.debug(f"grab/retrieve error: {e}")
+                    time.sleep(0.1)
+
+            logger.info(f"Failed to read frames with {backend_name} (got {success_count} successful reads)")
+
+            # Last resort: try minimal configuration (just open and read)
+            logger.info("Trying minimal configuration (no property changes)...")
+            self._capture.release()
+            self._capture = cv2.VideoCapture(self._settings.camera_index, backend)
+
+            if self._capture.isOpened():
+                time.sleep(0.5)
+                for attempt in range(10):
+                    ret, frame = self._capture.read()
+                    if ret and frame is not None and frame.size > 0:
+                        logger.info(f"Minimal config SUCCESS: frame shape={frame.shape}, dtype={frame.dtype}")
+                        self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, self._settings.resolution[0])
+                        self._capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self._settings.resolution[1])
+                        return True
+                    time.sleep(0.1)
+                logger.info("Minimal configuration also failed")
+
+            # Final attempt: try WITH RGB conversion enabled (opposite of grayscale mode)
+            logger.info("Trying with forced RGB conversion...")
+            self._capture.release()
+            self._capture = cv2.VideoCapture(self._settings.camera_index, backend)
+
+            if self._capture.isOpened():
+                self._capture.set(cv2.CAP_PROP_CONVERT_RGB, 1)  # Force RGB conversion
+                self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, self._settings.resolution[0])
+                self._capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self._settings.resolution[1])
+                time.sleep(0.5)
+                for attempt in range(10):
+                    ret, frame = self._capture.read()
+                    if ret and frame is not None and frame.size > 0:
+                        logger.info(f"RGB conversion SUCCESS: frame shape={frame.shape}, dtype={frame.dtype}")
+                        return True
+                    time.sleep(0.1)
+                logger.info("RGB conversion mode also failed")
+
+            self._capture.release()
+            self._capture = None
+            return False
+
+        except Exception as e:
+            logger.debug(f"Grayscale camera connection failed: {e}")
+            if self._capture is not None:
+                try:
+                    self._capture.release()
+                except Exception:
+                    pass
+                self._capture = None
+            return False
+
+    def _try_connect_with_mode_setting(self, backend: int) -> bool:
+        """
+        Try connecting with CAP_PROP_MODE set for grayscale.
+
+        Some cameras respond to the MODE property for format selection.
+
+        Args:
+            backend: OpenCV backend to use
+
+        Returns:
+            True if connection successful
+        """
+        try:
+            if self._capture is not None:
+                self._capture.release()
+                self._capture = None
+
+            self._capture = cv2.VideoCapture(
+                self._settings.camera_index,
+                backend
+            )
+
+            if not self._capture.isOpened():
+                return False
+
+            # Try different mode values that might select grayscale
+            # Mode values are backend-specific but worth trying
+            for mode in [0, 1, 2]:
+                self._capture.set(cv2.CAP_PROP_MODE, mode)
+                self._capture.set(cv2.CAP_PROP_CONVERT_RGB, 0)
+
+                # Try to read a frame
+                ret, frame = self._capture.read()
+                if ret and frame is not None:
+                    logger.info(
+                        f"Camera connected with MODE={mode} via {self._get_backend_name(backend)}"
+                    )
+                    return True
+
+            self._capture.release()
+            self._capture = None
+            return False
+
+        except Exception as e:
+            logger.debug(f"Mode setting connection failed: {e}")
+            if self._capture is not None:
+                try:
+                    self._capture.release()
+                except Exception:
+                    pass
+                self._capture = None
+            return False
+
+    @staticmethod
+    def _get_backend_name(backend: int) -> str:
+        """Get human-readable name for a backend ID."""
+        backend_names = {
+            cv2.CAP_DSHOW: "DirectShow",
+            cv2.CAP_MSMF: "MediaFoundation",
+            cv2.CAP_FFMPEG: "FFmpeg",
+            cv2.CAP_V4L2: "V4L2",
+            cv2.CAP_ANY: "Auto",
+        }
+        return backend_names.get(backend, f"Backend_{backend}")
 
     def _try_connect_picamera2(self) -> bool:
         """
@@ -724,6 +1214,41 @@ class CameraManager:
             elif force_backend == "v4l2":
                 logger.info("Forcing V4L2 backend")
                 backend = cv2.CAP_V4L2
+            elif force_backend == "msmf":
+                logger.info("Forcing Microsoft Media Foundation backend")
+                backend = cv2.CAP_MSMF
+            elif force_backend == "dshow":
+                logger.info("Forcing DirectShow backend")
+                backend = cv2.CAP_DSHOW
+
+            # For Windows with forced backend, try grayscale methods
+            if sys.platform == "win32" and force_backend in ("msmf", "dshow"):
+                logger.info(f"Trying {force_backend.upper()} with grayscale camera methods...")
+                connected = False
+
+                if self._try_connect_grayscale_camera(backend):
+                    logger.info(f"Connected via {force_backend.upper()} grayscale method")
+                    connected = True
+                elif self._try_connect_with_mode_setting(backend):
+                    logger.info(f"Connected via {force_backend.upper()} MODE setting")
+                    connected = True
+                elif self._try_connect_with_backend(backend):
+                    logger.info(f"Connected via {force_backend.upper()} standard method")
+                    connected = True
+                # Fallback: try CAP_ANY
+                elif self._try_connect_grayscale_camera(cv2.CAP_ANY):
+                    logger.info("Connected via auto-detect grayscale method")
+                    connected = True
+                elif self._try_connect_with_backend(cv2.CAP_ANY):
+                    logger.info("Connected via auto-detect standard method")
+                    connected = True
+
+                if connected:
+                    pass  # Continue to miniscope controls
+                else:
+                    self._state = CameraState.ERROR
+                    logger.error(f"Failed to connect with {force_backend.upper()}")
+                    return False
 
             # On Raspberry Pi, only try picamera2 for camera index 0 (Pi Camera module)
             # USB cameras (miniscopes, webcams) should use V4L2 directly
@@ -739,7 +1264,16 @@ class CameraManager:
                     logger.info(f"Camera index {self._settings.camera_index} - using V4L2 (USB camera)")
 
             # Try connecting with the preferred backend
-            if not self._try_connect_with_backend(backend):
+            # On Windows, use fallback logic to try multiple backends/formats
+            if sys.platform == "win32" and force_backend is None:
+                logger.info("Windows detected - trying multiple backends and pixel formats")
+                if not self._try_connect_with_fallbacks():
+                    self._state = CameraState.ERROR
+                    logger.error("Failed to connect camera with any backend/format combination")
+                    return False
+            elif sys.platform == "win32" and force_backend in ("msmf", "dshow"):
+                pass  # Already handled above
+            elif not self._try_connect_with_backend(backend):
                 # If V4L2 failed on Linux, try CAP_ANY as fallback
                 if backend == cv2.CAP_V4L2:
                     logger.info("V4L2 failed, trying auto-detect backend")
@@ -771,7 +1305,10 @@ class CameraManager:
             self.stop_streaming()
 
         if self._capture is not None:
-            self._capture.release()
+            try:
+                self._capture.release()
+            except Exception:
+                pass
             self._capture = None
 
         if self._picamera2 is not None:
@@ -797,10 +1334,10 @@ class CameraManager:
             return True
 
         # Check if we have a valid capture source
-        has_opencv = self._capture is not None and self._capture.isOpened()
+        has_capture = self._capture is not None and self._capture.isOpened()
         has_picamera2 = self._using_picamera2 and self._picamera2 is not None
 
-        if not has_opencv and not has_picamera2:
+        if not has_capture and not has_picamera2:
             logger.error("Cannot start streaming: camera not connected")
             return False
 
@@ -887,6 +1424,27 @@ class CameraManager:
                 self.start_streaming()
         elif self._capture is not None and self._capture.isOpened():
             self._apply_camera_settings()
+
+    def _apply_camera_settings_basic(self) -> None:
+        """Apply basic camera settings (resolution, fps) without changing pixel format."""
+        if self._capture is None:
+            return
+
+        # Resolution
+        self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, self._settings.resolution[0])
+        self._capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self._settings.resolution[1])
+
+        # FPS
+        self._capture.set(cv2.CAP_PROP_FPS, self._settings.fps)
+
+        # Verify resolution
+        actual_w = int(self._capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+        actual_h = int(self._capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        if (actual_w, actual_h) != self._settings.resolution:
+            logger.debug(
+                f"Requested {self._settings.resolution}, got ({actual_w}, {actual_h})"
+            )
+            self._settings.resolution = (actual_w, actual_h)
 
     def _apply_camera_settings(self) -> None:
         """Apply current settings to the camera."""
@@ -1036,6 +1594,16 @@ class CameraManager:
 
             consecutive_failures = 0  # Reset on success
 
+            # Normalize frame format for grayscale cameras (Y800/GREY)
+            # These cameras output 2D frames (height, width) instead of 3D (height, width, 3)
+            # Convert to 3-channel BGR for consistency with the rest of the pipeline
+            if len(frame.shape) == 2:
+                # Single channel grayscale - convert to 3-channel BGR
+                frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+            elif len(frame.shape) == 3 and frame.shape[2] == 1:
+                # Single channel with explicit dimension - squeeze and convert
+                frame = cv2.cvtColor(frame.squeeze(), cv2.COLOR_GRAY2BGR)
+
             # Miniscope watchdog: kick LED if image goes dark
             if self._settings.miniscope_mode:
                 miniscope_frame_count += 1
@@ -1084,13 +1652,22 @@ class CameraManager:
         Useful for taking snapshots without streaming.
 
         Returns:
-            Frame as numpy array, or None if capture failed
+            Frame as numpy array (BGR format), or None if capture failed
         """
         if self._capture is None or not self._capture.isOpened():
             return None
 
         ret, frame = self._capture.read()
-        return frame if ret else None
+        if not ret or frame is None:
+            return None
+
+        # Normalize grayscale frames to BGR for consistency
+        if len(frame.shape) == 2:
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+        elif len(frame.shape) == 3 and frame.shape[2] == 1:
+            frame = cv2.cvtColor(frame.squeeze(), cv2.COLOR_GRAY2BGR)
+
+        return frame
 
     def get_property(self, prop_id: int) -> float:
         """Get a camera property value."""

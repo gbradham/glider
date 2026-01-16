@@ -14,6 +14,8 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from glider.core.hardware_manager import HardwareManager
     from glider.core.experiment_session import ExperimentSession
+    from glider.vision.zones import ZoneConfiguration
+    from glider.vision.cv_processor import CVProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +54,9 @@ class DataRecorder:
         self._start_time: Optional[datetime] = None
         self._sample_task: Optional[asyncio.Task] = None
         self._device_columns: List[str] = []
+        self._zone_columns: List[str] = []
+        self._zone_config: Optional["ZoneConfiguration"] = None
+        self._cv_processor: Optional["CVProcessor"] = None
 
     @property
     def is_recording(self) -> bool:
@@ -83,6 +88,14 @@ class DataRecorder:
             safe_name = "experiment"
         return f"{safe_name}_{timestamp}.csv"
 
+    def set_zone_configuration(self, zone_config: "ZoneConfiguration") -> None:
+        """Set zone configuration for zone state logging."""
+        self._zone_config = zone_config
+
+    def set_cv_processor(self, cv_processor: "CVProcessor") -> None:
+        """Set CV processor for reading zone states."""
+        self._cv_processor = cv_processor
+
     def _get_device_columns(self) -> List[str]:
         """Get list of device column names."""
         columns = []
@@ -90,6 +103,12 @@ class DataRecorder:
             device_type = getattr(device, 'device_type', 'unknown')
             columns.append(f"{device_id}:{device_type}")
         return columns
+
+    def _get_zone_columns(self) -> List[str]:
+        """Get list of zone column names."""
+        if not self._zone_config or not self._zone_config.zones:
+            return []
+        return [f"zone:{zone.name}" for zone in self._zone_config.zones]
 
     async def _read_device_state(self, device) -> Any:
         """Read the current state of a device."""
@@ -154,7 +173,8 @@ class DataRecorder:
 
         # Write column headers
         self._device_columns = self._get_device_columns()
-        headers = ["timestamp", "elapsed_ms"] + self._device_columns
+        self._zone_columns = self._get_zone_columns()
+        headers = ["timestamp", "elapsed_ms"] + self._device_columns + self._zone_columns
         self._writer.writerow(headers)
 
     async def start(
@@ -234,6 +254,21 @@ class DataRecorder:
                 row.append(f"{state:.4f}")
             else:
                 row.append(str(state))
+
+        # Add zone states in column order
+        zone_states = {}
+        if self._cv_processor and self._zone_config:
+            zone_states = self._cv_processor.get_zone_states()
+
+        for col in self._zone_columns:
+            zone_name = col.replace("zone:", "")
+            # Find zone state by name
+            state_value = ""
+            for zone_id, zone_state in zone_states.items():
+                if zone_state.zone_name == zone_name:
+                    state_value = "1" if zone_state.occupied else "0"
+                    break
+            row.append(state_value)
 
         self._writer.writerow(row)
         self._file.flush()

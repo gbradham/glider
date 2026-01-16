@@ -361,6 +361,12 @@ class GliderCore:
         except Exception as e:
             logger.error(f"Failed to register flow function nodes: {e}")
 
+        try:
+            from glider.nodes.vision.zone_nodes import register_zone_nodes
+            register_zone_nodes(self._flow_engine)
+        except Exception as e:
+            logger.error(f"Failed to register zone nodes: {e}")
+
     async def _load_plugins(self) -> None:
         """Load plugins from the plugin directory."""
         try:

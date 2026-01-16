@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from glider.vision.multi_video_recorder import MultiVideoRecorder
     from glider.vision.tracking_logger import TrackingDataLogger
     from glider.vision.calibration import CameraCalibration
+    from glider.vision.zones import ZoneConfiguration
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,8 @@ class CameraPreviewWidget(QLabel):
         self._placeholder = True
         self._calibration = None
         self._show_calibration = True
+        self._zone_config: Optional["ZoneConfiguration"] = None
+        self._show_zones = True
         self.setText("No Camera")
         # Prevent the widget from resizing based on pixmap content
         self.setScaledContents(False)
@@ -64,6 +67,14 @@ class CameraPreviewWidget(QLabel):
     def set_show_calibration(self, show: bool) -> None:
         """Toggle calibration line display."""
         self._show_calibration = show
+
+    def set_zone_configuration(self, config: "ZoneConfiguration") -> None:
+        """Set zone configuration to display on preview."""
+        self._zone_config = config
+
+    def set_show_zones(self, show: bool) -> None:
+        """Toggle zone display."""
+        self._show_zones = show
 
     def update_frame(self, frame: np.ndarray) -> None:
         """Update display with new frame."""
@@ -88,6 +99,14 @@ class CameraPreviewWidget(QLabel):
                     (mid_x + 5, mid_y - 5),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.4, line.color, 1
                 )
+
+        # Draw zones if enabled
+        if self._show_zones and self._zone_config and self._zone_config.zones:
+            from glider.vision.zones import draw_zones
+            if display_frame is frame:
+                display_frame = frame.copy()
+            display_frame = draw_zones(display_frame, self._zone_config,
+                                       alpha=0.3, show_labels=True)
 
         # Convert BGR to RGB
         rgb_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
@@ -143,6 +162,7 @@ class CameraPanel(QWidget):
 
     settings_requested = pyqtSignal()
     calibration_requested = pyqtSignal()
+    zones_requested = pyqtSignal()
 
     def __init__(
         self,
@@ -159,6 +179,7 @@ class CameraPanel(QWidget):
         self._multi_video_recorder: Optional["MultiVideoRecorder"] = None
         self._tracking_logger: Optional["TrackingDataLogger"] = None
         self._calibration: Optional["CameraCalibration"] = None
+        self._zone_config: Optional["ZoneConfiguration"] = None
         self._preview_active = False
         self._multi_camera_mode = False
         self._last_frame = None
@@ -273,6 +294,10 @@ class CameraPanel(QWidget):
         self._calibrate_btn = QPushButton("Calibrate...")
         self._calibrate_btn.clicked.connect(self.calibration_requested.emit)
         control_layout.addWidget(self._calibrate_btn)
+
+        self._zones_btn = QPushButton("Zones...")
+        self._zones_btn.clicked.connect(self.zones_requested.emit)
+        control_layout.addWidget(self._zones_btn)
 
         layout.addLayout(control_layout)
 
@@ -677,6 +702,11 @@ class CameraPanel(QWidget):
     def set_calibration(self, calibration: "CameraCalibration") -> None:
         """Set the camera calibration for real-world measurements."""
         self._calibration = calibration
+
+    def set_zone_configuration(self, zone_config: "ZoneConfiguration") -> None:
+        """Set the zone configuration for zone display and tracking."""
+        self._zone_config = zone_config
+        self._preview.set_zone_configuration(zone_config)
 
     def set_recording(self, recording: bool) -> None:
         """Update recording indicator."""

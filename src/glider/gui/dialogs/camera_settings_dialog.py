@@ -379,6 +379,75 @@ class CameraSettingsDialog(QDialog):
         conn_layout.addRow(self._miniscope_mode_cb)
 
         layout.addWidget(conn_group)
+
+        # Miniscope-specific controls group (visible when miniscope mode enabled)
+        self._miniscope_group = QGroupBox("Miniscope Controls")
+        self._miniscope_group.setStyleSheet(touch_style)
+        miniscope_layout = QFormLayout(self._miniscope_group)
+        if self._is_touch_mode:
+            miniscope_layout.setSpacing(12)
+            miniscope_layout.setContentsMargins(12, 20, 12, 12)
+
+        # Exposure time
+        self._exposure_time_spin = QSpinBox()
+        self._exposure_time_spin.setRange(0, 65535)
+        self._exposure_time_spin.setValue(100)
+        self._exposure_time_spin.setToolTip("Exposure time (0-65535)")
+        miniscope_layout.addRow("Exposure:", self._exposure_time_spin)
+
+        # Gain
+        self._gain_spin = QSpinBox()
+        self._gain_spin.setRange(0, 65535)
+        self._gain_spin.setValue(0)
+        self._gain_spin.setToolTip("Sensor gain (0-65535)")
+        miniscope_layout.addRow("Gain:", self._gain_spin)
+
+        # Gamma
+        self._gamma_spin = QSpinBox()
+        self._gamma_spin.setRange(0, 65535)
+        self._gamma_spin.setValue(0)
+        self._gamma_spin.setToolTip("Gamma correction (0-65535)")
+        miniscope_layout.addRow("Gamma:", self._gamma_spin)
+
+        # Hue
+        self._hue_spin = QSpinBox()
+        self._hue_spin.setRange(-32768, 32767)
+        self._hue_spin.setValue(0)
+        self._hue_spin.setToolTip("Hue adjustment (-32768 to 32767)")
+        miniscope_layout.addRow("Hue:", self._hue_spin)
+
+        # Sharpness
+        self._sharpness_spin = QSpinBox()
+        self._sharpness_spin.setRange(0, 65535)
+        self._sharpness_spin.setValue(0)
+        self._sharpness_spin.setToolTip("Sharpness (0-65535)")
+        miniscope_layout.addRow("Sharpness:", self._sharpness_spin)
+
+        # Focus
+        self._focus_spin = QSpinBox()
+        self._focus_spin.setRange(0, 65535)
+        self._focus_spin.setValue(0)
+        self._focus_spin.setToolTip("Focus position (0-65535)")
+        miniscope_layout.addRow("Focus:", self._focus_spin)
+
+        # Zoom
+        self._zoom_spin = QSpinBox()
+        self._zoom_spin.setRange(0, 65535)
+        self._zoom_spin.setValue(0)
+        self._zoom_spin.setToolTip("Zoom level (0-65535)")
+        miniscope_layout.addRow("Zoom:", self._zoom_spin)
+
+        # Iris
+        self._iris_spin = QSpinBox()
+        self._iris_spin.setRange(0, 65535)
+        self._iris_spin.setValue(0)
+        self._iris_spin.setToolTip("Iris aperture (0-65535)")
+        miniscope_layout.addRow("Iris:", self._iris_spin)
+
+        # Hide by default until miniscope mode is enabled
+        self._miniscope_group.setVisible(False)
+
+        layout.addWidget(self._miniscope_group)
         layout.addStretch()
 
         return widget
@@ -622,6 +691,18 @@ class CameraSettingsDialog(QDialog):
                 break
         self._miniscope_mode_cb.setChecked(self._camera_settings.miniscope_mode)
 
+        # Miniscope controls
+        self._exposure_time_spin.setValue(self._camera_settings.exposure_time)
+        self._gain_spin.setValue(self._camera_settings.gain)
+        self._gamma_spin.setValue(self._camera_settings.gamma)
+        self._hue_spin.setValue(self._camera_settings.hue)
+        self._sharpness_spin.setValue(self._camera_settings.sharpness)
+        self._focus_spin.setValue(self._camera_settings.focus)
+        self._zoom_spin.setValue(self._camera_settings.zoom)
+        self._iris_spin.setValue(self._camera_settings.iris)
+        # Show/hide miniscope group based on mode
+        self._miniscope_group.setVisible(self._camera_settings.miniscope_mode)
+
         # CV settings
         self._cv_enabled_cb.setChecked(self._cv_settings.enabled)
 
@@ -679,6 +760,9 @@ class CameraSettingsDialog(QDialog):
 
     def _on_miniscope_mode_toggle(self, enabled: bool):
         """Handle miniscope mode toggle - auto-set recommended values."""
+        # Show/hide miniscope controls group
+        self._miniscope_group.setVisible(enabled)
+
         if enabled:
             # Auto-set recommended miniscope settings
             # Set resolution to 608x608
@@ -732,6 +816,16 @@ class CameraSettingsDialog(QDialog):
         self._camera_settings.force_backend = self._backend_camera_combo.currentData()
         self._camera_settings.pixel_format = self._pixel_format_combo.currentData()
         self._camera_settings.miniscope_mode = self._miniscope_mode_cb.isChecked()
+
+        # Miniscope controls
+        self._camera_settings.exposure_time = self._exposure_time_spin.value()
+        self._camera_settings.gain = self._gain_spin.value()
+        self._camera_settings.gamma = self._gamma_spin.value()
+        self._camera_settings.hue = self._hue_spin.value()
+        self._camera_settings.sharpness = self._sharpness_spin.value()
+        self._camera_settings.focus = self._focus_spin.value()
+        self._camera_settings.zoom = self._zoom_spin.value()
+        self._camera_settings.iris = self._iris_spin.value()
 
         # CV settings
         self._cv_settings.enabled = self._cv_enabled_cb.isChecked()

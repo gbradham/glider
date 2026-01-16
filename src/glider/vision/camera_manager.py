@@ -91,6 +91,59 @@ def _wake_up_miniscope(device_index: int) -> bool:
         return False
 
 
+def _apply_miniscope_controls(device_index: int, settings: "CameraSettings") -> bool:
+    """
+    Apply all miniscope camera controls via v4l2-ctl.
+
+    Args:
+        device_index: Camera device index (e.g., 2 for /dev/video2)
+        settings: Camera settings containing control values
+
+    Returns:
+        True if controls were applied successfully
+    """
+    import subprocess
+
+    device_path = f'/dev/video{device_index}'
+
+    # Map settings to v4l2-ctl control names
+    controls = {
+        'brightness': settings.brightness,
+        'contrast': settings.contrast,
+        'saturation': settings.saturation,
+        'hue': settings.hue,
+        'gamma': settings.gamma,
+        'gain': settings.gain,
+        'sharpness': settings.sharpness,
+        'exposure_time_absolute': settings.exposure_time,
+        'focus_absolute': settings.focus,
+        'zoom_absolute': settings.zoom,
+        'iris_absolute': settings.iris,
+    }
+
+    try:
+        for ctrl_name, ctrl_value in controls.items():
+            result = subprocess.run(
+                ['v4l2-ctl', '-d', device_path, f'--set-ctrl={ctrl_name}={ctrl_value}'],
+                capture_output=True, timeout=2, text=True
+            )
+            if result.returncode != 0 and result.stderr:
+                # Some controls may not be supported - log but don't fail
+                logger.debug(f"Control {ctrl_name} not applied: {result.stderr.strip()}")
+
+        logger.info(f"Applied miniscope controls to {device_path}")
+        return True
+    except FileNotFoundError:
+        logger.warning("v4l2-ctl not found - miniscope controls not applied")
+        return False
+    except subprocess.TimeoutExpired:
+        logger.warning("Miniscope control application timed out")
+        return False
+    except Exception as e:
+        logger.warning(f"Failed to apply miniscope controls: {e}")
+        return False
+
+
 # Picamera2 is imported lazily to avoid crashes from numpy version conflicts
 _picamera2_available = None  # None = not checked yet, True/False = checked
 _Picamera2 = None  # Will hold the class if available
@@ -126,6 +179,15 @@ class CameraSettings:
     pixel_format: Optional[str] = None  # "YUYV", "MJPG", or None for auto
     miniscope_mode: bool = False  # Enable miniscope-specific initialization
     buffer_size: int = 1  # Frame buffer size (1 = lowest latency)
+    # Miniscope-specific controls (v4l2-ctl)
+    hue: int = 0  # -32768 to 32767
+    gamma: int = 0  # 0 to 65535
+    gain: int = 0  # 0 to 65535
+    sharpness: int = 0  # 0 to 65535
+    exposure_time: int = 100  # Exposure time absolute
+    focus: int = 0  # 0 to 65535
+    zoom: int = 0  # 0 to 65535
+    iris: int = 0  # 0 to 65535
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
@@ -144,6 +206,14 @@ class CameraSettings:
             "pixel_format": self.pixel_format,
             "miniscope_mode": self.miniscope_mode,
             "buffer_size": self.buffer_size,
+            "hue": self.hue,
+            "gamma": self.gamma,
+            "gain": self.gain,
+            "sharpness": self.sharpness,
+            "exposure_time": self.exposure_time,
+            "focus": self.focus,
+            "zoom": self.zoom,
+            "iris": self.iris,
         }
 
     @classmethod
@@ -164,6 +234,14 @@ class CameraSettings:
             pixel_format=data.get("pixel_format", None),
             miniscope_mode=data.get("miniscope_mode", False),
             buffer_size=data.get("buffer_size", 1),
+            hue=data.get("hue", 0),
+            gamma=data.get("gamma", 0),
+            gain=data.get("gain", 0),
+            sharpness=data.get("sharpness", 0),
+            exposure_time=data.get("exposure_time", 100),
+            focus=data.get("focus", 0),
+            zoom=data.get("zoom", 0),
+            iris=data.get("iris", 0),
         )
 
 
@@ -489,6 +567,10 @@ class CameraManager:
                 else:
                     self._state = CameraState.ERROR
                     return False
+
+            # Apply miniscope controls after camera is open
+            if self._settings.miniscope_mode:
+                _apply_miniscope_controls(self._settings.camera_index, self._settings)
 
             self._state = CameraState.CONNECTED
             logger.info(f"Connected to camera {self._settings.camera_index}")

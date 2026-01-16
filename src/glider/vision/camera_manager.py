@@ -3,6 +3,9 @@ Camera Manager - Enumerate and manage webcam devices.
 
 Provides thread-safe webcam capture with configurable settings
 and frame callbacks for video recording and CV processing.
+
+Includes FFmpeg fallback for cameras that OpenCV cannot handle
+(e.g., Y800/grayscale scientific cameras like ANYMAZE).
 """
 
 import os
@@ -16,12 +19,173 @@ import time
 import logging
 import sys
 import subprocess
+import shutil
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Callable, Any
 from enum import Enum, auto
 from queue import Queue, Empty
 
 logger = logging.getLogger(__name__)
+
+
+class FFmpegCapture:
+    """
+    FFmpeg-based video capture for cameras that OpenCV cannot handle.
+
+    Uses FFmpeg's DirectShow input on Windows to capture frames from
+    cameras with problematic formats like Y800 (grayscale).
+    """
+
+    def __init__(self, device_name: str, width: int = 640, height: int = 480, fps: int = 30):
+        """
+        Initialize FFmpeg capture.
+
+        Args:
+            device_name: DirectShow device name (e.g., "ANY-MAZE 3.1")
+            width: Frame width
+            height: Frame height
+            fps: Frames per second
+        """
+        self._device_name = device_name
+        self._width = width
+        self._height = height
+        self._fps = fps
+        self._process: Optional[subprocess.Popen] = None
+        self._frame_size = width * height * 3  # BGR output
+        self._is_open = False
+
+    def open(self) -> bool:
+        """Start FFmpeg capture process."""
+        if self._process is not None:
+            self.release()
+
+        # Check if ffmpeg is available
+        ffmpeg_path = shutil.which("ffmpeg")
+        if not ffmpeg_path:
+            logger.warning("FFmpeg not found in PATH")
+            return False
+
+        try:
+            # FFmpeg command to capture from DirectShow and output raw BGR frames
+            cmd = [
+                ffmpeg_path,
+                "-f", "dshow",
+                "-video_size", f"{self._width}x{self._height}",
+                "-framerate", str(self._fps),
+                "-pixel_format", "gray",  # Request grayscale input (Y800)
+                "-i", f"video={self._device_name}",
+                "-f", "rawvideo",
+                "-pix_fmt", "bgr24",  # Output as BGR for OpenCV
+                "-an",  # No audio
+                "-"  # Output to stdout
+            ]
+
+            logger.info(f"Starting FFmpeg capture: {' '.join(cmd)}")
+
+            # Start FFmpeg process
+            self._process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                bufsize=self._frame_size * 4,  # Buffer a few frames
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            )
+
+            # Give FFmpeg time to start
+            time.sleep(1.0)
+
+            # Check if process is still running
+            if self._process.poll() is not None:
+                stderr = self._process.stderr.read().decode() if self._process.stderr else ""
+                logger.error(f"FFmpeg exited immediately: {stderr[:500]}")
+                self._process = None
+                return False
+
+            self._is_open = True
+            logger.info("FFmpeg capture started successfully")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to start FFmpeg: {e}")
+            self._process = None
+            return False
+
+    def isOpened(self) -> bool:
+        """Check if capture is open."""
+        return self._is_open and self._process is not None and self._process.poll() is None
+
+    def read(self) -> Tuple[bool, Optional[np.ndarray]]:
+        """Read a frame from FFmpeg."""
+        if not self.isOpened():
+            return False, None
+
+        try:
+            # Read raw frame data
+            raw_frame = self._process.stdout.read(self._frame_size)
+
+            if len(raw_frame) != self._frame_size:
+                return False, None
+
+            # Convert to numpy array
+            frame = np.frombuffer(raw_frame, dtype=np.uint8)
+            frame = frame.reshape((self._height, self._width, 3))
+
+            return True, frame
+
+        except Exception as e:
+            logger.debug(f"FFmpeg read error: {e}")
+            return False, None
+
+    def grab(self) -> bool:
+        """Grab a frame (for compatibility with OpenCV API)."""
+        ret, self._last_frame = self.read()
+        return ret
+
+    def retrieve(self) -> Tuple[bool, Optional[np.ndarray]]:
+        """Retrieve the last grabbed frame."""
+        if hasattr(self, '_last_frame') and self._last_frame is not None:
+            return True, self._last_frame
+        return False, None
+
+    def get(self, prop_id: int) -> float:
+        """Get property (limited support for compatibility)."""
+        if prop_id == cv2.CAP_PROP_FRAME_WIDTH:
+            return float(self._width)
+        elif prop_id == cv2.CAP_PROP_FRAME_HEIGHT:
+            return float(self._height)
+        elif prop_id == cv2.CAP_PROP_FPS:
+            return float(self._fps)
+        elif prop_id == cv2.CAP_PROP_FOURCC:
+            return float(cv2.VideoWriter_fourcc(*"BGR3"))
+        return 0.0
+
+    def set(self, prop_id: int, value: float) -> bool:
+        """Set property (limited support - requires restart)."""
+        if prop_id == cv2.CAP_PROP_FRAME_WIDTH:
+            self._width = int(value)
+            return True
+        elif prop_id == cv2.CAP_PROP_FRAME_HEIGHT:
+            self._height = int(value)
+            return True
+        elif prop_id == cv2.CAP_PROP_FPS:
+            self._fps = int(value)
+            return True
+        return False
+
+    def release(self) -> None:
+        """Release FFmpeg process."""
+        self._is_open = False
+        if self._process is not None:
+            try:
+                self._process.terminate()
+                self._process.wait(timeout=2)
+            except Exception:
+                try:
+                    self._process.kill()
+                except Exception:
+                    pass
+            self._process = None
+            logger.info("FFmpeg capture released")
 
 
 def _get_camera_backend() -> int:
@@ -39,7 +203,8 @@ def _get_windows_fallback_backends() -> List[int]:
     """Get list of backends to try on Windows in order of preference."""
     return [
         cv2.CAP_DSHOW,  # DirectShow - most compatible with USB cameras
-        cv2.CAP_ANY,    # Auto-detect - needed for some cameras like ANYMAZE
+        cv2.CAP_FFMPEG, # FFmpeg - better format support including Y800
+        cv2.CAP_ANY,    # Auto-detect - fallback
     ]
 
 
@@ -558,6 +723,7 @@ class CameraManager:
         self._capture: Optional[cv2.VideoCapture] = None
         self._picamera2 = None  # Picamera2 instance for Pi cameras
         self._using_picamera2 = False
+        self._using_ffmpeg = False  # FFmpeg fallback for Y800 cameras
         self._settings = CameraSettings()
         self._state = CameraState.DISCONNECTED
         self._capture_thread: Optional[threading.Thread] = None
@@ -1017,7 +1183,48 @@ class CameraManager:
                     time.sleep(0.1)
                 logger.info("RGB conversion mode also failed")
 
-            self._capture.release()
+            # Try FFmpeg DirectShow device input via OpenCV
+            if sys.platform == "win32":
+                camera_names = _get_windows_camera_names()
+                if self._settings.camera_index < len(camera_names):
+                    device_name = camera_names[self._settings.camera_index]
+                    logger.info(f"Trying FFmpeg DirectShow input: video={device_name}")
+                    self._capture = cv2.VideoCapture(f"video={device_name}", cv2.CAP_FFMPEG)
+                    if self._capture.isOpened():
+                        time.sleep(0.5)
+                        for attempt in range(10):
+                            ret, frame = self._capture.read()
+                            if ret and frame is not None and frame.size > 0:
+                                logger.info(f"FFmpeg dshow SUCCESS: frame shape={frame.shape}")
+                                return True
+                            time.sleep(0.1)
+                        logger.info("FFmpeg dshow input also failed")
+                        self._capture.release()
+
+                    # Final fallback: Use external FFmpeg process
+                    logger.info(f"Trying external FFmpeg capture for '{device_name}'...")
+                    width, height = self._settings.resolution
+                    ffmpeg_cap = FFmpegCapture(device_name, width, height, self._settings.fps)
+                    if ffmpeg_cap.open():
+                        # Test reading frames
+                        for attempt in range(5):
+                            ret, frame = ffmpeg_cap.read()
+                            if ret and frame is not None:
+                                logger.info(f"FFmpeg external capture SUCCESS: frame shape={frame.shape}")
+                                self._capture = ffmpeg_cap  # Use FFmpegCapture as capture source
+                                self._using_ffmpeg = True
+                                return True
+                            time.sleep(0.2)
+                        logger.info("External FFmpeg capture failed to read frames")
+                        ffmpeg_cap.release()
+                    else:
+                        logger.info("External FFmpeg capture failed to start (is FFmpeg installed?)")
+
+            if self._capture is not None:
+                try:
+                    self._capture.release()
+                except:
+                    pass
             self._capture = None
             return False
 
@@ -1310,6 +1517,7 @@ class CameraManager:
             except Exception:
                 pass
             self._capture = None
+            self._using_ffmpeg = False
 
         if self._picamera2 is not None:
             try:

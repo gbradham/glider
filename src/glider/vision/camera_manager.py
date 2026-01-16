@@ -144,6 +144,181 @@ def _apply_miniscope_controls(device_index: int, settings: "CameraSettings") -> 
         return False
 
 
+def _send_miniscope_i2c_command(
+    device_index: int,
+    contrast: int,
+    gamma: int,
+    sharpness: int
+) -> bool:
+    """
+    Send an I2C command to Miniscope V4 via UVC control tunnel.
+
+    The Miniscope DAQ uses Contrast/Gamma/Sharpness UVC controls as a tunnel
+    to send arbitrary I2C commands to the hardware. The byte layout is:
+    - Sharpness: data2 | data1
+    - Gamma: data0 | reg0
+    - Contrast: packet_length | i2c_address
+
+    Note: Contrast and Gamma values must be divided by 100 due to UVC scaling.
+
+    Args:
+        device_index: Camera device index
+        contrast: Contrast value (packet_length << 8 | i2c_address)
+        gamma: Gamma value (data0 << 8 | reg0)
+        sharpness: Sharpness value (data2 << 8 | data1)
+
+    Returns:
+        True if command was sent successfully
+    """
+    import subprocess
+
+    device_path = f'/dev/video{device_index}'
+
+    # UVC controls are scaled by 100 for contrast and gamma
+    contrast_scaled = contrast / 100.0
+    gamma_scaled = gamma / 100.0
+
+    try:
+        # Set sharpness first (no scaling needed)
+        subprocess.run(
+            ['v4l2-ctl', '-d', device_path, f'--set-ctrl=sharpness={sharpness}'],
+            capture_output=True, timeout=2
+        )
+        # Set gamma (scaled)
+        subprocess.run(
+            ['v4l2-ctl', '-d', device_path, f'--set-ctrl=gamma={gamma_scaled}'],
+            capture_output=True, timeout=2
+        )
+        # Set contrast last (triggers the I2C transaction)
+        subprocess.run(
+            ['v4l2-ctl', '-d', device_path, f'--set-ctrl=contrast={contrast_scaled}'],
+            capture_output=True, timeout=2
+        )
+        return True
+    except Exception as e:
+        logger.debug(f"I2C command failed: {e}")
+        return False
+
+
+def _set_miniscope_led(device_index: int, power_percent: int) -> bool:
+    """
+    Set Miniscope V4 LED power.
+
+    LED control requires two I2C commands:
+    1. MCU (address 0x20): Enable/disable LED driver
+    2. Digital potentiometer (address 0x58): Set brightness
+
+    Args:
+        device_index: Camera device index
+        power_percent: LED power 0-100 (0=off, 100=max brightness)
+
+    Returns:
+        True if LED was set successfully
+    """
+    # Convert percentage to hardware value (0-255, where 255=off, 0=brightest)
+    # Clamp to valid range
+    power_percent = max(0, min(100, power_percent))
+
+    if power_percent == 0:
+        # Turn off LED
+        led_value = 255
+    else:
+        # Map 1-100% to 254-0 (inverted, brighter = lower value)
+        led_value = int(255 - (power_percent * 255 / 100))
+        led_value = max(0, min(254, led_value))
+
+    logger.debug(f"Setting LED power: {power_percent}% -> hardware value {led_value}")
+
+    # Command 1: MCU (address 0x20)
+    # Sets LED enable state - register 0x01
+    # Format: contrast=0x0320, gamma=(led_value<<8)|0x01, sharpness=0x0000
+    contrast1 = 0x0320  # length=3, address=0x20
+    gamma1 = (led_value << 8) | 0x01  # led_value, register 0x01
+    sharpness1 = 0x0000
+
+    success1 = _send_miniscope_i2c_command(device_index, contrast1, gamma1, sharpness1)
+
+    # Small delay between commands
+    time.sleep(0.05)
+
+    # Command 2: Digital potentiometer (address 0x58)
+    # Sets brightness via voltage divider
+    # Format: contrast=0x0458, gamma=0x7200, sharpness=led_value
+    # The 0x72 (114) is a hardcoded value for the voltage divider reference
+    contrast2 = 0x0458  # length=4, address=0x58
+    gamma2 = 0x7200  # hardcoded 0x72, register 0x00
+    sharpness2 = led_value
+
+    success2 = _send_miniscope_i2c_command(device_index, contrast2, gamma2, sharpness2)
+
+    if success1 and success2:
+        logger.info(f"Miniscope LED set to {power_percent}%")
+    else:
+        logger.warning(f"Failed to set Miniscope LED (cmd1={success1}, cmd2={success2})")
+
+    return success1 and success2
+
+
+def _set_miniscope_ewl_focus(device_index: int, focus_value: int) -> bool:
+    """
+    Set Miniscope V4 electrowetting lens (EWL) focus.
+
+    Args:
+        device_index: Camera device index
+        focus_value: Focus position 0-255
+
+    Returns:
+        True if focus was set successfully
+    """
+    # Clamp to valid range
+    focus_value = max(0, min(255, focus_value))
+
+    logger.debug(f"Setting EWL focus to {focus_value}")
+
+    # EWL focus command
+    # Address 0xEE, register 0x08
+    # Format: contrast=0x04EE, gamma=(focus_value<<8)|0x08, sharpness=0x0002
+    contrast = 0x04EE  # length=4, address=0xEE
+    gamma = (focus_value << 8) | 0x08  # focus value, register 0x08
+    sharpness = 0x0002  # data for EWL
+
+    success = _send_miniscope_i2c_command(device_index, contrast, gamma, sharpness)
+
+    if success:
+        logger.info(f"Miniscope EWL focus set to {focus_value}")
+    else:
+        logger.warning(f"Failed to set Miniscope EWL focus")
+
+    return success
+
+
+def _apply_miniscope_hardware_controls(device_index: int, settings: "CameraSettings") -> bool:
+    """
+    Apply Miniscope V4 hardware controls (LED and EWL).
+
+    Args:
+        device_index: Camera device index
+        settings: Camera settings with led_power and ewl_focus
+
+    Returns:
+        True if controls were applied successfully
+    """
+    success = True
+
+    # Set LED power
+    if not _set_miniscope_led(device_index, settings.led_power):
+        success = False
+
+    # Small delay between commands
+    time.sleep(0.1)
+
+    # Set EWL focus
+    if not _set_miniscope_ewl_focus(device_index, settings.ewl_focus):
+        success = False
+
+    return success
+
+
 # Picamera2 is imported lazily to avoid crashes from numpy version conflicts
 _picamera2_available = None  # None = not checked yet, True/False = checked
 _Picamera2 = None  # Will hold the class if available
@@ -188,6 +363,9 @@ class CameraSettings:
     focus: int = 0  # 0 to 65535
     zoom: int = 0  # 0 to 65535
     iris: int = 0  # 0 to 65535
+    # Miniscope V4 hardware controls (sent via UVC I2C tunnel)
+    led_power: int = 0  # 0-100 (percentage, 0=off, 100=max brightness)
+    ewl_focus: int = 128  # 0-255 (electrowetting lens focus)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
@@ -214,6 +392,8 @@ class CameraSettings:
             "focus": self.focus,
             "zoom": self.zoom,
             "iris": self.iris,
+            "led_power": self.led_power,
+            "ewl_focus": self.ewl_focus,
         }
 
     @classmethod
@@ -242,6 +422,8 @@ class CameraSettings:
             focus=data.get("focus", 0),
             zoom=data.get("zoom", 0),
             iris=data.get("iris", 0),
+            led_power=data.get("led_power", 0),
+            ewl_focus=data.get("ewl_focus", 128),
         )
 
 
@@ -571,6 +753,8 @@ class CameraManager:
             # Apply miniscope controls after camera is open
             if self._settings.miniscope_mode:
                 _apply_miniscope_controls(self._settings.camera_index, self._settings)
+                # Apply hardware controls (LED, EWL focus)
+                _apply_miniscope_hardware_controls(self._settings.camera_index, self._settings)
 
             self._state = CameraState.CONNECTED
             logger.info(f"Connected to camera {self._settings.camera_index}")
@@ -761,6 +945,44 @@ class CameraManager:
             self._settings.resolution = (actual_w, actual_h)
 
         logger.debug(f"Applied camera settings: {self._settings.resolution} @ {self._settings.fps}fps")
+
+    def set_led_power(self, power_percent: int) -> bool:
+        """
+        Set Miniscope LED power (0-100%).
+
+        Can be called while streaming to adjust LED brightness on-the-fly.
+
+        Args:
+            power_percent: LED power 0-100 (0=off, 100=max)
+
+        Returns:
+            True if LED was set successfully
+        """
+        if not self._settings.miniscope_mode:
+            logger.warning("LED control requires miniscope mode to be enabled")
+            return False
+
+        self._settings.led_power = power_percent
+        return _set_miniscope_led(self._settings.camera_index, power_percent)
+
+    def set_ewl_focus(self, focus_value: int) -> bool:
+        """
+        Set Miniscope electrowetting lens focus (0-255).
+
+        Can be called while streaming to adjust focus on-the-fly.
+
+        Args:
+            focus_value: Focus position 0-255
+
+        Returns:
+            True if focus was set successfully
+        """
+        if not self._settings.miniscope_mode:
+            logger.warning("EWL focus control requires miniscope mode to be enabled")
+            return False
+
+        self._settings.ewl_focus = focus_value
+        return _set_miniscope_ewl_focus(self._settings.camera_index, focus_value)
 
     def _capture_loop(self) -> None:
         """Background thread for frame capture."""

@@ -388,6 +388,40 @@ class CameraSettingsDialog(QDialog):
             miniscope_layout.setSpacing(12)
             miniscope_layout.setContentsMargins(12, 20, 12, 12)
 
+        # LED Power (most important control - at top with slider)
+        led_layout = QHBoxLayout()
+        led_layout.setSpacing(8 if not self._is_touch_mode else 12)
+        self._led_power_slider = QSlider(Qt.Orientation.Horizontal)
+        self._led_power_slider.setRange(0, 100)
+        self._led_power_slider.setValue(0)
+        if self._is_touch_mode:
+            self._led_power_slider.setMinimumHeight(40)
+        led_layout.addWidget(self._led_power_slider)
+        self._led_power_label = QLabel("0%")
+        self._led_power_label.setMinimumWidth(45 if self._is_touch_mode else 35)
+        self._led_power_slider.valueChanged.connect(
+            lambda v: self._led_power_label.setText(f"{v}%")
+        )
+        led_layout.addWidget(self._led_power_label)
+        miniscope_layout.addRow("LED Power:", led_layout)
+
+        # EWL Focus (second most important - with slider)
+        ewl_layout = QHBoxLayout()
+        ewl_layout.setSpacing(8 if not self._is_touch_mode else 12)
+        self._ewl_focus_slider = QSlider(Qt.Orientation.Horizontal)
+        self._ewl_focus_slider.setRange(0, 255)
+        self._ewl_focus_slider.setValue(128)
+        if self._is_touch_mode:
+            self._ewl_focus_slider.setMinimumHeight(40)
+        ewl_layout.addWidget(self._ewl_focus_slider)
+        self._ewl_focus_label = QLabel("128")
+        self._ewl_focus_label.setMinimumWidth(45 if self._is_touch_mode else 35)
+        self._ewl_focus_slider.valueChanged.connect(
+            lambda v: self._ewl_focus_label.setText(str(v))
+        )
+        ewl_layout.addWidget(self._ewl_focus_label)
+        miniscope_layout.addRow("EWL Focus:", ewl_layout)
+
         # Exposure time
         self._exposure_time_spin = QSpinBox()
         self._exposure_time_spin.setRange(0, 65535)
@@ -423,12 +457,12 @@ class CameraSettingsDialog(QDialog):
         self._sharpness_spin.setToolTip("Sharpness (0-65535)")
         miniscope_layout.addRow("Sharpness:", self._sharpness_spin)
 
-        # Focus
+        # Focus (standard V4L2 focus, different from EWL)
         self._focus_spin = QSpinBox()
         self._focus_spin.setRange(0, 65535)
         self._focus_spin.setValue(0)
-        self._focus_spin.setToolTip("Focus position (0-65535)")
-        miniscope_layout.addRow("Focus:", self._focus_spin)
+        self._focus_spin.setToolTip("V4L2 focus position (0-65535)")
+        miniscope_layout.addRow("V4L2 Focus:", self._focus_spin)
 
         # Zoom
         self._zoom_spin = QSpinBox()
@@ -700,6 +734,11 @@ class CameraSettingsDialog(QDialog):
         self._focus_spin.setValue(self._camera_settings.focus)
         self._zoom_spin.setValue(self._camera_settings.zoom)
         self._iris_spin.setValue(self._camera_settings.iris)
+        # LED and EWL controls
+        self._led_power_slider.setValue(self._camera_settings.led_power)
+        self._led_power_label.setText(f"{self._camera_settings.led_power}%")
+        self._ewl_focus_slider.setValue(self._camera_settings.ewl_focus)
+        self._ewl_focus_label.setText(str(self._camera_settings.ewl_focus))
         # Show/hide miniscope group based on mode
         self._miniscope_group.setVisible(self._camera_settings.miniscope_mode)
 
@@ -826,6 +865,9 @@ class CameraSettingsDialog(QDialog):
         self._camera_settings.focus = self._focus_spin.value()
         self._camera_settings.zoom = self._zoom_spin.value()
         self._camera_settings.iris = self._iris_spin.value()
+        # LED and EWL controls
+        self._camera_settings.led_power = self._led_power_slider.value()
+        self._camera_settings.ewl_focus = self._ewl_focus_slider.value()
 
         # CV settings
         self._cv_settings.enabled = self._cv_enabled_cb.isChecked()

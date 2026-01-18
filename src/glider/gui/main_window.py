@@ -1570,8 +1570,14 @@ class MainWindow(QMainWindow):
             self._core.hardware_manager.clear()
             self._core.new_session()
             self._graph_view.clear_graph()
+            # Clear zone configuration
+            self._zone_config = ZoneConfiguration()
+            self._camera_panel.set_zone_configuration(self._zone_config)
             self.session_changed.emit()
             self._refresh_hardware_tree()
+            self._refresh_custom_devices()
+            self._refresh_flow_functions()
+            self._refresh_zones()
 
     def _on_open(self) -> None:
         """Open experiment file."""
@@ -1606,6 +1612,7 @@ class MainWindow(QMainWindow):
                 self._refresh_hardware_tree()
                 self._refresh_custom_devices()
                 self._refresh_flow_functions()
+                self._refresh_zones()
                 self.statusBar().showMessage(f"Opened: {file_path}")
             except Exception as e:
                 logger.exception(f"Failed to open file: {e}")
@@ -1687,12 +1694,18 @@ class MainWindow(QMainWindow):
                         if def_dict:
                             display_name = def_dict.get("name", "Flow Function")
 
+                # Handle ZoneInput nodes - get display name from zone_name in state
+                elif node_type == "ZoneInput":
+                    zone_name = node_config.state.get("zone_name", "Zone") if node_config.state else "Zone"
+                    display_name = f"Zone: {zone_name}"
+
                 # Determine category from node type
                 category = "default"
                 flow_nodes = ["StartExperiment", "EndExperiment", "Delay"]
                 control_nodes = ["Loop", "WaitForInput"]
                 io_nodes = ["Output", "Input", "MotorGovernor", "CustomDevice", "CustomDeviceAction"]
                 function_nodes = ["FlowFunctionCall", "FunctionCall", "StartFunction", "EndFunction"]
+                interface_nodes = ["ZoneInput"]
 
                 node_type_normalized = node_type.replace(" ", "")
                 if node_type_normalized in flow_nodes:
@@ -1703,6 +1716,8 @@ class MainWindow(QMainWindow):
                     category = "hardware"
                 elif node_type_normalized in function_nodes:
                     category = "logic"
+                elif node_type_normalized in interface_nodes:
+                    category = "interface"  # Zone inputs are interface nodes
 
                 # Add visual node to graph (use display_name for visual)
                 node_item = self._graph_view.add_node(node_config.id, display_name, x, y)
@@ -2494,6 +2509,9 @@ class MainWindow(QMainWindow):
             # Save zones to session
             self._save_zones_to_session()
 
+            # Refresh zone nodes in node library
+            self._refresh_zones()
+
             logger.info(f"Zone configuration updated: {len(self._zone_config.zones)} zones")
 
     def _load_zones_from_session(self) -> None:
@@ -2517,11 +2535,15 @@ class MainWindow(QMainWindow):
             self._core.cv_processor.set_zone_configuration(self._zone_config)
             self._core.tracking_logger.set_zone_configuration(self._zone_config)
 
+            # Refresh zone nodes in node library
+            self._refresh_zones()
+
             logger.info(f"Loaded {len(self._zone_config.zones)} zones from session")
         else:
             # Clear zones if session has none
             self._zone_config = ZoneConfiguration()
             self._camera_panel.set_zone_configuration(self._zone_config)
+            self._refresh_zones()
 
     def _save_zones_to_session(self) -> None:
         """Save zone configuration to the current session."""
@@ -3013,6 +3035,20 @@ class MainWindow(QMainWindow):
             add_new_callback=self._on_new_flow_function
         )
 
+        # Zones section (dynamic - populated from zone configuration)
+        self._zones_container = QWidget()
+        self._zones_layout = QVBoxLayout(self._zones_container)
+        self._zones_layout.setContentsMargins(0, 0, 0, 0)
+        self._zones_layout.setSpacing(2)
+        self._setup_custom_category(
+            self._zones_container,
+            self._zones_layout,
+            "Zones",
+            "#5a4a2d",  # Orange/brown - matches zone color
+            layout,
+            add_new_callback=None  # Zones are created via Zone dialog
+        )
+
         layout.addStretch()
         scroll_area.setWidget(container)
 
@@ -3236,6 +3272,45 @@ class MainWindow(QMainWindow):
             placeholder.setWordWrap(True)
             placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._flow_functions_layout.addWidget(placeholder)
+
+    def _refresh_zones(self) -> None:
+        """Refresh the zones in the node library."""
+        if not hasattr(self, '_zones_layout'):
+            return
+
+        # Clear existing items
+        while self._zones_layout.count():
+            item = self._zones_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        # Add zones from zone configuration
+        if self._zone_config.zones:
+            for zone in self._zone_config.zones:
+                btn = DraggableNodeButton(
+                    f"ZoneInput:{zone.id}",
+                    f"Zone: {zone.name}",
+                    "Zones"
+                )
+                btn.setToolTip(f"Monitor zone '{zone.name}' for object occupancy\n"
+                              f"Outputs: Occupied (bool), Object Count (int), On Enter, On Exit")
+                btn.clicked.connect(lambda checked, zid=zone.id: self._add_zone_node(zid))
+                self._zones_layout.addWidget(btn)
+        else:
+            placeholder = QLabel("Create zones in Camera → Zones...")
+            placeholder.setStyleSheet("color: #888; padding: 8px; font-size: 10px;")
+            placeholder.setWordWrap(True)
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._zones_layout.addWidget(placeholder)
+
+    def _add_zone_node(self, zone_id: str) -> None:
+        """Add a zone input node to the graph."""
+        if hasattr(self, '_graph_view'):
+            center = self._graph_view.mapToScene(
+                self._graph_view.viewport().rect().center()
+            )
+            # Create node with zone ID encoded in the type
+            self._graph_view.node_created.emit(f"ZoneInput:{zone_id}", center.x(), center.y())
 
     def _detect_graph_functions(self) -> list:
         """
@@ -3485,6 +3560,20 @@ class MainWindow(QMainWindow):
                 if def_dict:
                     display_name = def_dict.get("name", "Flow Function")
                     initial_state["definition_id"] = definition_id
+        elif node_type.startswith("ZoneInput:"):
+            # ZoneInput: is followed by zone_id
+            zone_id = node_type.split(":", 1)[1]
+            actual_node_type = "ZoneInput"
+            # Get zone name for display
+            for zone in self._zone_config.zones:
+                if zone.id == zone_id:
+                    display_name = f"Zone: {zone.name}"
+                    initial_state["zone_id"] = zone_id
+                    initial_state["zone_name"] = zone.name
+                    break
+            else:
+                display_name = "Zone Input"
+                initial_state["zone_id"] = zone_id
 
         node_type_normalized = actual_node_type.replace(" ", "")
 
@@ -3516,6 +3605,7 @@ class MainWindow(QMainWindow):
         io_nodes = ["Output", "Input", "MotorGovernor", "CustomDeviceAction"]
         script_nodes = ["Script"]
         function_nodes = ["FlowFunctionCall", "FunctionCall", "StartFunction", "EndFunction"]
+        interface_nodes = ["ZoneInput"]
 
         if node_type_normalized in flow_nodes:
             category = "logic"  # Use blue color
@@ -3527,6 +3617,8 @@ class MainWindow(QMainWindow):
             category = "script"  # Use purple color
         elif node_type_normalized in function_nodes:
             category = "logic"  # Flow functions are logic nodes
+        elif node_type_normalized in interface_nodes:
+            category = "interface"  # Zone inputs are interface nodes
 
         # Add visual node to graph (use display_name for the visual)
         node_item = self._graph_view.add_node(node_id, display_name, x, y)
@@ -3594,6 +3686,8 @@ class MainWindow(QMainWindow):
             "FlowFunctionCall": ([">exec"], [">next"]),  # Legacy alias
             # Script nodes
             "Script": ([">exec", "input"], ["output", ">next"]),  # Exec in, data input, data output, exec out
+            # Zone input node - outputs zone state
+            "ZoneInput": ([], ["Occupied", "Object Count", ">On Enter", ">On Exit"]),
         }
 
         inputs, outputs = port_configs.get(nt, ([">in"], [">out"]))

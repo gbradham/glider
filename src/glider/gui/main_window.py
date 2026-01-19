@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Dict, Optional, TYPE_CHECKING
 
 from PyQt6.QtWidgets import (
+    QApplication,
     QMainWindow,
     QWidget,
     QStackedWidget,

@@ -257,7 +257,11 @@ class MainWindow(QMainWindow):
         if self._view_manager.is_runner_mode:
             # Runner mode: fullscreen, no frame
             self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
-            self.showFullScreen()
+            # Explicitly set geometry to fill the screen (more reliable on Pi)
+            screen = QApplication.primaryScreen()
+            if screen:
+                self.setGeometry(screen.geometry())
+            self.show()
         else:
             # Desktop mode: standard window
             self.setMinimumSize(config.ui.min_window_width, config.ui.min_window_height)

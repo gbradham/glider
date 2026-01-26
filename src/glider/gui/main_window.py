@@ -759,6 +759,11 @@ class MainWindow(QMainWindow):
         self._files_dock.setWidget(files_scroll)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._files_dock)
 
+        # Hide Files dock by default on desktop - user can enable via View menu
+        # (Files dock is mainly for Pi touchscreen where menu isn't easily accessible)
+        if not self._view_manager.is_touch_mode:
+            self._files_dock.setVisible(False)
+
         # Refresh hardware tree (which also refreshes the device combo)
         self._refresh_hardware_tree()
 
@@ -851,6 +856,11 @@ class MainWindow(QMainWindow):
             camera_action = self._camera_dock.toggleViewAction()
             camera_action.setText("&Camera Panel")
             view_menu.addAction(camera_action)
+
+        if hasattr(self, '_files_dock'):
+            files_action = self._files_dock.toggleViewAction()
+            files_action.setText("&Files Panel")
+            view_menu.addAction(files_action)
 
         view_menu.addSeparator()
 

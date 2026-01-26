@@ -5,7 +5,6 @@ Provides the node types for flow-based visual programming:
 - Hardware Nodes: Interface with physical devices
 - Logic Nodes: Mathematical operations, comparisons, timers
 - Interface Nodes: Dashboard widgets for user interaction
-- Script Nodes: Custom Python code execution
 - Flow Function Nodes: User-defined reusable functions
 """
 

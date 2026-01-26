@@ -72,9 +72,6 @@ class NodeType(Enum):
     SLIDER = "Slider"
     NUMERIC_INPUT = "NumericInput"
 
-    # Script node
-    SCRIPT = "Script"
-
     @classmethod
     def from_string(cls, type_str: str) -> "NodeType":
         """

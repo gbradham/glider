@@ -51,9 +51,7 @@ from PyQt6.QtCore import Qt, QSize, pyqtSignal, pyqtSlot, QMimeData, QTimer
 from glider.gui.view_manager import ViewManager, ViewMode
 from glider.gui.node_graph.graph_view import NodeGraphView
 from glider.gui.panels.camera_panel import CameraPanel
-from glider.gui.panels.agent_panel import AgentPanel
 from glider.gui.dialogs.camera_settings_dialog import CameraSettingsDialog
-from glider.gui.dialogs.agent_settings_dialog import AgentSettingsDialog
 from glider.gui.dialogs.calibration_dialog import CalibrationDialog
 from glider.gui.dialogs.zone_dialog import ZoneDialog
 from glider.vision.zones import ZoneConfiguration
@@ -717,21 +715,6 @@ class MainWindow(QMainWindow):
         self._camera_dock.setWidget(self._camera_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._camera_dock)
 
-        # AI Agent Panel dock
-        self._agent_dock = QDockWidget("AI Assistant", self)
-        self._agent_dock.setAllowedAreas(
-            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
-        )
-        self._agent_panel = AgentPanel()
-        self._agent_panel.set_controller(self._core.agent_controller)
-        self._agent_panel.settings_requested.connect(self._on_agent_settings)
-        self._agent_dock.setWidget(self._agent_panel)
-        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._agent_dock)
-
-        # Tabify agent dock with camera dock
-        self.tabifyDockWidget(self._camera_dock, self._agent_dock)
-        self._camera_dock.raise_()
-
         # Files dock (for Pi touchscreen access to file operations)
         self._files_dock = QDockWidget("Files", self)
         self._files_dock.setAllowedAreas(
@@ -868,11 +851,6 @@ class MainWindow(QMainWindow):
             camera_action = self._camera_dock.toggleViewAction()
             camera_action.setText("&Camera Panel")
             view_menu.addAction(camera_action)
-
-        if hasattr(self, '_agent_dock'):
-            agent_action = self._agent_dock.toggleViewAction()
-            agent_action.setText("AI &Assistant")
-            view_menu.addAction(agent_action)
 
         view_menu.addSeparator()
 
@@ -1479,8 +1457,6 @@ class MainWindow(QMainWindow):
             self._node_library_dock.setVisible(False)
         if getattr(self, '_properties_dock', None) is not None:
             self._properties_dock.setVisible(False)
-        if getattr(self, '_agent_dock', None) is not None:
-            self._agent_dock.setVisible(False)
 
         if len(docks) < 2:
             return
@@ -1552,14 +1528,6 @@ class MainWindow(QMainWindow):
             self._camera_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._camera_dock)
             self._camera_dock.setVisible(True)
-
-        if getattr(self, '_agent_dock', None) is not None:
-            self._agent_dock.setFeatures(default_features)
-            self._agent_dock.setAllowedAreas(default_areas)
-            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._agent_dock)
-            if getattr(self, '_camera_dock', None) is not None:
-                self.tabifyDockWidget(self._camera_dock, self._agent_dock)
-                self._camera_dock.raise_()
 
         # Hide files dock on large screens (menu/toolbar available)
         if getattr(self, '_files_dock', None) is not None:
@@ -2563,47 +2531,10 @@ class MainWindow(QMainWindow):
         self._core.session.zones.config_height = self._zone_config.config_height
         self._core.session._mark_dirty()
 
-    # Agent operations
-    def _on_agent_settings(self) -> None:
-        """Show agent settings dialog."""
-        dialog = AgentSettingsDialog(
-            config=self._core.agent_controller.config,
-            parent=self
-        )
-
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            # Apply agent settings
-            new_config = dialog.get_config()
-            self._core.agent_controller.config = new_config
-            logger.info("Agent settings updated")
-
     # Run operations
     @pyqtSlot()
     def _on_start_clicked(self) -> None:
         """Start experiment."""
-        # Check for Script nodes and warn user
-        if self._core.session:
-            script_nodes = [
-                node for node in self._core.session.flow.nodes
-                if node.node_type.replace(" ", "") == "Script"
-            ]
-            if script_nodes:
-                result = QMessageBox.warning(
-                    self,
-                    "Script Nodes Detected",
-                    f"This experiment contains {len(script_nodes)} Script node(s).\n\n"
-                    "Script nodes execute arbitrary Python code which could:\n"
-                    "- Access and modify files on your system\n"
-                    "- Make network connections\n"
-                    "- Control connected hardware unexpectedly\n\n"
-                    "Only run experiments with Script nodes from trusted sources.\n\n"
-                    "Do you want to continue?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.No
-                )
-                if result != QMessageBox.StandardButton.Yes:
-                    return
-
         self._run_async(self._start_async())
 
     async def _start_async(self) -> None:
@@ -2930,9 +2861,6 @@ class MainWindow(QMainWindow):
                 ("Output", "Output", "Write to a device (digital or PWM)"),
                 ("Input", "Input", "Read from a device (digital or analog)"),
             ],
-            "Script": [
-                ("Script", "Python Script", "Execute custom Python code (SECURITY WARNING: runs arbitrary code)"),
-            ],
         }
 
         # Category colors for headers
@@ -2941,7 +2869,6 @@ class MainWindow(QMainWindow):
             "Functions": "#2d7a7a", # Teal
             "Control": "#7a5a2d",   # Orange/Brown
             "I/O": "#2d7a2d",       # Green
-            "Script": "#5a2d7a",    # Purple
         }
 
         for category, nodes in node_categories.items():
@@ -3582,25 +3509,6 @@ class MainWindow(QMainWindow):
 
         node_type_normalized = actual_node_type.replace(" ", "")
 
-        # Show security warning for Script nodes
-        if node_type_normalized == "Script":
-            result = QMessageBox.warning(
-                self,
-                "Security Warning",
-                "Script nodes execute arbitrary Python code.\n\n"
-                "This is a potential security risk as the code has full access to:\n"
-                "- The file system\n"
-                "- Network connections\n"
-                "- Connected hardware\n"
-                "- System resources\n\n"
-                "Only use Script nodes with code you trust.\n\n"
-                "Do you want to continue?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No
-            )
-            if result != QMessageBox.StandardButton.Yes:
-                return
-
         node_id = f"{actual_node_type.lower()}_{uuid.uuid4().hex[:8]}"
 
         # Determine category from node type
@@ -3608,7 +3516,6 @@ class MainWindow(QMainWindow):
         flow_nodes = ["StartExperiment", "EndExperiment", "Delay"]
         control_nodes = ["Loop", "WaitForInput"]
         io_nodes = ["Output", "Input", "MotorGovernor", "CustomDeviceAction"]
-        script_nodes = ["Script"]
         function_nodes = ["FlowFunctionCall", "FunctionCall", "StartFunction", "EndFunction"]
         interface_nodes = ["ZoneInput"]
 
@@ -3618,8 +3525,6 @@ class MainWindow(QMainWindow):
             category = "interface"  # Use orange color for control nodes
         elif node_type_normalized in io_nodes:
             category = "hardware"  # Use green color
-        elif node_type_normalized in script_nodes:
-            category = "script"  # Use purple color
         elif node_type_normalized in function_nodes:
             category = "logic"  # Flow functions are logic nodes
         elif node_type_normalized in interface_nodes:
@@ -3689,8 +3594,6 @@ class MainWindow(QMainWindow):
             # Flow function call node
             "FunctionCall": ([">exec"], [">next"]),  # Exec in, exec out
             "FlowFunctionCall": ([">exec"], [">next"]),  # Legacy alias
-            # Script nodes
-            "Script": ([">exec", "input"], ["output", ">next"]),  # Exec in, data input, data output, exec out
             # Zone input node - outputs zone state
             "ZoneInput": ([], ["Occupied", "Object Count", ">On Enter", ">On Exit"]),
         }
@@ -4119,50 +4022,6 @@ class MainWindow(QMainWindow):
             info_label.setStyleSheet("color: #888; font-size: 10px; margin-top: 8px;")
             props_layout.addRow(info_label)
 
-        # Add properties for Script node
-        elif node_type == "Script":
-            # Security warning banner - uses property for styling (defined in QSS)
-            warning_label = QLabel("WARNING: Executes arbitrary Python code")
-            warning_label.setProperty("securityWarning", True)
-            props_layout.addRow(warning_label)
-
-            # Code editor
-            code_label = QLabel("Python Code:")
-            props_layout.addRow(code_label)
-
-            code_edit = QPlainTextEdit()
-            code_edit.setMinimumHeight(200)
-            code_edit.setProperty("codeEditor", True)
-            code_edit.setPlaceholderText(
-                "# Available variables:\n"
-                "# - inputs: list of input values\n"
-                "# - outputs: list for output values\n"
-                "# - set_output(index, value): set output\n"
-                "# - device: bound hardware device\n"
-                "# - asyncio: asyncio module\n\n"
-                "# Example:\n"
-                "value = inputs[0] * 2\n"
-                "set_output(0, value)"
-            )
-
-            # Load saved code
-            saved_code = ""
-            if node_config and node_config.state:
-                saved_code = node_config.state.get("code", "")
-            code_edit.setPlainText(saved_code)
-
-            # Save code on change (with debounce)
-            def on_code_changed(nid=node_id, editor=code_edit):
-                self._on_node_property_changed(nid, "code", editor.toPlainText())
-
-            code_edit.textChanged.connect(on_code_changed)
-            props_layout.addRow(code_edit)
-
-            # Validate button
-            validate_btn = QPushButton("Validate Syntax")
-            validate_btn.clicked.connect(lambda: self._validate_script_syntax(code_edit.toPlainText()))
-            props_layout.addRow(validate_btn)
-
         # Add properties for CustomDevice/CustomDeviceAction node (shows device info and pins)
         elif node_type in ("CustomDevice", "CustomDeviceAction"):
             # Get the definition ID from node state or node_item
@@ -4325,25 +4184,6 @@ class MainWindow(QMainWindow):
             # Refresh flow functions if function name changed
             if prop_name == "function_name":
                 self._refresh_flow_functions()
-
-    def _validate_script_syntax(self, code: str) -> None:
-        """Validate Python script syntax and show result."""
-        if not code.strip():
-            QMessageBox.information(self, "Validation", "No code to validate.")
-            return
-
-        try:
-            compile(code, "<script>", "exec")
-            QMessageBox.information(
-                self, "Validation Passed",
-                "Script syntax is valid.\n\n"
-                "Note: This only checks syntax, not runtime errors."
-            )
-        except SyntaxError as e:
-            QMessageBox.warning(
-                self, "Syntax Error",
-                f"Line {e.lineno}: {e.msg}\n\n{e.text}"
-            )
 
     def _run_async(self, coro) -> asyncio.Task:
         """

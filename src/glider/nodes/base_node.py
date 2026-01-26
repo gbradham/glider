@@ -26,7 +26,6 @@ class NodeCategory(Enum):
     HARDWARE = "hardware"   # Green border
     LOGIC = "logic"         # Blue border
     INTERFACE = "interface" # Orange border
-    SCRIPT = "script"       # Purple border
 
 
 class PortType(Enum):
@@ -412,78 +411,3 @@ class InterfaceNode(GliderNode):
         """Update widget when inputs change."""
         if self._inputs:
             self.notify_widget(self._inputs[0])
-
-
-class ScriptNode(ExecNode):
-    """Base class for custom script nodes."""
-
-    definition = NodeDefinition(
-        name="ScriptNode",
-        category=NodeCategory.SCRIPT,
-        description="Custom Python script node",
-        color="#4a2d5a",  # Purple
-    )
-
-    def __init__(self):
-        super().__init__()
-        self._code = ""
-        self._compiled = None
-
-    @property
-    def code(self) -> str:
-        """Script code."""
-        return self._code
-
-    @code.setter
-    def code(self, value: str) -> None:
-        self._code = value
-        self._compiled = None  # Invalidate compiled code
-
-    def compile(self) -> bool:
-        """Compile the script code."""
-        try:
-            self._compiled = compile(self._code, "<script>", "exec")
-            return True
-        except SyntaxError as e:
-            self.set_error(f"Syntax error: {e}")
-            return False
-
-    async def execute(self) -> None:
-        """Execute the script."""
-        if not self._enabled:
-            return
-
-        if self._compiled is None:
-            if not self.compile():
-                return
-
-        try:
-            # Create execution context
-            context = {
-                "inputs": self._inputs,
-                "outputs": self._outputs,
-                "set_output": self.set_output,
-                "device": self._device,
-                "asyncio": asyncio,
-            }
-
-            # Execute script
-            exec(self._compiled, context)
-
-            self.clear_error()
-
-        except Exception as e:
-            self.set_error(str(e))
-
-    def update_event(self) -> None:
-        """Script nodes don't auto-update on input change."""
-        pass
-
-    def get_state(self) -> Dict[str, Any]:
-        state = super().get_state()
-        state["code"] = self._code
-        return state
-
-    def set_state(self, state: Dict[str, Any]) -> None:
-        super().set_state(state)
-        self._code = state.get("code", "")

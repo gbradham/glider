@@ -609,20 +609,6 @@ QPushButton[nodeCategory="I/O"]:hover {
     background-color: #3d7a3d;
 }
 
-QPushButton[nodeCategory="Script"] {
-    background-color: #4a2d5a;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    text-align: left;
-    border-radius: 4px;
-    margin: 1px 0px;
-}
-
-QPushButton[nodeCategory="Script"]:hover {
-    background-color: #6a3d7a;
-}
-
 QPushButton[nodeButton="true"]:pressed {
     background-color: #333;
 }
@@ -646,10 +632,6 @@ QLabel[categoryHeader="Control"] {
 
 QLabel[categoryHeader="I/O"] {
     background-color: #2d5a2d;
-}
-
-QLabel[categoryHeader="Script"] {
-    background-color: #4a2d5a;
 }
 
 /* === Status Indicators === */

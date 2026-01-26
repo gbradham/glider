@@ -761,7 +761,7 @@ class MainWindow(QMainWindow):
 
         # Hide Files dock by default on desktop - user can enable via View menu
         # (Files dock is mainly for Pi touchscreen where menu isn't easily accessible)
-        if not self._view_manager.is_touch_mode:
+        if not self._view_manager.is_runner_mode:
             self._files_dock.setVisible(False)
 
         # Refresh hardware tree (which also refreshes the device combo)

@@ -562,7 +562,7 @@ QGraphicsView {
 
 /* Console output */
 .ConsoleOutput {
-    font-family: "Consolas", "Monaco", monospace;
+    font-family: "SF Mono", "Menlo", "Consolas", "Monaco", "Courier New";
     background-color: #0d0d1a;
 }
 
@@ -716,7 +716,7 @@ QLabel[recording="true"] {
 
 /* === Code Editor === */
 QPlainTextEdit[codeEditor="true"] {
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-family: "SF Mono", "Menlo", "Consolas", "Monaco", "Courier New";
     font-size: 12px;
     background-color: #1e1e1e;
     color: #d4d4d4;

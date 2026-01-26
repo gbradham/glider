@@ -365,7 +365,7 @@ class MainWindow(QMainWindow):
                 color: #4CAF50;
                 font-size: 18px;
                 font-weight: bold;
-                font-family: monospace;
+                font-family: "SF Mono", "Menlo", "Consolas", "Monaco", "Courier New";
                 padding: 4px 8px;
                 background-color: rgba(76, 175, 80, 0.1);
                 border-radius: 4px;

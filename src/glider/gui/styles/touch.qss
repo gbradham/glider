@@ -8,7 +8,7 @@
 QWidget {
     background-color: #0d0d1a;
     color: #ffffff;
-    font-family: "Roboto", "Segoe UI", sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", "Helvetica Neue", sans-serif;
     font-size: 14px;
 }
 

@@ -168,6 +168,11 @@ class FlowEngine:
             return
 
         for node_type, node_class in self._node_registry.items():
+            # Only register classes that are actual ryvencore Node subclasses
+            # GliderNode classes work in standalone mode and don't need ryvencore registration
+            if not hasattr(node_class, '_build_identifier'):
+                logger.debug(f"Skipping ryvencore registration for {node_type} (standalone GliderNode)")
+                continue
             try:
                 self._session.register_node_type(node_class)
             except Exception as e:

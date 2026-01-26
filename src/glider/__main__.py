@@ -34,6 +34,16 @@ logging.basicConfig(
 logger = logging.getLogger("glider")
 
 
+def get_system_font_family() -> str:
+    """Get the appropriate system font family for the current platform."""
+    if sys.platform == "darwin":
+        return ".AppleSystemUIFont"
+    elif sys.platform == "win32":
+        return "Segoe UI"
+    else:
+        return "DejaVu Sans"
+
+
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
@@ -240,7 +250,7 @@ def main() -> int:
     app.setOrganizationDomain("lainglab.com")
 
     # Set default application font to prevent "Point size <= 0" warnings
-    default_font = QFont("Segoe UI", 10)
+    default_font = QFont(get_system_font_family(), 10)
     app.setFont(default_font)
 
     try:
@@ -304,7 +314,7 @@ def run_sync_fallback(app: QApplication, args: argparse.Namespace) -> int:
     logger.warning("Running in synchronous mode - hardware operations may block")
 
     # Set default application font to prevent "Point size <= 0" warnings
-    default_font = QFont("Segoe UI", 10)
+    default_font = QFont(get_system_font_family(), 10)
     app.setFont(default_font)
 
     # Create and initialize core (sync version - limited)

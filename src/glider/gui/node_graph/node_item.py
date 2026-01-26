@@ -5,7 +5,17 @@ Handles rendering, interaction, and embedded widgets using
 QGraphicsProxyWidget.
 """
 
+import sys
 from typing import Dict, List, Optional
+
+
+def _get_system_font() -> str:
+    """Get the system font for the current platform."""
+    if sys.platform == "darwin":
+        return ".AppleSystemUIFont"
+    elif sys.platform == "win32":
+        return "Segoe UI"
+    return "DejaVu Sans"
 
 from PyQt6.QtWidgets import (
     QGraphicsItem,
@@ -100,7 +110,7 @@ class NodeItem(QGraphicsRectItem):
         """Create the header text."""
         self._header_text = QGraphicsTextItem(self._title, self)
         self._header_text.setDefaultTextColor(QColor(220, 220, 220))
-        font = QFont("Segoe UI", 10, QFont.Weight.Bold)
+        font = QFont(_get_system_font(), 10, QFont.Weight.Bold)
         self._header_text.setFont(font)
         self._header_text.setPos(10, 5)
 
@@ -237,7 +247,7 @@ class NodeItem(QGraphicsRectItem):
 
         # Port labels
         painter.setPen(QPen(QColor(180, 180, 180)))
-        font = QFont("Segoe UI", 9)
+        font = QFont(_get_system_font(), 9)
         painter.setFont(font)
 
         y = self.HEADER_HEIGHT + self.PORT_SPACING + 4

@@ -5,8 +5,18 @@ These widgets are designed for 480x800 Raspberry Pi touchscreen with
 large touch targets (min 80px height) and high-contrast visuals.
 """
 
+import sys
 from typing import Any, Optional, List, TYPE_CHECKING
 from collections import deque
+
+
+def _get_system_font() -> str:
+    """Get the system font for the current platform."""
+    if sys.platform == "darwin":
+        return ".AppleSystemUIFont"
+    elif sys.platform == "win32":
+        return "Segoe UI"
+    return "DejaVu Sans"
 
 from PyQt6.QtWidgets import (
     QWidget,
@@ -439,7 +449,7 @@ class GaugeCanvas(QWidget):
 
         # Value text
         painter.setPen(QPen(QColor("#fff")))
-        font = QFont("Segoe UI", 16, QFont.Weight.Bold)
+        font = QFont(_get_system_font(), 16, QFont.Weight.Bold)
         painter.setFont(font)
 
         value_text = f"{self._value:.1f}{self._unit}"

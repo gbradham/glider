@@ -708,8 +708,6 @@ class MainWindow(QMainWindow):
             multi_camera_manager=self._core.multi_camera_manager,
         )
         self._camera_panel.settings_requested.connect(self._on_camera_settings)
-        self._camera_panel.calibration_requested.connect(self._on_camera_calibration)
-        self._camera_panel.zones_requested.connect(self._on_zones_requested)
         self._camera_panel.set_video_recorder(self._core.video_recorder)
         self._camera_panel.set_multi_video_recorder(self._core.multi_video_recorder)
         self._camera_panel.set_tracking_logger(self._core.tracking_logger)
@@ -2506,6 +2504,10 @@ class MainWindow(QMainWindow):
             parent=self,
             view_manager=self._view_manager,
         )
+
+        # Connect signals for opening calibration and zones dialogs from Tools tab
+        dialog.calibration_requested.connect(self._on_camera_calibration)
+        dialog.zones_requested.connect(self._on_zones_requested)
 
         if dialog.exec() == QDialog.DialogCode.Accepted:
             # Apply camera settings

@@ -216,8 +216,6 @@ class CameraPanel(QWidget):
     """
 
     settings_requested = pyqtSignal()
-    calibration_requested = pyqtSignal()
-    zones_requested = pyqtSignal()
 
     # Thread-safe signals for frame updates (background thread -> main thread)
     _frame_received = pyqtSignal(object)  # FrameData for single camera
@@ -356,14 +354,6 @@ class CameraPanel(QWidget):
         self._settings_btn = QPushButton("Settings...")
         self._settings_btn.clicked.connect(self.settings_requested.emit)
         control_layout.addWidget(self._settings_btn)
-
-        self._calibrate_btn = QPushButton("Calibrate...")
-        self._calibrate_btn.clicked.connect(self.calibration_requested.emit)
-        control_layout.addWidget(self._calibrate_btn)
-
-        self._zones_btn = QPushButton("Zones...")
-        self._zones_btn.clicked.connect(self.zones_requested.emit)
-        control_layout.addWidget(self._zones_btn)
 
         layout.addLayout(control_layout)
 

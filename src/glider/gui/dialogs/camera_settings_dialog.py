@@ -10,7 +10,7 @@ Automatically adapts layout for touchscreen (Pi) or desktop environments.
 import logging
 from typing import TYPE_CHECKING, Optional
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -45,6 +45,10 @@ logger = logging.getLogger(__name__)
 
 class CameraSettingsDialog(QDialog):
     """Dialog for configuring camera and CV settings."""
+
+    # Signals for opening external dialogs
+    calibration_requested = pyqtSignal()
+    zones_requested = pyqtSignal()
 
     def __init__(
         self,
@@ -111,6 +115,14 @@ class CameraSettingsDialog(QDialog):
         # Tracking tab (wrapped in scroll area)
         self._tracking_tab = self._create_scrollable_tab(self._create_tracking_tab_content())
         self._tabs.addTab(self._tracking_tab, "Tracking")
+
+        # Behavior tab (wrapped in scroll area)
+        self._behavior_tab = self._create_scrollable_tab(self._create_behavior_tab_content())
+        self._tabs.addTab(self._behavior_tab, "Behavior")
+
+        # Tools tab (wrapped in scroll area)
+        self._tools_tab = self._create_scrollable_tab(self._create_tools_tab_content())
+        self._tabs.addTab(self._tools_tab, "Tools")
 
         # Dialog buttons - larger for touch
         button_box = QDialogButtonBox(
@@ -715,6 +727,241 @@ class CameraSettingsDialog(QDialog):
 
         return widget
 
+    def _create_behavior_tab_content(self) -> QWidget:
+        """Create the behavior analysis settings tab content."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        # Adjust spacing for touch mode
+        if self._is_touch_mode:
+            layout.setContentsMargins(12, 12, 12, 12)
+            layout.setSpacing(16)
+
+        touch_style = self._get_touch_group_style()
+
+        # Enable behavior analysis - prominent checkbox at top
+        self._behavior_enabled_cb = QCheckBox("Enable Behavior Analysis")
+        if self._is_touch_mode:
+            self._behavior_enabled_cb.setStyleSheet("""
+                QCheckBox {
+                    font-size: 16px;
+                    font-weight: bold;
+                    padding: 8px;
+                    spacing: 12px;
+                }
+                QCheckBox::indicator {
+                    width: 32px;
+                    height: 32px;
+                }
+            """)
+        self._behavior_enabled_cb.toggled.connect(self._on_behavior_enabled_toggle)
+        layout.addWidget(self._behavior_enabled_cb)
+
+        # Thresholds group
+        thresholds_group = QGroupBox("Thresholds (px/frame)")
+        thresholds_group.setStyleSheet(touch_style)
+        thresholds_layout = QFormLayout(thresholds_group)
+        if self._is_touch_mode:
+            thresholds_layout.setSpacing(12)
+            thresholds_layout.setContentsMargins(12, 20, 12, 12)
+
+        # Freeze threshold
+        self._freeze_threshold_spin = QDoubleSpinBox()
+        self._freeze_threshold_spin.setRange(0.1, 10.0)
+        self._freeze_threshold_spin.setSingleStep(0.5)
+        self._freeze_threshold_spin.setValue(1.0)
+        self._freeze_threshold_spin.setToolTip(
+            "Maximum movement (px/frame) to be considered frozen.\n"
+            "Lower = stricter freeze detection."
+        )
+        thresholds_layout.addRow("Freeze:", self._freeze_threshold_spin)
+
+        # Immobile threshold
+        self._immobile_threshold_spin = QDoubleSpinBox()
+        self._immobile_threshold_spin.setRange(1.0, 20.0)
+        self._immobile_threshold_spin.setSingleStep(1.0)
+        self._immobile_threshold_spin.setValue(5.0)
+        self._immobile_threshold_spin.setToolTip(
+            "Maximum movement (px/frame) to be considered immobile.\n"
+            "Covers minor movements like grooming."
+        )
+        thresholds_layout.addRow("Immobile:", self._immobile_threshold_spin)
+
+        # Dart threshold
+        self._dart_threshold_spin = QDoubleSpinBox()
+        self._dart_threshold_spin.setRange(20.0, 200.0)
+        self._dart_threshold_spin.setSingleStep(5.0)
+        self._dart_threshold_spin.setValue(50.0)
+        self._dart_threshold_spin.setToolTip(
+            "Minimum movement (px/frame) to be considered darting.\n"
+            "Detects rapid escape/flight responses."
+        )
+        thresholds_layout.addRow("Darting:", self._dart_threshold_spin)
+
+        layout.addWidget(thresholds_group)
+
+        # Timing group
+        timing_group = QGroupBox("Timing")
+        timing_group.setStyleSheet(touch_style)
+        timing_layout = QFormLayout(timing_group)
+        if self._is_touch_mode:
+            timing_layout.setSpacing(12)
+            timing_layout.setContentsMargins(12, 20, 12, 12)
+
+        # Freeze duration
+        self._freeze_duration_spin = QSpinBox()
+        self._freeze_duration_spin.setRange(5, 60)
+        self._freeze_duration_spin.setValue(15)
+        self._freeze_duration_spin.setSuffix(" frames")
+        self._freeze_duration_spin.setToolTip(
+            "Number of consecutive low-movement frames required\n" "to confirm a freeze state."
+        )
+        timing_layout.addRow("Freeze Duration:", self._freeze_duration_spin)
+
+        # Smoothing window
+        self._smoothing_window_spin = QSpinBox()
+        self._smoothing_window_spin.setRange(3, 15)
+        self._smoothing_window_spin.setValue(5)
+        self._smoothing_window_spin.setSuffix(" frames")
+        self._smoothing_window_spin.setToolTip(
+            "Number of frames to average for velocity smoothing.\n"
+            "Higher = smoother but less responsive."
+        )
+        timing_layout.addRow("Smoothing:", self._smoothing_window_spin)
+
+        layout.addWidget(timing_group)
+
+        # State colors reference (read-only info)
+        colors_group = QGroupBox("State Colors")
+        colors_group.setStyleSheet(touch_style)
+        colors_layout = QVBoxLayout(colors_group)
+        if self._is_touch_mode:
+            colors_layout.setSpacing(8)
+            colors_layout.setContentsMargins(12, 20, 12, 12)
+
+        color_labels = [
+            ("FREEZE", "#0000FF", "Complete stillness"),
+            ("IMMOBILE", "#FFFF00", "Minor movements"),
+            ("MOVING", "#00FF00", "Normal locomotion"),
+            ("DARTING", "#FF0000", "Rapid movement"),
+        ]
+        for name, color, desc in color_labels:
+            color_row = QHBoxLayout()
+            color_box = QLabel()
+            color_box.setFixedSize(20, 20)
+            color_box.setStyleSheet(f"background-color: {color}; border: 1px solid #666;")
+            color_row.addWidget(color_box)
+            text_label = QLabel(f"{name}: {desc}")
+            if self._is_touch_mode:
+                text_label.setStyleSheet("font-size: 13px;")
+            color_row.addWidget(text_label)
+            color_row.addStretch()
+            colors_layout.addLayout(color_row)
+
+        layout.addWidget(colors_group)
+        layout.addStretch()
+
+        return widget
+
+    def _on_behavior_enabled_toggle(self, enabled: bool):
+        """Handle behavior analysis enabled toggle."""
+        self._freeze_threshold_spin.setEnabled(enabled)
+        self._immobile_threshold_spin.setEnabled(enabled)
+        self._dart_threshold_spin.setEnabled(enabled)
+        self._freeze_duration_spin.setEnabled(enabled)
+        self._smoothing_window_spin.setEnabled(enabled)
+
+    def _create_tools_tab_content(self) -> QWidget:
+        """Create the tools tab content with calibration and zones buttons."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        # Adjust spacing for touch mode
+        if self._is_touch_mode:
+            layout.setContentsMargins(12, 12, 12, 12)
+            layout.setSpacing(16)
+
+        touch_style = self._get_touch_group_style()
+
+        # Calibration group
+        calibration_group = QGroupBox("Camera Calibration")
+        calibration_group.setStyleSheet(touch_style)
+        calibration_layout = QVBoxLayout(calibration_group)
+        if self._is_touch_mode:
+            calibration_layout.setSpacing(12)
+            calibration_layout.setContentsMargins(12, 20, 12, 12)
+
+        calibration_desc = QLabel(
+            "Draw measurement lines on the camera view to calibrate\n"
+            "pixel-to-distance conversion for tracking data."
+        )
+        calibration_desc.setWordWrap(True)
+        if self._is_touch_mode:
+            calibration_desc.setStyleSheet("font-size: 13px; color: #aaa;")
+        else:
+            calibration_desc.setStyleSheet("color: #888; font-size: 11px;")
+        calibration_layout.addWidget(calibration_desc)
+
+        self._calibrate_btn = QPushButton("Open Calibration...")
+        if self._is_touch_mode:
+            self._calibrate_btn.setMinimumHeight(50)
+            self._calibrate_btn.setStyleSheet("""
+                QPushButton {
+                    font-size: 16px;
+                    font-weight: bold;
+                    padding: 12px;
+                }
+            """)
+        self._calibrate_btn.clicked.connect(self._on_calibration_clicked)
+        calibration_layout.addWidget(self._calibrate_btn)
+
+        layout.addWidget(calibration_group)
+
+        # Zones group
+        zones_group = QGroupBox("Zone Configuration")
+        zones_group.setStyleSheet(touch_style)
+        zones_layout = QVBoxLayout(zones_group)
+        if self._is_touch_mode:
+            zones_layout.setSpacing(12)
+            zones_layout.setContentsMargins(12, 20, 12, 12)
+
+        zones_desc = QLabel(
+            "Define regions of interest (zones) on the camera view\n"
+            "for tracking object entries, exits, and time spent."
+        )
+        zones_desc.setWordWrap(True)
+        if self._is_touch_mode:
+            zones_desc.setStyleSheet("font-size: 13px; color: #aaa;")
+        else:
+            zones_desc.setStyleSheet("color: #888; font-size: 11px;")
+        zones_layout.addWidget(zones_desc)
+
+        self._zones_btn = QPushButton("Open Zone Editor...")
+        if self._is_touch_mode:
+            self._zones_btn.setMinimumHeight(50)
+            self._zones_btn.setStyleSheet("""
+                QPushButton {
+                    font-size: 16px;
+                    font-weight: bold;
+                    padding: 12px;
+                }
+            """)
+        self._zones_btn.clicked.connect(self._on_zones_clicked)
+        zones_layout.addWidget(self._zones_btn)
+
+        layout.addWidget(zones_group)
+        layout.addStretch()
+
+        return widget
+
+    def _on_calibration_clicked(self) -> None:
+        """Handle calibration button click."""
+        self.calibration_requested.emit()
+
+    def _on_zones_clicked(self) -> None:
+        """Handle zones button click."""
+        self.zones_requested.emit()
+
     def _load_settings(self):
         """Load current settings into the UI."""
         # Camera settings
@@ -784,10 +1031,19 @@ class CameraSettingsDialog(QDialog):
         self._tracking_enabled_cb.setChecked(self._cv_settings.tracking_enabled)
         self._max_disappeared_spin.setValue(self._cv_settings.max_disappeared)
 
+        # Behavior settings
+        self._behavior_enabled_cb.setChecked(self._cv_settings.behavior_enabled)
+        self._freeze_threshold_spin.setValue(self._cv_settings.freeze_threshold)
+        self._immobile_threshold_spin.setValue(self._cv_settings.immobile_threshold)
+        self._dart_threshold_spin.setValue(self._cv_settings.dart_threshold)
+        self._freeze_duration_spin.setValue(self._cv_settings.freeze_duration)
+        self._smoothing_window_spin.setValue(self._cv_settings.smoothing_window)
+
         # Update UI state
         self._on_cv_enabled_toggle(self._cv_settings.enabled)
         self._on_backend_changed(self._backend_combo.currentIndex())
         self._on_tracking_enabled_toggle(self._cv_settings.tracking_enabled)
+        self._on_behavior_enabled_toggle(self._cv_settings.behavior_enabled)
 
     def _on_auto_exposure_toggle(self, checked: bool):
         """Handle auto exposure toggle."""
@@ -898,6 +1154,14 @@ class CameraSettingsDialog(QDialog):
         self._cv_settings.draw_overlays = self._draw_overlays_cb.isChecked()
         self._cv_settings.tracking_enabled = self._tracking_enabled_cb.isChecked()
         self._cv_settings.max_disappeared = self._max_disappeared_spin.value()
+
+        # Behavior settings
+        self._cv_settings.behavior_enabled = self._behavior_enabled_cb.isChecked()
+        self._cv_settings.freeze_threshold = self._freeze_threshold_spin.value()
+        self._cv_settings.immobile_threshold = self._immobile_threshold_spin.value()
+        self._cv_settings.dart_threshold = self._dart_threshold_spin.value()
+        self._cv_settings.freeze_duration = self._freeze_duration_spin.value()
+        self._cv_settings.smoothing_window = self._smoothing_window_spin.value()
 
     def accept(self):
         """Handle dialog acceptance."""

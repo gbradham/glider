@@ -4,7 +4,6 @@ Tests for glider.core.experiment_session module.
 Tests the ExperimentSession state machine and session management.
 """
 
-
 from glider.core.experiment_session import (
     BoardConfig,
     DeviceConfig,
@@ -19,11 +18,18 @@ class TestSessionMetadata:
 
     def test_default_values(self):
         """Test SessionMetadata default values."""
-        metadata = SessionMetadata(name="Test")
+        metadata = SessionMetadata()
 
-        assert metadata.name == "Test"
+        assert metadata.name == "Untitled Experiment"
         assert metadata.description == ""
         assert metadata.author == ""
+        assert metadata.version == "1.0.0"
+
+    def test_custom_name(self):
+        """Test SessionMetadata with custom name."""
+        metadata = SessionMetadata(name="My Experiment")
+
+        assert metadata.name == "My Experiment"
 
     def test_to_dict(self):
         """Test SessionMetadata serialization."""
@@ -37,6 +43,8 @@ class TestSessionMetadata:
         assert data["name"] == "Test Session"
         assert data["description"] == "A test description"
         assert data["author"] == "Test Author"
+        assert "id" in data
+        assert "created_at" in data
 
     def test_from_dict(self):
         """Test SessionMetadata deserialization."""
@@ -60,43 +68,52 @@ class TestBoardConfig:
         """Test BoardConfig creation."""
         config = BoardConfig(
             id="board_1",
-            driver="arduino",
-            name="Arduino Uno"
+            driver_type="arduino"
         )
 
         assert config.id == "board_1"
-        assert config.driver == "arduino"
-        assert config.name == "Arduino Uno"
+        assert config.driver_type == "arduino"
+
+    def test_optional_fields(self):
+        """Test BoardConfig optional fields."""
+        config = BoardConfig(
+            id="board_1",
+            driver_type="arduino",
+            port="/dev/ttyUSB0",
+            board_type="uno",
+            auto_reconnect=True
+        )
+
+        assert config.port == "/dev/ttyUSB0"
+        assert config.board_type == "uno"
+        assert config.auto_reconnect is True
 
     def test_to_dict(self):
         """Test BoardConfig serialization."""
         config = BoardConfig(
             id="board_1",
-            driver="arduino",
-            name="Arduino",
+            driver_type="arduino",
             port="/dev/ttyUSB0",
             settings={"baud_rate": 115200}
         )
         data = config.to_dict()
 
         assert data["id"] == "board_1"
-        assert data["driver"] == "arduino"
+        assert data["driver_type"] == "arduino"
         assert data["port"] == "/dev/ttyUSB0"
 
     def test_from_dict(self):
         """Test BoardConfig deserialization."""
         data = {
             "id": "board_2",
-            "driver": "raspberry_pi",
-            "name": "Pi Board",
+            "driver_type": "raspberry_pi",
             "port": None,
             "settings": {}
         }
         config = BoardConfig.from_dict(data)
 
         assert config.id == "board_2"
-        assert config.driver == "raspberry_pi"
-        assert config.name == "Pi Board"
+        assert config.driver_type == "raspberry_pi"
 
 
 class TestDeviceConfig:
@@ -106,30 +123,32 @@ class TestDeviceConfig:
         """Test DeviceConfig creation."""
         config = DeviceConfig(
             id="device_1",
-            board_id="board_1",
             device_type="DigitalOutput",
-            name="LED"
+            name="LED",
+            board_id="board_1",
+            pins={"signal": 13}
         )
 
         assert config.id == "device_1"
         assert config.board_id == "board_1"
         assert config.device_type == "DigitalOutput"
         assert config.name == "LED"
+        assert config.pins == {"signal": 13}
 
     def test_to_dict(self):
         """Test DeviceConfig serialization."""
         config = DeviceConfig(
             id="device_1",
-            board_id="board_1",
             device_type="DigitalOutput",
             name="LED",
-            pin=13,
+            board_id="board_1",
+            pins={"signal": 13},
             settings={"inverted": False}
         )
         data = config.to_dict()
 
         assert data["id"] == "device_1"
-        assert data["pin"] == 13
+        assert data["pins"] == {"signal": 13}
 
     def test_from_dict(self):
         """Test DeviceConfig deserialization."""
@@ -138,14 +157,14 @@ class TestDeviceConfig:
             "board_id": "board_1",
             "device_type": "AnalogInput",
             "name": "Temperature Sensor",
-            "pin": 0,
+            "pins": {"analog": 0},
             "settings": {"smoothing": True}
         }
         config = DeviceConfig.from_dict(data)
 
         assert config.id == "sensor_1"
         assert config.device_type == "AnalogInput"
-        assert config.pin == 0
+        assert config.pins == {"analog": 0}
 
 
 class TestExperimentSession:
@@ -159,11 +178,13 @@ class TestExperimentSession:
         assert session.name == "Untitled Experiment"
         assert session.metadata.version == "1.0.0"
 
-    def test_session_init_with_name(self):
-        """Test ExperimentSession initialization with name."""
-        session = ExperimentSession(name="My Experiment")
+    def test_session_set_name(self):
+        """Test setting session name."""
+        session = ExperimentSession()
+        session.name = "My Experiment"
 
         assert session.name == "My Experiment"
+        assert session.is_dirty is True
 
     def test_session_state_transitions(self):
         """Test session state transitions."""
@@ -186,12 +207,19 @@ class TestExperimentSession:
             session.state = state
             assert session.state == state
 
-    def test_mark_dirty(self):
-        """Test marking session as dirty."""
+    def test_is_dirty_on_changes(self):
+        """Test is_dirty flag on changes."""
         session = ExperimentSession()
-        initial_dirty = session.is_dirty
 
-        session.mark_dirty()
+        # Session may start dirty or clean depending on implementation
+        session._mark_clean()
+        assert session.is_dirty is False
+
+        # Adding board should mark dirty
+        session.add_board(BoardConfig(
+            id="board_1",
+            driver_type="arduino"
+        ))
         assert session.is_dirty is True
 
     def test_add_board(self):
@@ -199,59 +227,60 @@ class TestExperimentSession:
         session = ExperimentSession()
         config = BoardConfig(
             id="board_1",
-            driver="arduino",
-            name="Arduino"
+            driver_type="arduino"
         )
 
         session.add_board(config)
 
-        assert "board_1" in session.boards
-        assert session.boards["board_1"] == config
+        assert len(session.hardware.boards) == 1
+        assert session.hardware.boards[0] == config
 
     def test_remove_board(self):
         """Test removing a board from the session."""
         session = ExperimentSession()
-        config = BoardConfig(id="board_1", driver="arduino", name="Arduino")
+        config = BoardConfig(id="board_1", driver_type="arduino")
         session.add_board(config)
 
         session.remove_board("board_1")
 
-        assert "board_1" not in session.boards
+        assert len(session.hardware.boards) == 0
 
     def test_add_device(self):
         """Test adding a device to the session."""
         session = ExperimentSession()
         config = DeviceConfig(
             id="device_1",
-            board_id="board_1",
             device_type="DigitalOutput",
-            name="LED"
+            name="LED",
+            board_id="board_1",
+            pins={"signal": 13}
         )
 
         session.add_device(config)
 
-        assert "device_1" in session.devices
-        assert session.devices["device_1"] == config
+        assert len(session.hardware.devices) == 1
+        assert session.hardware.devices[0] == config
 
     def test_remove_device(self):
         """Test removing a device from the session."""
         session = ExperimentSession()
         config = DeviceConfig(
             id="device_1",
-            board_id="board_1",
             device_type="DigitalOutput",
-            name="LED"
+            name="LED",
+            board_id="board_1",
+            pins={"signal": 13}
         )
         session.add_device(config)
 
         session.remove_device("device_1")
 
-        assert "device_1" not in session.devices
+        assert len(session.hardware.devices) == 0
 
     def test_get_board(self):
         """Test getting a board by ID."""
         session = ExperimentSession()
-        config = BoardConfig(id="board_1", driver="arduino", name="Arduino")
+        config = BoardConfig(id="board_1", driver_type="arduino")
         session.add_board(config)
 
         result = session.get_board("board_1")
@@ -265,9 +294,10 @@ class TestExperimentSession:
         session = ExperimentSession()
         config = DeviceConfig(
             id="device_1",
-            board_id="board_1",
             device_type="DigitalOutput",
-            name="LED"
+            name="LED",
+            board_id="board_1",
+            pins={"signal": 13}
         )
         session.add_device(config)
 
@@ -277,42 +307,24 @@ class TestExperimentSession:
         result = session.get_device("nonexistent")
         assert result is None
 
-    def test_get_devices_for_board(self):
-        """Test getting all devices for a specific board."""
-        session = ExperimentSession()
-
-        # Add devices for different boards
-        session.add_device(DeviceConfig(
-            id="led_1", board_id="board_1", device_type="DigitalOutput", name="LED 1"
-        ))
-        session.add_device(DeviceConfig(
-            id="led_2", board_id="board_1", device_type="DigitalOutput", name="LED 2"
-        ))
-        session.add_device(DeviceConfig(
-            id="sensor_1", board_id="board_2", device_type="AnalogInput", name="Sensor"
-        ))
-
-        board_1_devices = session.get_devices_for_board("board_1")
-        assert len(board_1_devices) == 2
-
-        board_2_devices = session.get_devices_for_board("board_2")
-        assert len(board_2_devices) == 1
-
     def test_to_dict(self):
         """Test session serialization."""
-        session = ExperimentSession(name="Test Session")
+        session = ExperimentSession()
+        session.name = "Test Session"
         session.add_board(BoardConfig(
-            id="board_1", driver="arduino", name="Arduino"
+            id="board_1", driver_type="arduino"
         ))
         session.add_device(DeviceConfig(
-            id="led_1", board_id="board_1", device_type="DigitalOutput", name="LED"
+            id="led_1", device_type="DigitalOutput", name="LED",
+            board_id="board_1", pins={"signal": 13}
         ))
 
         data = session.to_dict()
 
         assert "metadata" in data
-        assert "boards" in data
-        assert "devices" in data
+        assert "hardware" in data
+        assert "flow" in data
+        assert "dashboard" in data
 
     def test_from_dict(self):
         """Test session deserialization."""
@@ -323,72 +335,76 @@ class TestExperimentSession:
                 "author": "Author",
                 "version": "1.0.0"
             },
-            "boards": [
-                {"id": "b1", "driver": "arduino", "name": "Board"}
-            ],
-            "devices": [
-                {"id": "d1", "board_id": "b1", "device_type": "DigitalOutput", "name": "Device"}
-            ],
-            "flow_config": {},
-            "dashboard_config": {}
+            "hardware": {
+                "boards": [
+                    {"id": "b1", "driver_type": "arduino"}
+                ],
+                "devices": [
+                    {"id": "d1", "board_id": "b1", "device_type": "DigitalOutput",
+                     "name": "Device", "pins": {"signal": 13}}
+                ]
+            },
+            "flow": {"nodes": [], "connections": []},
+            "dashboard": {"widgets": [], "layout": "vertical"}
         }
 
         session = ExperimentSession.from_dict(data)
 
         assert session.name == "Loaded Session"
-        assert "b1" in session.boards
-        assert "d1" in session.devices
+        assert len(session.hardware.boards) == 1
+        assert len(session.hardware.devices) == 1
 
     def test_clear(self):
         """Test clearing a session."""
-        session = ExperimentSession(name="Test")
-        session.add_board(BoardConfig(id="b1", driver="arduino", name="Board"))
+        session = ExperimentSession()
+        session.name = "Test"
+        session.add_board(BoardConfig(id="b1", driver_type="arduino"))
         session.add_device(DeviceConfig(
-            id="d1", board_id="b1", device_type="DigitalOutput", name="Device"
+            id="d1", device_type="DigitalOutput", name="Device",
+            board_id="b1", pins={"signal": 13}
         ))
 
         session.clear()
 
-        assert len(session.boards) == 0
-        assert len(session.devices) == 0
+        assert len(session.hardware.boards) == 0
+        assert len(session.hardware.devices) == 0
 
     def test_roundtrip(self):
         """Test serialization roundtrip."""
-        original = ExperimentSession(name="Roundtrip Test")
+        original = ExperimentSession()
+        original.name = "Roundtrip Test"
         original.metadata.description = "Testing roundtrip"
         original.add_board(BoardConfig(
-            id="board_1", driver="arduino", name="Arduino", port="/dev/ttyUSB0"
+            id="board_1", driver_type="arduino", port="/dev/ttyUSB0"
         ))
         original.add_device(DeviceConfig(
-            id="led_1", board_id="board_1", device_type="DigitalOutput",
-            name="Status LED", pin=13
+            id="led_1", device_type="DigitalOutput",
+            name="Status LED", board_id="board_1", pins={"signal": 13}
         ))
 
         data = original.to_dict()
         restored = ExperimentSession.from_dict(data)
 
         assert restored.name == original.name
-        assert len(restored.boards) == len(original.boards)
-        assert len(restored.devices) == len(original.devices)
+        assert len(restored.hardware.boards) == len(original.hardware.boards)
+        assert len(restored.hardware.devices) == len(original.hardware.devices)
 
 
 class TestSessionStateEnum:
-    """Tests for SessionState enum properties."""
+    """Tests for SessionState enum."""
 
-    def test_is_active(self):
-        """Test is_active property."""
-        assert SessionState.RUNNING.is_active is True
-        assert SessionState.IDLE.is_active is False
-        assert SessionState.PAUSED.is_active is False
+    def test_state_values(self):
+        """Test SessionState enum values."""
+        assert SessionState.IDLE is not None
+        assert SessionState.INITIALIZING is not None
+        assert SessionState.READY is not None
+        assert SessionState.RUNNING is not None
+        assert SessionState.PAUSED is not None
+        assert SessionState.STOPPING is not None
+        assert SessionState.ERROR is not None
 
-    def test_can_start(self):
-        """Test can_start property."""
-        assert SessionState.IDLE.can_start is True
-        assert SessionState.READY.can_start is True
-        assert SessionState.RUNNING.can_start is False
-
-    def test_can_stop(self):
-        """Test can_stop property."""
-        assert SessionState.RUNNING.can_stop is True
-        assert SessionState.PAUSED.can_stop is True
-        assert SessionState.IDLE.can_stop is False
+    def test_all_states_distinct(self):
+        """Test that all states have distinct values."""
+        states = list(SessionState)
+        values = [s.value for s in states]
+        assert len(values) == len(set(values))

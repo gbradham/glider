@@ -1,11 +1,13 @@
 """
 Tests for glider.core.config module.
 
-Tests configuration dataclasses and their serialization.
+Tests the configuration classes and persistence.
 """
 
 import json
 from pathlib import Path
+
+import pytest
 
 from glider.core.config import (
     GliderConfig,
@@ -13,6 +15,8 @@ from glider.core.config import (
     PathConfig,
     TimingConfig,
     UIConfig,
+    get_config,
+    set_config,
 )
 
 
@@ -22,69 +26,25 @@ class TestTimingConfig:
     def test_default_values(self):
         """Test TimingConfig default values."""
         config = TimingConfig()
-        assert config.default_sample_interval == 0.1
-        assert config.min_sample_interval == 0.001
-        assert config.flow_tick_rate == 60
-        assert config.hardware_poll_interval == 0.01
+
+        assert config.device_refresh_interval_ms == 250
+        assert config.elapsed_timer_interval_ms == 1000
+        assert config.default_poll_interval == 0.1
+        assert config.board_ready_timeout == 10.0
+        assert config.board_operation_timeout == 5.0
+        assert config.function_execution_timeout == 60.0
 
     def test_custom_values(self):
         """Test TimingConfig with custom values."""
         config = TimingConfig(
-            default_sample_interval=0.5,
-            min_sample_interval=0.01,
-            flow_tick_rate=30,
-            hardware_poll_interval=0.05
+            device_refresh_interval_ms=500,
+            board_ready_timeout=30.0
         )
-        assert config.default_sample_interval == 0.5
-        assert config.min_sample_interval == 0.01
-        assert config.flow_tick_rate == 30
-        assert config.hardware_poll_interval == 0.05
 
-    def test_to_dict(self):
-        """Test TimingConfig serialization to dict."""
-        config = TimingConfig()
-        data = config.to_dict()
-
-        assert isinstance(data, dict)
-        assert "default_sample_interval" in data
-        assert "min_sample_interval" in data
-        assert "flow_tick_rate" in data
-        assert "hardware_poll_interval" in data
-
-    def test_from_dict(self):
-        """Test TimingConfig deserialization from dict."""
-        data = {
-            "default_sample_interval": 0.2,
-            "min_sample_interval": 0.005,
-            "flow_tick_rate": 120,
-            "hardware_poll_interval": 0.02
-        }
-        config = TimingConfig.from_dict(data)
-
-        assert config.default_sample_interval == 0.2
-        assert config.min_sample_interval == 0.005
-        assert config.flow_tick_rate == 120
-        assert config.hardware_poll_interval == 0.02
-
-    def test_from_dict_with_missing_keys(self):
-        """Test TimingConfig from_dict uses defaults for missing keys."""
-        data = {"default_sample_interval": 0.5}
-        config = TimingConfig.from_dict(data)
-
-        assert config.default_sample_interval == 0.5
-        # Other values should be defaults
-        assert config.flow_tick_rate == 60
-
-    def test_roundtrip(self):
-        """Test TimingConfig serialization roundtrip."""
-        original = TimingConfig(
-            default_sample_interval=0.25,
-            flow_tick_rate=90
-        )
-        restored = TimingConfig.from_dict(original.to_dict())
-
-        assert original.default_sample_interval == restored.default_sample_interval
-        assert original.flow_tick_rate == restored.flow_tick_rate
+        assert config.device_refresh_interval_ms == 500
+        assert config.board_ready_timeout == 30.0
+        # Other values remain default
+        assert config.default_poll_interval == 0.1
 
 
 class TestUIConfig:
@@ -93,33 +53,22 @@ class TestUIConfig:
     def test_default_values(self):
         """Test UIConfig default values."""
         config = UIConfig()
-        assert config.theme == "dark"
-        assert config.show_grid is True
-        assert config.grid_size == 20
-        assert config.snap_to_grid is True
 
-    def test_to_dict(self):
-        """Test UIConfig serialization."""
-        config = UIConfig(theme="light", show_grid=False)
-        data = config.to_dict()
+        assert config.min_window_width == 1024
+        assert config.min_window_height == 768
+        assert config.default_window_width == 1400
+        assert config.default_window_height == 900
+        assert config.max_undo_stack_size == 100
 
-        assert data["theme"] == "light"
-        assert data["show_grid"] is False
+    def test_custom_values(self):
+        """Test UIConfig with custom values."""
+        config = UIConfig(
+            min_window_width=800,
+            min_window_height=600
+        )
 
-    def test_from_dict(self):
-        """Test UIConfig deserialization."""
-        data = {
-            "theme": "light",
-            "show_grid": False,
-            "grid_size": 25,
-            "snap_to_grid": False
-        }
-        config = UIConfig.from_dict(data)
-
-        assert config.theme == "light"
-        assert config.show_grid is False
-        assert config.grid_size == 25
-        assert config.snap_to_grid is False
+        assert config.min_window_width == 800
+        assert config.min_window_height == 600
 
 
 class TestHardwareConfig:
@@ -128,71 +77,48 @@ class TestHardwareConfig:
     def test_default_values(self):
         """Test HardwareConfig default values."""
         config = HardwareConfig()
-        assert config.auto_connect is False
-        assert config.connection_timeout == 5.0
-        assert config.retry_attempts == 3
 
-    def test_to_dict(self):
-        """Test HardwareConfig serialization."""
+        assert config.adc_resolution == 1023
+        assert config.adc_reference_voltage == 5.0
+        assert config.pwm_min == 0
+        assert config.pwm_max == 255
+        assert config.servo_min_angle == 0
+        assert config.servo_max_angle == 180
+        assert config.input_poll_interval_ms == 100
+
+    def test_custom_values(self):
+        """Test HardwareConfig with custom values."""
         config = HardwareConfig(
-            auto_connect=True,
-            connection_timeout=10.0
+            adc_resolution=4095,
+            adc_reference_voltage=3.3
         )
-        data = config.to_dict()
 
-        assert data["auto_connect"] is True
-        assert data["connection_timeout"] == 10.0
-
-    def test_from_dict(self):
-        """Test HardwareConfig deserialization."""
-        data = {
-            "auto_connect": True,
-            "connection_timeout": 15.0,
-            "retry_attempts": 5
-        }
-        config = HardwareConfig.from_dict(data)
-
-        assert config.auto_connect is True
-        assert config.connection_timeout == 15.0
-        assert config.retry_attempts == 5
+        assert config.adc_resolution == 4095
+        assert config.adc_reference_voltage == 3.3
 
 
 class TestPathConfig:
     """Tests for PathConfig dataclass."""
 
     def test_default_values(self):
-        """Test PathConfig default values are Path objects."""
+        """Test PathConfig default values."""
         config = PathConfig()
-        assert isinstance(config.data_dir, Path)
-        assert isinstance(config.experiments_dir, Path)
-        assert isinstance(config.plugins_dir, Path)
 
-    def test_to_dict_converts_to_strings(self):
-        """Test PathConfig serialization converts Paths to strings."""
-        config = PathConfig(
-            data_dir=Path("/custom/data"),
-            experiments_dir=Path("/custom/experiments")
-        )
-        data = config.to_dict()
+        assert isinstance(config.user_config_dir, Path)
+        assert isinstance(config.library_dir, Path)
+        assert config.experiment_extension == ".glider"
+        assert config.device_extension == ".gdevice"
 
-        assert isinstance(data["data_dir"], str)
-        assert data["data_dir"] == "/custom/data"
+    def test_paths_are_under_home(self):
+        """Test that default paths are under home directory."""
+        config = PathConfig()
 
-    def test_from_dict_converts_to_paths(self):
-        """Test PathConfig deserialization converts strings to Paths."""
-        data = {
-            "data_dir": "/test/data",
-            "experiments_dir": "/test/experiments",
-            "plugins_dir": "/test/plugins"
-        }
-        config = PathConfig.from_dict(data)
-
-        assert isinstance(config.data_dir, Path)
-        assert str(config.data_dir) == "/test/data"
+        assert ".glider" in str(config.user_config_dir)
+        assert ".glider" in str(config.library_dir)
 
 
 class TestGliderConfig:
-    """Tests for GliderConfig main configuration class."""
+    """Tests for GliderConfig dataclass."""
 
     def test_default_values(self):
         """Test GliderConfig default values."""
@@ -206,89 +132,91 @@ class TestGliderConfig:
     def test_to_dict(self):
         """Test GliderConfig serialization."""
         config = GliderConfig()
+
         data = config.to_dict()
 
         assert "timing" in data
         assert "ui" in data
         assert "hardware" in data
-        assert "paths" in data
-        assert isinstance(data["timing"], dict)
+        # to_dict only serializes subset of fields
+        assert "device_refresh_interval_ms" in data["timing"]
+        assert "min_window_width" in data["ui"]
+        assert "adc_resolution" in data["hardware"]
 
     def test_from_dict(self):
         """Test GliderConfig deserialization."""
         data = {
-            "timing": {"default_sample_interval": 0.5},
-            "ui": {"theme": "light"},
-            "hardware": {"auto_connect": True},
-            "paths": {"data_dir": "/custom/path"}
+            "timing": {
+                "device_refresh_interval_ms": 500,
+                "board_ready_timeout": 20.0
+            },
+            "ui": {
+                "min_window_width": 800
+            },
+            "hardware": {
+                "adc_resolution": 4095
+            }
         }
+
         config = GliderConfig.from_dict(data)
 
-        assert config.timing.default_sample_interval == 0.5
-        assert config.ui.theme == "light"
-        assert config.hardware.auto_connect is True
+        assert config.timing.device_refresh_interval_ms == 500
+        assert config.timing.board_ready_timeout == 20.0
+        assert config.ui.min_window_width == 800
+        assert config.hardware.adc_resolution == 4095
 
     def test_from_dict_with_missing_sections(self):
-        """Test GliderConfig from_dict handles missing sections."""
-        data = {"timing": {"flow_tick_rate": 30}}
+        """Test that from_dict handles missing sections."""
+        data = {}  # Empty dict
+
         config = GliderConfig.from_dict(data)
 
-        assert config.timing.flow_tick_rate == 30
-        # Other sections should use defaults
-        assert config.ui.theme == "dark"
+        # Should use defaults
+        assert config.timing.device_refresh_interval_ms == 250
+        assert config.ui.min_window_width == 1024
 
     def test_save_and_load(self, temp_dir):
-        """Test GliderConfig save and load to/from file."""
+        """Test saving and loading configuration."""
         config = GliderConfig()
-        config.timing.default_sample_interval = 0.25
-        config.ui.theme = "light"
+        config.timing.device_refresh_interval_ms = 999
+        file_path = temp_dir / "test_config.json"
 
-        file_path = temp_dir / "config.json"
         config.save(file_path)
-
-        assert file_path.exists()
-
         loaded = GliderConfig.load(file_path)
-        assert loaded.timing.default_sample_interval == 0.25
-        assert loaded.ui.theme == "light"
 
-    def test_load_nonexistent_file(self, temp_dir):
-        """Test GliderConfig load returns defaults for nonexistent file."""
-        file_path = temp_dir / "nonexistent.json"
-        config = GliderConfig.load(file_path)
+        assert loaded.timing.device_refresh_interval_ms == 999
+
+    def test_load_nonexistent_returns_defaults(self, temp_dir):
+        """Test that loading nonexistent file returns defaults."""
+        nonexistent = temp_dir / "nonexistent_config.json"
+
+        config = GliderConfig.load(nonexistent)
 
         # Should return default config
-        assert config.timing.default_sample_interval == 0.1
-        assert config.ui.theme == "dark"
+        assert config.timing.device_refresh_interval_ms == 250
 
     def test_save_creates_parent_directories(self, temp_dir):
-        """Test that save creates parent directories if needed."""
-        file_path = temp_dir / "nested" / "dir" / "config.json"
+        """Test that save creates parent directories."""
         config = GliderConfig()
-        config.save(file_path)
+        nested_path = temp_dir / "nested" / "dirs" / "config.json"
 
-        assert file_path.exists()
+        config.save(nested_path)
 
-    def test_roundtrip_preserves_all_values(self, temp_dir):
-        """Test complete roundtrip preserves all configuration values."""
+        assert nested_path.exists()
+
+    def test_roundtrip_preserves_values(self, temp_dir):
+        """Test that save/load preserves configured values."""
         original = GliderConfig()
-        original.timing.default_sample_interval = 0.3
-        original.timing.flow_tick_rate = 45
-        original.ui.theme = "light"
-        original.ui.grid_size = 30
-        original.hardware.auto_connect = True
-        original.hardware.connection_timeout = 20.0
+        original.timing.device_refresh_interval_ms = 123
+        original.ui.max_undo_stack_size = 50
 
         file_path = temp_dir / "roundtrip.json"
         original.save(file_path)
         loaded = GliderConfig.load(file_path)
 
-        assert loaded.timing.default_sample_interval == original.timing.default_sample_interval
-        assert loaded.timing.flow_tick_rate == original.timing.flow_tick_rate
-        assert loaded.ui.theme == original.ui.theme
-        assert loaded.ui.grid_size == original.ui.grid_size
-        assert loaded.hardware.auto_connect == original.hardware.auto_connect
-        assert loaded.hardware.connection_timeout == original.hardware.connection_timeout
+        # Note: only values included in to_dict() are preserved
+        assert loaded.timing.device_refresh_interval_ms == 123
+        assert loaded.ui.max_undo_stack_size == 50
 
     def test_json_format(self, temp_dir):
         """Test that saved config is valid JSON."""
@@ -302,3 +230,23 @@ class TestGliderConfig:
 
         assert isinstance(parsed, dict)
         assert "timing" in parsed
+
+
+class TestGlobalConfig:
+    """Tests for global configuration functions."""
+
+    def test_get_config_returns_instance(self):
+        """Test that get_config returns a GliderConfig instance."""
+        config = get_config()
+
+        assert isinstance(config, GliderConfig)
+
+    def test_set_config_changes_global(self):
+        """Test that set_config changes the global instance."""
+        custom = GliderConfig()
+        custom.timing.device_refresh_interval_ms = 12345
+
+        set_config(custom)
+        retrieved = get_config()
+
+        assert retrieved.timing.device_refresh_interval_ms == 12345

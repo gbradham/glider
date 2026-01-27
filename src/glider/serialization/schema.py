@@ -332,8 +332,11 @@ class DashboardConfigSchema:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "DashboardConfigSchema":
+    def from_dict(cls, data: Dict[str, Any], path: str = "dashboard") -> "DashboardConfigSchema":
         """Create from dictionary."""
+        if not isinstance(data, dict):
+            raise SchemaValidationError(f"Expected dict, got {type(data).__name__}", path)
+
         widgets = [DashboardWidgetSchema.from_dict(w) for w in data.get("widgets", [])]
         return cls(
             layout_mode=data.get("layout_mode", "vertical"),

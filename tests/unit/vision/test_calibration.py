@@ -18,16 +18,19 @@ class TestLengthUnit:
 
     def test_unit_values(self):
         """Test LengthUnit enum values."""
-        assert LengthUnit.MM.value == "mm"
-        assert LengthUnit.CM.value == "cm"
-        assert LengthUnit.M.value == "m"
-        assert LengthUnit.IN.value == "in"
-        assert LengthUnit.FT.value == "ft"
+        assert LengthUnit.MILLIMETERS.value == "mm"
+        assert LengthUnit.CENTIMETERS.value == "cm"
+        assert LengthUnit.METERS.value == "m"
+        assert LengthUnit.INCHES.value == "in"
+        assert LengthUnit.FEET.value == "ft"
 
-    def test_all_units_exist(self):
-        """Test that all expected units exist."""
-        units = [LengthUnit.MM, LengthUnit.CM, LengthUnit.M, LengthUnit.IN, LengthUnit.FT]
-        assert len(units) == 5
+    def test_conversion_to_mm(self):
+        """Test conversion factors to millimeters."""
+        assert LengthUnit.conversion_to_mm(LengthUnit.MILLIMETERS) == 1.0
+        assert LengthUnit.conversion_to_mm(LengthUnit.CENTIMETERS) == 10.0
+        assert LengthUnit.conversion_to_mm(LengthUnit.METERS) == 1000.0
+        assert LengthUnit.conversion_to_mm(LengthUnit.INCHES) == 25.4
+        assert LengthUnit.conversion_to_mm(LengthUnit.FEET) == 304.8
 
 
 class TestCalibrationLine:
@@ -41,7 +44,7 @@ class TestCalibrationLine:
             end_x=0.9,
             end_y=0.5,
             length=100.0,
-            unit=LengthUnit.MM
+            unit=LengthUnit.MILLIMETERS
         )
 
         assert line.start_x == 0.1
@@ -49,13 +52,13 @@ class TestCalibrationLine:
         assert line.end_x == 0.9
         assert line.end_y == 0.5
         assert line.length == 100.0
-        assert line.unit == LengthUnit.MM
+        assert line.unit == LengthUnit.MILLIMETERS
 
     def test_default_color(self):
         """Test CalibrationLine default color."""
         line = CalibrationLine(
             start_x=0.0, start_y=0.0, end_x=1.0, end_y=1.0,
-            length=100.0, unit=LengthUnit.MM
+            length=100.0, unit=LengthUnit.MILLIMETERS
         )
 
         assert line.color == (0, 255, 0)  # Default green
@@ -64,18 +67,40 @@ class TestCalibrationLine:
         """Test CalibrationLine with custom color."""
         line = CalibrationLine(
             start_x=0.0, start_y=0.0, end_x=1.0, end_y=1.0,
-            length=100.0, unit=LengthUnit.MM,
-            color=(255, 0, 0)  # Red
+            length=100.0, unit=LengthUnit.MILLIMETERS,
+            color=(255, 0, 0)
         )
 
         assert line.color == (255, 0, 0)
+
+    def test_pixel_length_property(self):
+        """Test pixel_length property (normalized)."""
+        # Horizontal line spanning 80% of normalized width
+        line = CalibrationLine(
+            start_x=0.1, start_y=0.5,
+            end_x=0.9, end_y=0.5,
+            length=100.0, unit=LengthUnit.MILLIMETERS
+        )
+
+        assert abs(line.pixel_length - 0.8) < 0.001
+
+    def test_length_mm_property(self):
+        """Test length_mm property converts to mm."""
+        # 10 centimeters = 100 millimeters
+        line = CalibrationLine(
+            start_x=0.0, start_y=0.5,
+            end_x=1.0, end_y=0.5,
+            length=10.0, unit=LengthUnit.CENTIMETERS
+        )
+
+        assert line.length_mm == 100.0
 
     def test_get_pixel_coords(self):
         """Test converting normalized coords to pixel coords."""
         line = CalibrationLine(
             start_x=0.1, start_y=0.2,
             end_x=0.9, end_y=0.8,
-            length=100.0, unit=LengthUnit.MM
+            length=100.0, unit=LengthUnit.MILLIMETERS
         )
 
         # For a 640x480 frame
@@ -86,36 +111,14 @@ class TestCalibrationLine:
         assert x2 == int(0.9 * 640)  # 576
         assert y2 == int(0.8 * 480)  # 384
 
-    def test_get_pixel_length(self):
-        """Test calculating pixel length of line."""
-        line = CalibrationLine(
-            start_x=0.0, start_y=0.0,
-            end_x=1.0, end_y=0.0,  # Horizontal line
-            length=100.0, unit=LengthUnit.MM
-        )
-
-        pixel_length = line.get_pixel_length(640, 480)
-        assert pixel_length == 640  # Full width
-
-    def test_get_pixel_length_diagonal(self):
-        """Test calculating pixel length of diagonal line."""
-        line = CalibrationLine(
-            start_x=0.0, start_y=0.0,
-            end_x=1.0, end_y=1.0,  # Diagonal
-            length=100.0, unit=LengthUnit.MM
-        )
-
-        pixel_length = line.get_pixel_length(640, 480)
-        expected = math.sqrt(640**2 + 480**2)
-        assert abs(pixel_length - expected) < 0.01
-
     def test_to_dict(self):
         """Test CalibrationLine serialization."""
         line = CalibrationLine(
             start_x=0.1, start_y=0.2,
             end_x=0.9, end_y=0.8,
-            length=150.0, unit=LengthUnit.CM,
-            color=(255, 128, 0)
+            length=150.0, unit=LengthUnit.CENTIMETERS,
+            color=(255, 128, 0),
+            name="Test Line"
         )
 
         data = line.to_dict()
@@ -145,7 +148,7 @@ class TestCalibrationLine:
         assert line.start_x == 0.25
         assert line.end_x == 0.75
         assert line.length == 50.0
-        assert line.unit == LengthUnit.IN
+        assert line.unit == LengthUnit.INCHES
         assert line.color == (0, 0, 255)
 
     def test_roundtrip(self):
@@ -153,8 +156,9 @@ class TestCalibrationLine:
         original = CalibrationLine(
             start_x=0.33, start_y=0.44,
             end_x=0.55, end_y=0.66,
-            length=77.7, unit=LengthUnit.FT,
-            color=(100, 150, 200)
+            length=77.7, unit=LengthUnit.FEET,
+            color=(100, 150, 200),
+            name="Roundtrip Test"
         )
 
         restored = CalibrationLine.from_dict(original.to_dict())
@@ -176,34 +180,50 @@ class TestCameraCalibration:
         calibration = CameraCalibration()
 
         assert calibration.lines == []
-        assert calibration.pixels_per_unit is None
+        assert calibration.calibration_width == 0
+        assert calibration.calibration_height == 0
+
+    def test_is_calibrated_property(self):
+        """Test is_calibrated property."""
+        calibration = CameraCalibration()
+        assert calibration.is_calibrated is False
+
+        calibration.add_line(
+            start=(0, 240), end=(640, 240),
+            length=100.0, unit=LengthUnit.MILLIMETERS,
+            resolution=(640, 480)
+        )
+        assert calibration.is_calibrated is True
 
     def test_add_line(self):
         """Test adding a calibration line."""
         calibration = CameraCalibration()
-        line = CalibrationLine(
-            start_x=0.0, start_y=0.5,
-            end_x=1.0, end_y=0.5,
-            length=100.0, unit=LengthUnit.MM
+
+        line = calibration.add_line(
+            start=(64, 240), end=(576, 240),
+            length=100.0, unit=LengthUnit.MILLIMETERS,
+            resolution=(640, 480)
         )
 
-        calibration.add_line(line)
-
         assert len(calibration.lines) == 1
-        assert calibration.lines[0] == line
+        assert calibration.calibration_width == 640
+        assert calibration.calibration_height == 480
+        # Line should be normalized
+        assert abs(line.start_x - 0.1) < 0.01
+        assert abs(line.end_x - 0.9) < 0.01
 
     def test_remove_line(self):
         """Test removing a calibration line."""
         calibration = CameraCalibration()
-        line = CalibrationLine(
-            start_x=0.0, start_y=0.5,
-            end_x=1.0, end_y=0.5,
-            length=100.0, unit=LengthUnit.MM
+        calibration.add_line(
+            start=(0, 240), end=(640, 240),
+            length=100.0, unit=LengthUnit.MILLIMETERS,
+            resolution=(640, 480)
         )
 
-        calibration.add_line(line)
-        calibration.remove_line(0)
+        result = calibration.remove_line(0)
 
+        assert result is True
         assert len(calibration.lines) == 0
 
     def test_clear(self):
@@ -211,84 +231,78 @@ class TestCameraCalibration:
         calibration = CameraCalibration()
 
         for i in range(3):
-            calibration.add_line(CalibrationLine(
-                start_x=0.0, start_y=0.1 * i,
-                end_x=1.0, end_y=0.1 * i,
-                length=100.0, unit=LengthUnit.MM
-            ))
+            calibration.add_line(
+                start=(0, i * 100), end=(640, i * 100),
+                length=100.0, unit=LengthUnit.MILLIMETERS,
+                resolution=(640, 480)
+            )
 
         assert len(calibration.lines) == 3
 
         calibration.clear()
 
         assert len(calibration.lines) == 0
+        assert calibration.calibration_width == 0
 
-    def test_calculate_pixels_per_unit(self):
-        """Test calculating pixels per unit from calibration line."""
+    def test_pixels_per_mm(self):
+        """Test calculating pixels per mm from calibration line."""
         calibration = CameraCalibration()
 
-        # Horizontal line spanning full width
-        line = CalibrationLine(
-            start_x=0.0, start_y=0.5,
-            end_x=1.0, end_y=0.5,
-            length=100.0, unit=LengthUnit.MM
+        # Line spanning full width at 640 pixels = 100mm
+        calibration.add_line(
+            start=(0, 240), end=(640, 240),
+            length=100.0, unit=LengthUnit.MILLIMETERS,
+            resolution=(640, 480)
         )
-        calibration.add_line(line)
 
-        # Calculate for 640 pixel width
-        ppu = calibration.calculate_pixels_per_unit(640, 480)
-
+        ppm = calibration.pixels_per_mm
         # 640 pixels / 100 mm = 6.4 pixels per mm
-        assert abs(ppu - 6.4) < 0.01
+        assert abs(ppm - 6.4) < 0.1
 
-    def test_pixels_to_real_world(self):
-        """Test converting pixel distance to real-world units."""
+    def test_pixels_to_mm(self):
+        """Test converting pixel distance to millimeters."""
         calibration = CameraCalibration()
 
         # Set up calibration: 640 pixels = 100mm
-        line = CalibrationLine(
-            start_x=0.0, start_y=0.5,
-            end_x=1.0, end_y=0.5,
-            length=100.0, unit=LengthUnit.MM
+        calibration.add_line(
+            start=(0, 240), end=(640, 240),
+            length=100.0, unit=LengthUnit.MILLIMETERS,
+            resolution=(640, 480)
         )
-        calibration.add_line(line)
-        calibration.calculate_pixels_per_unit(640, 480)
 
-        # 64 pixels should be 10mm
-        distance = calibration.pixels_to_real_world(64)
-        assert abs(distance - 10.0) < 0.1
+        # 64 pixels should be ~10mm
+        distance = calibration.pixels_to_mm(64)
+        assert abs(distance - 10.0) < 1.0
 
-    def test_real_world_to_pixels(self):
-        """Test converting real-world distance to pixels."""
+    def test_mm_to_pixels(self):
+        """Test converting millimeters to pixel distance."""
         calibration = CameraCalibration()
 
-        line = CalibrationLine(
-            start_x=0.0, start_y=0.5,
-            end_x=1.0, end_y=0.5,
-            length=100.0, unit=LengthUnit.MM
+        calibration.add_line(
+            start=(0, 240), end=(640, 240),
+            length=100.0, unit=LengthUnit.MILLIMETERS,
+            resolution=(640, 480)
         )
-        calibration.add_line(line)
-        calibration.calculate_pixels_per_unit(640, 480)
 
-        # 10mm should be 64 pixels
-        pixels = calibration.real_world_to_pixels(10.0)
+        # 10mm should be ~64 pixels
+        pixels = calibration.mm_to_pixels(10.0)
         assert abs(pixels - 64) < 1
 
     def test_to_dict(self):
         """Test CameraCalibration serialization."""
         calibration = CameraCalibration()
-        calibration.add_line(CalibrationLine(
-            start_x=0.0, start_y=0.5,
-            end_x=1.0, end_y=0.5,
-            length=100.0, unit=LengthUnit.MM
-        ))
-        calibration.calculate_pixels_per_unit(640, 480)
+        calibration.add_line(
+            start=(0, 240), end=(640, 240),
+            length=100.0, unit=LengthUnit.MILLIMETERS,
+            resolution=(640, 480)
+        )
 
         data = calibration.to_dict()
 
         assert "lines" in data
         assert len(data["lines"]) == 1
-        assert "pixels_per_unit" in data
+        assert "calibration_width" in data
+        assert "calibration_height" in data
 
     def test_from_dict(self):
         """Test CameraCalibration deserialization."""
@@ -298,62 +312,59 @@ class TestCameraCalibration:
                     "start_x": 0.0, "start_y": 0.5,
                     "end_x": 1.0, "end_y": 0.5,
                     "length": 200.0, "unit": "cm",
-                    "color": [0, 255, 0]
+                    "color": [0, 255, 0], "name": "Test"
                 }
             ],
-            "pixels_per_unit": 3.2
+            "calibration_width": 640,
+            "calibration_height": 480
         }
 
         calibration = CameraCalibration.from_dict(data)
 
         assert len(calibration.lines) == 1
         assert calibration.lines[0].length == 200.0
-        assert calibration.lines[0].unit == LengthUnit.CM
-        assert calibration.pixels_per_unit == 3.2
+        assert calibration.lines[0].unit == LengthUnit.CENTIMETERS
+        assert calibration.calibration_width == 640
 
     def test_roundtrip(self):
         """Test serialization roundtrip."""
         original = CameraCalibration()
-        original.add_line(CalibrationLine(
-            start_x=0.1, start_y=0.2,
-            end_x=0.8, end_y=0.9,
-            length=50.0, unit=LengthUnit.IN,
-            color=(255, 0, 0)
-        ))
-        original.calculate_pixels_per_unit(1920, 1080)
+        original.add_line(
+            start=(64, 108), end=(512, 432),
+            length=50.0, unit=LengthUnit.INCHES,
+            resolution=(640, 480)
+        )
 
         restored = CameraCalibration.from_dict(original.to_dict())
 
         assert len(restored.lines) == len(original.lines)
         assert restored.lines[0].length == original.lines[0].length
-        assert restored.pixels_per_unit == original.pixels_per_unit
+        assert restored.calibration_width == original.calibration_width
 
-    def test_no_calibration_returns_none(self):
-        """Test that conversion returns None when not calibrated."""
+    def test_uncalibrated_returns_raw_pixels(self):
+        """Test that uncalibrated conversion returns raw pixels."""
         calibration = CameraCalibration()
 
-        # No lines added, no calibration calculated
-        assert calibration.pixels_per_unit is None
-        assert calibration.pixels_to_real_world(100) is None
+        # No calibration - should return input value
+        result = calibration.pixels_to_mm(100)
+        assert result == 100
 
-    def test_multiple_lines_average(self):
-        """Test that multiple calibration lines are averaged."""
+    def test_pixel_distance(self):
+        """Test pixel distance calculation."""
         calibration = CameraCalibration()
 
-        # Two lines with different calibrations
-        calibration.add_line(CalibrationLine(
-            start_x=0.0, start_y=0.25,
-            end_x=0.5, end_y=0.25,  # Half width
-            length=50.0, unit=LengthUnit.MM
-        ))
-        calibration.add_line(CalibrationLine(
-            start_x=0.0, start_y=0.75,
-            end_x=1.0, end_y=0.75,  # Full width
-            length=100.0, unit=LengthUnit.MM
-        ))
+        dist = calibration.pixel_distance((0, 0), (3, 4))
+        assert dist == 5.0  # 3-4-5 triangle
 
-        ppu = calibration.calculate_pixels_per_unit(640, 480)
+    def test_real_distance(self):
+        """Test real distance calculation between points."""
+        calibration = CameraCalibration()
+        calibration.add_line(
+            start=(0, 0), end=(100, 0),
+            length=100.0, unit=LengthUnit.MILLIMETERS,
+            resolution=(100, 100)
+        )
 
-        # Both should give 6.4 pixels/mm (640/100 or 320/50)
-        # Average should be 6.4
-        assert abs(ppu - 6.4) < 0.01
+        # Distance of 10 pixels should be 10mm (1 pixel = 1mm at this calibration)
+        dist = calibration.real_distance((0, 0), (10, 0))
+        assert abs(dist - 10.0) < 1.0

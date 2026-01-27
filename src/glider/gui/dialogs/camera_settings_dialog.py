@@ -8,22 +8,36 @@ Automatically adapts layout for touchscreen (Pi) or desktop environments.
 """
 
 import logging
-from typing import Optional, List, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
-    QTabWidget, QWidget, QGroupBox, QLabel,
-    QComboBox, QSpinBox, QDoubleSpinBox, QCheckBox,
-    QSlider, QPushButton, QDialogButtonBox, QFileDialog,
-    QLineEdit, QScrollArea, QFrame, QSizePolicy, QScroller
-)
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QDoubleSpinBox,
+    QFileDialog,
+    QFormLayout,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QScrollArea,
+    QScroller,
+    QSlider,
+    QSpinBox,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 if TYPE_CHECKING:
     from glider.gui.view_manager import ViewManager
 
-from glider.vision.camera_manager import CameraSettings, CameraManager
+from glider.vision.camera_manager import CameraSettings
 from glider.vision.cv_processor import CVSettings, DetectionBackend
 
 logger = logging.getLogger(__name__)

@@ -2,14 +2,12 @@
 Math Nodes - Mathematical operations.
 """
 
-from typing import Any, Dict
 
 from glider.nodes.base_node import (
     LogicNode,
-    NodeDefinition,
     NodeCategory,
+    NodeDefinition,
     PortDefinition,
-    PortType,
 )
 
 

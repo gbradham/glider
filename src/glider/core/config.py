@@ -5,11 +5,11 @@ This module provides a single source of truth for configuration values
 that were previously hardcoded throughout the codebase.
 """
 
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Dict, Any, Optional
 import json
 import logging
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

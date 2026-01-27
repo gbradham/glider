@@ -11,11 +11,14 @@ These nodes provide the core functionality for running experiments:
 
 import asyncio
 import logging
-from typing import Any, Optional
+from typing import Optional
 
 from glider.nodes.base_node import (
-    GliderNode, NodeDefinition, NodeCategory,
-    PortDefinition, PortType
+    GliderNode,
+    NodeCategory,
+    NodeDefinition,
+    PortDefinition,
+    PortType,
 )
 
 logger = logging.getLogger(__name__)

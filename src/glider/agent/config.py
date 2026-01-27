@@ -7,7 +7,7 @@ Defines configuration options for the AI agent.
 import json
 import logging
 import os
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Optional
@@ -69,7 +69,7 @@ class AgentConfig:
 
         if config_path.exists():
             try:
-                with open(config_path, "r") as f:
+                with open(config_path) as f:
                     data = json.load(f)
 
                 # Convert provider string to enum

@@ -8,18 +8,27 @@ including pin configuration. Flow logic is created via the node graph.
 import logging
 from typing import List, Optional
 
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
-    QLineEdit, QTextEdit, QComboBox, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView,
-    QWidget, QGroupBox, QMessageBox, QDialogButtonBox,
-    QSpinBox
-)
 from PyQt6.QtCore import pyqtSignal
-
-from glider.core.custom_device import (
-    CustomDeviceDefinition, PinDefinition, PinType
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
+
+from glider.core.custom_device import CustomDeviceDefinition, PinDefinition, PinType
 
 logger = logging.getLogger(__name__)
 

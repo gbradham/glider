@@ -6,12 +6,12 @@ real-world distances for accurate tracking distance calculations.
 """
 
 import json
-import math
 import logging
+import math
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import List, Optional, Tuple
 from enum import Enum
+from pathlib import Path
+from typing import List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -325,7 +325,7 @@ class CameraCalibration:
             True if loaded successfully
         """
         try:
-            with open(path, 'r') as f:
+            with open(path) as f:
                 data = json.load(f)
 
             self.calibration_width = data.get("calibration_width", 0)

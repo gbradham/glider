@@ -7,10 +7,9 @@ from typing import Any, Dict, List
 
 from glider.nodes.base_node import (
     InterfaceNode,
-    NodeDefinition,
     NodeCategory,
+    NodeDefinition,
     PortDefinition,
-    PortType,
 )
 
 

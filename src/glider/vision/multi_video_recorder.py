@@ -6,15 +6,16 @@ with the primary camera optionally having an annotated video
 with tracking overlays.
 """
 
-import cv2
-import numpy as np
 import logging
 import threading
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, Optional, TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, Dict, Optional
 
-from glider.vision.video_recorder import VideoFormat, RecordingState
+import cv2
+import numpy as np
+
+from glider.vision.video_recorder import RecordingState, VideoFormat
 
 if TYPE_CHECKING:
     from glider.vision.multi_camera_manager import MultiCameraManager
@@ -211,7 +212,7 @@ class MultiVideoRecorder:
                     if self._annotated_writer.isOpened():
                         logger.info(f"Recording annotated video to {self._annotated_file_path}")
                     else:
-                        logger.warning(f"Failed to create annotated video writer")
+                        logger.warning("Failed to create annotated video writer")
                         self._annotated_writer = None
 
         self._state = RecordingState.RECORDING

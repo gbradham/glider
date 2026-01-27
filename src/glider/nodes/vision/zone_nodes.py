@@ -9,13 +9,12 @@ Each zone can have its own ZoneInputNode that outputs:
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Callable, Dict, List
 
 from glider.nodes.base_node import (
     InterfaceNode,
-    ExecNode,
-    NodeDefinition,
     NodeCategory,
+    NodeDefinition,
     PortDefinition,
     PortType,
 )

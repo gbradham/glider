@@ -6,10 +6,10 @@ import time
 from typing import Any, Dict
 
 from glider.nodes.base_node import (
-    LogicNode,
     ExecNode,
-    NodeDefinition,
+    LogicNode,
     NodeCategory,
+    NodeDefinition,
     PortDefinition,
     PortType,
 )

@@ -6,10 +6,10 @@ Aggregates all tools available to the AI agent.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from glider.agent.llm_backend import ToolDefinition
 from glider.agent.actions import AgentAction
+from glider.agent.llm_backend import ToolDefinition
 from glider.agent.tools.experiment_tools import EXPERIMENT_TOOLS, ExperimentToolExecutor
 from glider.agent.tools.hardware_tools import HARDWARE_TOOLS, HardwareToolExecutor
 from glider.agent.tools.knowledge_tools import KNOWLEDGE_TOOLS, KnowledgeToolExecutor

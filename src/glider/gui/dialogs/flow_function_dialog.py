@@ -7,23 +7,41 @@ with a visual graph editor for the internal node graph.
 
 import logging
 import uuid
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QBrush, QColor, QPen
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
-    QLineEdit, QTextEdit, QComboBox, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView,
-    QTabWidget, QWidget, QLabel, QSpinBox, QDoubleSpinBox,
-    QGroupBox, QListWidget, QListWidgetItem, QSplitter,
-    QMessageBox, QDialogButtonBox, QGraphicsView, QGraphicsScene,
-    QCheckBox, QFrame
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QGraphicsScene,
+    QGraphicsView,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QRectF, QPointF
-from PyQt6.QtGui import QBrush, QColor, QPen, QFont
 
 from glider.core.flow_function import (
-    FlowFunctionDefinition, FlowFunctionParameter, FlowFunctionOutput,
-    ParameterType, InternalNodeConfig, InternalConnectionConfig
+    FlowFunctionDefinition,
+    FlowFunctionParameter,
+    InternalConnectionConfig,
+    InternalNodeConfig,
+    ParameterType,
 )
 
 logger = logging.getLogger(__name__)

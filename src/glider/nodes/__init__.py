@@ -10,10 +10,10 @@ Provides the node types for flow-based visual programming:
 
 from glider.nodes.base_node import GliderNode, NodeCategory, PortType
 from glider.nodes.flow_function_nodes import (
-    StartFunctionNode,
     EndFunctionNode,
-    FunctionCallNode,
     FlowFunctionRunner,
+    FunctionCallNode,
+    StartFunctionNode,
     register_flow_function_nodes,
 )
 

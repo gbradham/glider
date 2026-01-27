@@ -6,11 +6,11 @@ JSON schema validation.
 """
 
 from glider.serialization.schema import (
-    ExperimentSchema,
-    NodeSchema,
     ConnectionSchema,
-    HardwareConfigSchema,
     DashboardConfigSchema,
+    ExperimentSchema,
+    HardwareConfigSchema,
+    NodeSchema,
     SchemaValidationError,
 )
 from glider.serialization.serializer import ExperimentSerializer, get_serializer

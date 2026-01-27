@@ -6,7 +6,6 @@ camera preview. Zones can be used as inputs in the node graph to trigger
 events when objects enter/exit or occupy zones.
 """
 
-import cv2
 import json
 import logging
 import math
@@ -16,6 +15,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+import cv2
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -320,7 +320,7 @@ class ZoneConfiguration:
     def load(self, path: Path) -> bool:
         """Load configuration from JSON file."""
         try:
-            with open(path, 'r') as f:
+            with open(path) as f:
                 data = json.load(f)
 
             self.zones = [Zone.from_dict(z) for z in data.get("zones", [])]

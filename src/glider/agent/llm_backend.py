@@ -4,11 +4,11 @@ LLM Backend
 Provides abstraction over different LLM providers with focus on Ollama.
 """
 
-import asyncio
 import json
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import httpx
 

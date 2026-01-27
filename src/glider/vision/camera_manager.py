@@ -9,21 +9,23 @@ Includes FFmpeg fallback for cameras that OpenCV cannot handle
 """
 
 import os
+
 # Suppress OpenCV warnings before importing cv2
 os.environ['OPENCV_LOG_LEVEL'] = 'ERROR'
 
-import cv2
-import numpy as np
+import logging
+import shutil
+import subprocess
+import sys
 import threading
 import time
-import logging
-import sys
-import subprocess
-import shutil
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Callable, Any
 from enum import Enum, auto
-from queue import Queue, Empty
+from queue import Empty, Queue
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+import cv2
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -227,7 +229,7 @@ PIXEL_FORMATS_TO_TRY = [
 def _is_raspberry_pi() -> bool:
     """Check if running on a Raspberry Pi."""
     try:
-        with open('/proc/device-tree/model', 'r') as f:
+        with open('/proc/device-tree/model') as f:
             model = f.read().lower()
             return 'raspberry pi' in model
     except (FileNotFoundError, PermissionError):
@@ -549,7 +551,7 @@ def _set_miniscope_ewl_focus(device_index: int, focus_value: int) -> bool:
     if success:
         logger.info(f"Miniscope EWL focus set to {focus_value}")
     else:
-        logger.warning(f"Failed to set Miniscope EWL focus")
+        logger.warning("Failed to set Miniscope EWL focus")
 
     return success
 
@@ -780,9 +782,9 @@ class CameraManager:
         found_indices = set()  # Track which indices we've already found
 
         # Suppress OpenCV warnings during enumeration
-        import sys
         import io
         import os
+        import sys
         old_stderr = sys.stderr
         sys.stderr = io.StringIO()
 
@@ -1414,7 +1416,7 @@ class CameraManager:
                 logger.info("Forcing picamera2 backend")
                 if self._try_connect_picamera2():
                     self._state = CameraState.CONNECTED
-                    logger.info(f"Connected to Pi camera via picamera2")
+                    logger.info("Connected to Pi camera via picamera2")
                     return True
                 self._state = CameraState.ERROR
                 return False
@@ -1464,7 +1466,7 @@ class CameraManager:
                     logger.info("Raspberry Pi detected, trying picamera2 for camera 0")
                     if self._try_connect_picamera2():
                         self._state = CameraState.CONNECTED
-                        logger.info(f"Connected to Pi camera via picamera2")
+                        logger.info("Connected to Pi camera via picamera2")
                         return True
                     logger.info("picamera2 failed, falling back to V4L2")
                 else:

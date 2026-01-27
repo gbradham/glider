@@ -6,8 +6,8 @@ large touch targets (min 80px height) and high-contrast visuals.
 """
 
 import sys
-from typing import Any, Optional, List, TYPE_CHECKING
 from collections import deque
+from typing import TYPE_CHECKING, Any, List, Optional
 
 
 def _get_system_font() -> str:
@@ -18,20 +18,17 @@ def _get_system_font() -> str:
         return "Segoe UI"
     return "DejaVu Sans"
 
+from PyQt6.QtCore import QRectF, Qt, pyqtSignal
+from PyQt6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QSlider,
-    QFrame,
     QSizePolicy,
-    QSpinBox,
-    QDoubleSpinBox,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QRectF
-from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QFont, QPainterPath
 
 if TYPE_CHECKING:
     from glider.nodes.base_node import GliderNode
@@ -48,7 +45,7 @@ class TouchWidgetBase(QWidget):
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
-        self._node: Optional["GliderNode"] = None
+        self._node: Optional[GliderNode] = None
         self._label_text = ""
 
         self.setMinimumHeight(self.MIN_HEIGHT)

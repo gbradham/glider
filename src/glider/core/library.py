@@ -8,7 +8,7 @@ standalone files for sharing and reuse across projects.
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from glider.core.custom_device import CustomDeviceDefinition
 from glider.core.flow_function import FlowFunctionDefinition
@@ -103,7 +103,7 @@ class DeviceLibrary:
         Raises:
             ValueError: If the file is not a valid device definition
         """
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             data = json.load(f)
 
         if data.get("type") != "custom_device":
@@ -125,7 +125,7 @@ class DeviceLibrary:
 
         for file_path in devices_dir.glob(f"*{DEVICE_EXTENSION}"):
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, encoding='utf-8') as f:
                     data = json.load(f)
                 if data.get("type") == "custom_device":
                     definition = data.get("definition", {})
@@ -188,7 +188,7 @@ class DeviceLibrary:
         Raises:
             ValueError: If the file is not a valid flow function definition
         """
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             data = json.load(f)
 
         if data.get("type") != "flow_function":
@@ -210,7 +210,7 @@ class DeviceLibrary:
 
         for file_path in functions_dir.glob(f"*{FLOW_FUNCTION_EXTENSION}"):
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, encoding='utf-8') as f:
                     data = json.load(f)
                 if data.get("type") == "flow_function":
                     definition = data.get("definition", {})
@@ -279,7 +279,7 @@ class DeviceLibrary:
         Raises:
             ValueError: If the file is not a valid library file
         """
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             data = json.load(f)
 
         if data.get("type") != "glider_library":

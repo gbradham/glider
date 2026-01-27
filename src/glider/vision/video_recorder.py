@@ -5,15 +5,16 @@ Records video to file synchronized with experiment start/stop,
 generating filenames that match the DataRecorder pattern.
 """
 
-import cv2
-import numpy as np
 import logging
 import threading
-from pathlib import Path
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto
-from typing import Optional, Callable, TYPE_CHECKING
-from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, Optional
+
+import cv2
+import numpy as np
 
 if TYPE_CHECKING:
     from glider.vision.camera_manager import CameraManager
@@ -371,7 +372,7 @@ class VideoRecorder:
             # Create new writer with correct FPS
             writer = cv2.VideoWriter(str(temp_path), fourcc, correct_fps, (width, height))
             if not writer.isOpened():
-                logger.error(f"Failed to create temp video writer")
+                logger.error("Failed to create temp video writer")
                 cap.release()
                 return False
 

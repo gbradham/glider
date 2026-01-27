@@ -4,17 +4,17 @@ Agent Controller
 Main orchestrator for AI agent interactions.
 """
 
-import asyncio
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, AsyncIterator, Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
+from glider.agent.actions import ActionBatch, AgentAction
 from glider.agent.config import AgentConfig
-from glider.agent.llm_backend import LLMBackend, Message, ChatChunk, ToolCall
-from glider.agent.toolkit import AgentToolkit, ToolResult
-from glider.agent.actions import AgentAction, ActionBatch, ActionStatus
+from glider.agent.llm_backend import ChatChunk, LLMBackend, Message, ToolCall
 from glider.agent.prompts import get_system_prompt
+from glider.agent.toolkit import AgentToolkit, ToolResult
 
 if TYPE_CHECKING:
     from glider.core.glider_core import GliderCore
@@ -185,21 +185,21 @@ class AgentController:
         """
         if not text:
             return ""
-            
+
         # Basic sanitization:
         # 1. Remove any potential control characters
         # 2. Escape common markdown delimiters that might be used for injection
         # 3. Limit length to reasonable maximum
-        
+
         # Remove null bytes and other non-printable characters
         sanitized = "".join(char for char in text if char.isprintable() or char in "\n\r\t")
-        
+
         # Limit length (e.g., 4000 characters)
         MAX_INPUT_LENGTH = 4000
         if len(sanitized) > MAX_INPUT_LENGTH:
             logger.warning(f"Input truncated from {len(sanitized)} to {MAX_INPUT_LENGTH} chars")
             sanitized = sanitized[:MAX_INPUT_LENGTH]
-            
+
         return sanitized.strip()
 
     async def process_message(self, user_message: str) -> AsyncIterator[AgentResponse]:

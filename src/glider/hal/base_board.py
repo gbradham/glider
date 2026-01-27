@@ -6,13 +6,13 @@ This polymorphism allows the Core to iterate over a list of BaseBoard objects
 and perform operations without knowing the specific hardware implementation.
 """
 
+import asyncio
+import logging
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any, Callable, Dict, List, Optional, Set
-import asyncio
-import logging
-import uuid
 
 logger = logging.getLogger(__name__)
 

@@ -8,11 +8,13 @@ These nodes provide control flow functionality:
 
 import asyncio
 import logging
-from typing import Any, Optional
 
 from glider.nodes.base_node import (
-    GliderNode, NodeDefinition, NodeCategory,
-    PortDefinition, PortType
+    GliderNode,
+    NodeCategory,
+    NodeDefinition,
+    PortDefinition,
+    PortType,
 )
 
 logger = logging.getLogger(__name__)
@@ -98,7 +100,7 @@ class LoopNode(GliderNode):
         if tasks:
             logger.info(f"  Awaiting {len(tasks)} body task(s)...")
             await asyncio.gather(*tasks)
-            logger.info(f"  Body execution complete")
+            logger.info("  Body execution complete")
 
     async def _exec_done_async(self) -> None:
         """Trigger the done execution output and await completion."""
@@ -205,7 +207,7 @@ class WaitForInputNode(GliderNode):
             self._exec_triggered()
 
         except asyncio.TimeoutError:
-            logger.info(f"  Timeout waiting for input")
+            logger.info("  Timeout waiting for input")
             self._exec_timeout()
 
         finally:
@@ -249,7 +251,7 @@ class WaitForInputNode(GliderNode):
                 if self._threshold_mode == "digital":
                     # Digital mode: detect rising edge (LOW to HIGH)
                     if last_value == False and value == True:
-                        logger.info(f"  TRIGGERED! Rising edge detected")
+                        logger.info("  TRIGGERED! Rising edge detected")
                         triggered = True
 
                 elif self._threshold_mode == "analog":
@@ -275,7 +277,7 @@ class WaitForInputNode(GliderNode):
                 if error_count <= max_errors:
                     logger.error(f"  Error polling device ({error_count}/{max_errors}): {e}")
                 if error_count >= max_errors:
-                    logger.error(f"  Too many polling errors - stopping poll loop")
+                    logger.error("  Too many polling errors - stopping poll loop")
                     raise RuntimeError(f"Device polling failed: {e}") from e
 
             # Wait before next poll

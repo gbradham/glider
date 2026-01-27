@@ -5,28 +5,36 @@ Provides live camera preview with CV overlays, recording status,
 and quick access to camera settings.
 """
 
-import cv2
-import numpy as np
 import logging
 from dataclasses import dataclass
-from typing import Optional, List, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, List, Optional
 
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QCheckBox, QComboBox, QFrame,
-    QSizePolicy, QScrollArea, QStackedWidget
-)
+import cv2
+import numpy as np
+from PyQt6.QtCore import QObject, Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QImage, QPixmap
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QThread
+from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 if TYPE_CHECKING:
+    from glider.vision.calibration import CameraCalibration
     from glider.vision.camera_manager import CameraManager
     from glider.vision.cv_processor import CVProcessor
-    from glider.vision.video_recorder import VideoRecorder
     from glider.vision.multi_camera_manager import MultiCameraManager
     from glider.vision.multi_video_recorder import MultiVideoRecorder
     from glider.vision.tracking_logger import TrackingDataLogger
-    from glider.vision.calibration import CameraCalibration
+    from glider.vision.video_recorder import VideoRecorder
     from glider.vision.zones import ZoneConfiguration
 
 logger = logging.getLogger(__name__)
@@ -89,7 +97,7 @@ class CameraPreviewWidget(QLabel):
         self._placeholder = True
         self._calibration = None
         self._show_calibration = True
-        self._zone_config: Optional["ZoneConfiguration"] = None
+        self._zone_config: Optional[ZoneConfiguration] = None
         self._show_zones = True
         self.setText("No Camera")
         # Prevent the widget from resizing based on pixmap content
@@ -222,11 +230,11 @@ class CameraPanel(QWidget):
         self._camera = camera_manager
         self._cv_processor = cv_processor
         self._multi_cam = multi_camera_manager
-        self._video_recorder: Optional["VideoRecorder"] = None
-        self._multi_video_recorder: Optional["MultiVideoRecorder"] = None
-        self._tracking_logger: Optional["TrackingDataLogger"] = None
-        self._calibration: Optional["CameraCalibration"] = None
-        self._zone_config: Optional["ZoneConfiguration"] = None
+        self._video_recorder: Optional[VideoRecorder] = None
+        self._multi_video_recorder: Optional[MultiVideoRecorder] = None
+        self._tracking_logger: Optional[TrackingDataLogger] = None
+        self._calibration: Optional[CameraCalibration] = None
+        self._zone_config: Optional[ZoneConfiguration] = None
         self._preview_active = False
         self._multi_camera_mode = False
         self._last_frame = None
@@ -413,9 +421,9 @@ class CameraPanel(QWidget):
 
     def _handle_multi_frame_input(self, frame_data: FrameData) -> None:
         """Decide whether to process multi-frame with CV or update UI immediately."""
-        if (self._cv_enabled_cb.isChecked() and 
-            self._cv_processor.is_initialized and 
-            self._multi_cam and 
+        if (self._cv_enabled_cb.isChecked() and
+            self._cv_processor.is_initialized and
+            self._multi_cam and
             frame_data.camera_id == self._multi_cam.primary_camera_id):
             # Offload primary camera to CV worker thread
             self._cv_worker.process_frame(frame_data)
@@ -505,8 +513,8 @@ class CameraPanel(QWidget):
         self._frame_received.emit(FrameData(frame=frame_copy, timestamp=timestamp))
 
     def _process_frame_on_main_thread(
-        self, 
-        frame_data: FrameData, 
+        self,
+        frame_data: FrameData,
         detections: Optional[List] = None,
         tracked: Optional[List] = None,
         motion: Optional[Any] = None
@@ -561,10 +569,10 @@ class CameraPanel(QWidget):
             )
 
     def _process_cv_results_on_main_thread(
-        self, 
-        frame_data: FrameData, 
-        detections: List, 
-        tracked: List, 
+        self,
+        frame_data: FrameData,
+        detections: List,
+        tracked: List,
         motion: Any
     ) -> None:
         """Handle results from CV worker on main thread."""
@@ -656,7 +664,6 @@ class CameraPanel(QWidget):
         if self._multi_cam is None:
             return
 
-        from glider.vision.camera_manager import CameraSettings
         from dataclasses import replace
 
         # Get base settings from camera manager (configured via Settings dialog)
@@ -736,7 +743,7 @@ class CameraPanel(QWidget):
         ))
 
     def _process_multi_frame_on_main_thread(
-        self, 
+        self,
         frame_data: FrameData,
         detections: Optional[List] = None,
         tracked: Optional[List] = None,
@@ -864,11 +871,11 @@ class CameraPanel(QWidget):
                 self._stop_multi_cameras()
             else:
                 self._stop_preview()
-        
+
         # Stop CV thread
         if self._cv_thread.isRunning():
             self._cv_thread.quit()
             self._cv_thread.wait(2000)
-            
+
         self._fps_timer.stop()
         super().closeEvent(event)

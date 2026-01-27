@@ -8,11 +8,14 @@ nodes that can be reused throughout the flow.
 
 import asyncio
 import logging
-from typing import Any, Optional, Dict, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from glider.nodes.base_node import (
-    GliderNode, NodeDefinition, NodeCategory,
-    PortDefinition, PortType
+    GliderNode,
+    NodeCategory,
+    NodeDefinition,
+    PortDefinition,
+    PortType,
 )
 
 if TYPE_CHECKING:
@@ -105,9 +108,9 @@ class FlowFunctionRunner:
         # Wait for function completion with timeout
         try:
             await asyncio.wait_for(self._completion_event.wait(), timeout=60.0)
-            logger.info(f"FlowFunctionRunner: function execution complete")
+            logger.info("FlowFunctionRunner: function execution complete")
         except asyncio.TimeoutError:
-            logger.warning(f"FlowFunctionRunner: function timed out")
+            logger.warning("FlowFunctionRunner: function timed out")
         finally:
             # Clear completion callbacks
             for end_node_id in self._end_node_ids:

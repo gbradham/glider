@@ -3,18 +3,17 @@ Runner Dashboard - Main dashboard view for experiment execution.
 """
 
 import logging
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional
 
-from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QScrollArea,
-    QFrame,
-    QLabel,
-    QGridLayout,
-)
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import (
+    QFrame,
+    QGridLayout,
+    QLabel,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
+)
 
 if TYPE_CHECKING:
     from glider.core.flow_engine import FlowEngine
@@ -37,7 +36,7 @@ class RunnerDashboard(QWidget):
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
 
-        self._flow_engine: Optional["FlowEngine"] = None
+        self._flow_engine: Optional[FlowEngine] = None
         self._widgets: Dict[str, QWidget] = {}
         self._layout_mode = "vertical"  # "vertical", "horizontal", "grid"
         self._columns = 1

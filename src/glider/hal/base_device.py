@@ -7,10 +7,10 @@ methods into semantic actions.
 """
 
 import logging
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
-import uuid
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -626,9 +626,9 @@ class ADS1115Device(BaseDevice):
 
         def _init_ads():
             try:
+                import adafruit_ads1x15.ads1115 as ADS
                 import board
                 import busio
-                import adafruit_ads1x15.ads1115 as ADS
                 from adafruit_ads1x15.analog_in import AnalogIn
 
                 # Create I2C bus
@@ -642,8 +642,8 @@ class ADS1115Device(BaseDevice):
                 return ads
             except ImportError as e:
                 raise RuntimeError(
-                    f"ADS1115 libraries not installed. Run: "
-                    f"pip install adafruit-circuitpython-ads1x15"
+                    "ADS1115 libraries not installed. Run: "
+                    "pip install adafruit-circuitpython-ads1x15"
                 ) from e
 
         self._ads = await asyncio.to_thread(_init_ads)

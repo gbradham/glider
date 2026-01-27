@@ -9,13 +9,13 @@ import csv
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from glider.core.hardware_manager import HardwareManager
     from glider.core.experiment_session import ExperimentSession
-    from glider.vision.zones import ZoneConfiguration
+    from glider.core.hardware_manager import HardwareManager
     from glider.vision.cv_processor import CVProcessor
+    from glider.vision.zones import ZoneConfiguration
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +55,8 @@ class DataRecorder:
         self._sample_task: Optional[asyncio.Task] = None
         self._device_columns: List[str] = []
         self._zone_columns: List[str] = []
-        self._zone_config: Optional["ZoneConfiguration"] = None
-        self._cv_processor: Optional["CVProcessor"] = None
+        self._zone_config: Optional[ZoneConfiguration] = None
+        self._cv_processor: Optional[CVProcessor] = None
 
     @property
     def is_recording(self) -> bool:

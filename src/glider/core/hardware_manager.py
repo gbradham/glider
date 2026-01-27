@@ -5,13 +5,13 @@ Maintains the registry of active Board instances and handles
 connection/disconnection, device initialization, and error recovery.
 """
 
-import asyncio
 import logging
-from typing import Any, Callable, Dict, List, Optional, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Type
 
 from glider.hal.base_board import BaseBoard, BoardConnectionState
-from glider.hal.base_device import BaseDevice, DeviceConfig as HALDeviceConfig, create_device_from_dict
-from glider.hal.pin_manager import PinManager, PinConflictError
+from glider.hal.base_device import BaseDevice, create_device_from_dict
+from glider.hal.base_device import DeviceConfig as HALDeviceConfig
+from glider.hal.pin_manager import PinConflictError, PinManager
 
 if TYPE_CHECKING:
     from glider.core.experiment_session import BoardConfig, DeviceConfig

@@ -5,9 +5,9 @@ Port Item - Visual representation of node input/output ports.
 from enum import Enum, auto
 from typing import Optional
 
+from PyQt6.QtCore import QObject, QPointF, QRectF, Qt, pyqtSignal
+from PyQt6.QtGui import QBrush, QColor, QPainter, QPen
 from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsItem
-from PyQt6.QtCore import Qt, QRectF, QPointF, QObject, pyqtSignal
-from PyQt6.QtGui import QPainter, QPen, QBrush, QColor
 
 
 class PortSignals(QObject):

@@ -6,7 +6,7 @@ QGraphicsProxyWidget.
 """
 
 import sys
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 
 def _get_system_font() -> str:
@@ -17,16 +17,16 @@ def _get_system_font() -> str:
         return "Segoe UI"
     return "DejaVu Sans"
 
+from PyQt6.QtCore import QObject, QPointF, QRectF, Qt, pyqtSignal
+from PyQt6.QtGui import QBrush, QColor, QFont, QLinearGradient, QPainter, QPen
 from PyQt6.QtWidgets import (
     QGraphicsItem,
+    QGraphicsProxyWidget,
     QGraphicsRectItem,
     QGraphicsTextItem,
-    QGraphicsProxyWidget,
-    QWidget,
     QStyleOptionGraphicsItem,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QRectF, QPointF, pyqtSignal, QObject
-from PyQt6.QtGui import QPainter, QPen, QBrush, QColor, QFont, QLinearGradient
 
 from glider.gui.node_graph.port_item import PortItem, PortType
 

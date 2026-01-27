@@ -6,16 +6,28 @@ Configure AI agent settings including LLM provider and behavior.
 
 import asyncio
 import logging
-from typing import Optional, List
+from typing import List, Optional
 
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QTabWidget,
-    QWidget, QLabel, QLineEdit, QComboBox, QSpinBox, QCheckBox,
-    QTextEdit, QPushButton, QGroupBox, QDoubleSpinBox, QMessageBox,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDoubleSpinBox,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt
 
-from glider.agent.config import AgentConfig, LLMProvider, DEFAULT_MODELS
+from glider.agent.config import DEFAULT_MODELS, AgentConfig, LLMProvider
 
 logger = logging.getLogger(__name__)
 

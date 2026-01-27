@@ -9,8 +9,12 @@ import logging
 from typing import Any, Dict
 
 from glider.hal.base_board import (
-    BaseBoard, BoardCapabilities, BoardConnectionState,
-    PinCapability, PinMode, PinType
+    BaseBoard,
+    BoardCapabilities,
+    BoardConnectionState,
+    PinCapability,
+    PinMode,
+    PinType,
 )
 
 logger = logging.getLogger(__name__)

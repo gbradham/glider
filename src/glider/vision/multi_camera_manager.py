@@ -12,7 +12,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from glider.vision.camera_manager import CameraManager, CameraSettings, CameraInfo, CameraState
+from glider.vision.camera_manager import CameraInfo, CameraManager, CameraSettings
 
 logger = logging.getLogger(__name__)
 

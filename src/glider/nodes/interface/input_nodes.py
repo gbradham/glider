@@ -5,10 +5,10 @@ Input Nodes - Interactive input widgets for the dashboard.
 from typing import Any, Dict
 
 from glider.nodes.base_node import (
-    InterfaceNode,
     ExecNode,
-    NodeDefinition,
+    InterfaceNode,
     NodeCategory,
+    NodeDefinition,
     PortDefinition,
     PortType,
 )

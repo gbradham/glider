@@ -7,66 +7,63 @@ Desktop (Builder) and Runner modes.
 
 import asyncio
 import logging
-from pathlib import Path
-from typing import Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Optional
 
+from PyQt6.QtCore import QMimeData, Qt, QTimer, pyqtSignal, pyqtSlot
+from PyQt6.QtGui import QAction, QDrag, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication,
-    QMainWindow,
-    QWidget,
-    QStackedWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QToolBar,
-    QStatusBar,
-    QMenuBar,
-    QMenu,
-    QFileDialog,
-    QMessageBox,
-    QDockWidget,
-    QLabel,
-    QPushButton,
-    QSplitter,
-    QTreeWidget,
-    QTreeWidgetItem,
+    QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QDockWidget,
+    QDoubleSpinBox,
+    QFileDialog,
+    QFormLayout,
+    QFrame,
     QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMenu,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QSlider,
     QSpinBox,
-    QDoubleSpinBox,
-    QDialog,
-    QFormLayout,
-    QLineEdit,
-    QDialogButtonBox,
-    QScrollArea,
-    QFrame,
-    QPlainTextEdit,
-    QCheckBox,
-    QSizePolicy,
+    QSplitter,
+    QStackedWidget,
+    QStatusBar,
     QTabBar,
+    QToolBar,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtGui import QAction, QIcon, QKeySequence, QDrag
-from PyQt6.QtCore import Qt, QSize, pyqtSignal, pyqtSlot, QMimeData, QTimer
 
-from glider.gui.view_manager import ViewManager, ViewMode
-from glider.gui.node_graph.graph_view import NodeGraphView
-from glider.gui.panels.camera_panel import CameraPanel
-from glider.gui.dialogs.camera_settings_dialog import CameraSettingsDialog
-from glider.gui.dialogs.calibration_dialog import CalibrationDialog
-from glider.gui.dialogs.zone_dialog import ZoneDialog
-from glider.vision.zones import ZoneConfiguration
+from glider.core.config import get_config
 from glider.gui.commands import (
     Command,
-    UndoStack,
+    CreateConnectionCommand,
     CreateNodeCommand,
+    DeleteConnectionCommand,
     DeleteNodeCommand,
     MoveNodeCommand,
-    CreateConnectionCommand,
-    DeleteConnectionCommand,
     PropertyChangeCommand,
+    UndoStack,
 )
-from glider.core.config import get_config
+from glider.gui.dialogs.calibration_dialog import CalibrationDialog
+from glider.gui.dialogs.camera_settings_dialog import CameraSettingsDialog
+from glider.gui.dialogs.zone_dialog import ZoneDialog
+from glider.gui.node_graph.graph_view import NodeGraphView
+from glider.gui.panels.camera_panel import CameraPanel
+from glider.gui.view_manager import ViewManager, ViewMode
 from glider.hal.base_board import BoardConnectionState
+from glider.vision.zones import ZoneConfiguration
 
 if TYPE_CHECKING:
     from glider.core.glider_core import GliderCore
@@ -2658,9 +2655,18 @@ class MainWindow(QMainWindow):
 
     def _show_board_settings_dialog(self) -> None:
         """Show a dialog to configure board settings (ports, etc.)."""
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QGroupBox
         import glob
         import sys
+
+        from PyQt6.QtWidgets import (
+            QComboBox,
+            QDialog,
+            QGroupBox,
+            QHBoxLayout,
+            QLabel,
+            QPushButton,
+            QVBoxLayout,
+        )
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Board Settings")
@@ -3119,8 +3125,8 @@ class MainWindow(QMainWindow):
     def _on_new_flow_function(self) -> None:
         """Open dialog to create a new flow function."""
         try:
-            from glider.gui.dialogs.flow_function_dialog import FlowFunctionDialog
             from glider.core.flow_engine import FlowEngine
+            from glider.gui.dialogs.flow_function_dialog import FlowFunctionDialog
 
             # Get available node types
             available_types = FlowEngine.get_available_nodes()
@@ -3357,8 +3363,8 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            from glider.gui.dialogs.custom_device_dialog import CustomDeviceDialog
             from glider.core.custom_device import CustomDeviceDefinition
+            from glider.gui.dialogs.custom_device_dialog import CustomDeviceDialog
 
             definition = CustomDeviceDefinition.from_dict(def_dict)
             dialog = CustomDeviceDialog(definition=definition, parent=self)
@@ -3405,9 +3411,9 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            from glider.gui.dialogs.flow_function_dialog import FlowFunctionDialog
-            from glider.core.flow_function import FlowFunctionDefinition
             from glider.core.flow_engine import FlowEngine
+            from glider.core.flow_function import FlowFunctionDefinition
+            from glider.gui.dialogs.flow_function_dialog import FlowFunctionDialog
 
             definition = FlowFunctionDefinition.from_dict(def_dict)
             available_types = FlowEngine.get_available_nodes()
@@ -3463,6 +3469,7 @@ class MainWindow(QMainWindow):
     def _on_node_created(self, node_type: str, x: float, y: float) -> None:
         """Handle node creation from graph view."""
         import uuid
+
         from glider.core.experiment_session import NodeConfig
 
         # Handle CustomDevice: and FlowFunction: prefixed types
@@ -3666,6 +3673,7 @@ class MainWindow(QMainWindow):
     def _on_connection_created(self, from_node: str, from_port: int, to_node: str, to_port: int, conn_type: str = "data") -> None:
         """Handle connection creation from graph view."""
         import uuid
+
         from glider.core.experiment_session import ConnectionConfig
 
         connection_id = f"conn_{uuid.uuid4().hex[:8]}"
@@ -3811,7 +3819,7 @@ class MainWindow(QMainWindow):
 
         # Add HIGH/LOW selector for Output node
         if node_type == "Output":
-            from PyQt6.QtWidgets import QButtonGroup, QRadioButton, QHBoxLayout
+            from PyQt6.QtWidgets import QHBoxLayout, QRadioButton
             value_layout = QHBoxLayout()
             high_radio = QRadioButton("HIGH")
             low_radio = QRadioButton("LOW")
@@ -4690,8 +4698,9 @@ class MainWindow(QMainWindow):
                 else:
                     # Loop is running (qasync) - schedule and wait with processEvents
                     future = asyncio.ensure_future(self._core.shutdown())
-                    from PyQt6.QtWidgets import QApplication
                     import time
+
+                    from PyQt6.QtWidgets import QApplication
                     # Process events until shutdown completes (max 10 seconds)
                     timeout = time.time() + 10
                     while not future.done() and time.time() < timeout:

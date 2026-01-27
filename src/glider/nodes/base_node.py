@@ -8,12 +8,11 @@ Extends ryvencore.Node with GLIDER-specific functionality:
 - Async operation support
 """
 
-import asyncio
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 if TYPE_CHECKING:
     from glider.hal.base_device import BaseDevice
@@ -80,7 +79,7 @@ class GliderNode(ABC):
         self._inputs: List[Any] = []
         self._outputs: List[Any] = []
         self._state: Dict[str, Any] = {}
-        self._device: Optional["BaseDevice"] = None
+        self._device: Optional[BaseDevice] = None
         self._error: Optional[str] = None
         self._enabled = True
         self._visible_in_runner = False

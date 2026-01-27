@@ -17,11 +17,10 @@ import importlib
 import importlib.util
 import json
 import logging
-import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

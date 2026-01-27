@@ -7,15 +7,15 @@ Includes real-world distance calculations when calibration is available.
 """
 
 import csv
-import math
 import logging
+import math
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Dict, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
-    from glider.vision.cv_processor import TrackedObject, MotionResult
     from glider.vision.calibration import CameraCalibration
+    from glider.vision.cv_processor import TrackedObject
     from glider.vision.zones import ZoneConfiguration
 
 logger = logging.getLogger(__name__)
@@ -45,8 +45,8 @@ class TrackingDataLogger:
         self._start_timestamp: float = 0.0
         self._frame_count = 0
         self._recording = False
-        self._calibration: Optional["CameraCalibration"] = None
-        self._zone_config: Optional["ZoneConfiguration"] = None
+        self._calibration: Optional[CameraCalibration] = None
+        self._zone_config: Optional[ZoneConfiguration] = None
         self._frame_width: int = 0
         self._frame_height: int = 0
         # Track previous positions and cumulative distances for each object

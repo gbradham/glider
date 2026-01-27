@@ -6,32 +6,32 @@ of nodes, connections, and interactive editing.
 """
 
 import logging
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional
 
-from PyQt6.QtWidgets import (
-    QGraphicsView,
-    QGraphicsScene,
-    QMenu,
-    QWidget,
-)
-from PyQt6.QtCore import Qt, QPointF, QRectF, pyqtSignal
+from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import (
-    QPainter,
-    QPen,
-    QColor,
     QBrush,
-    QWheelEvent,
-    QMouseEvent,
-    QKeyEvent,
+    QColor,
     QDragEnterEvent,
     QDragMoveEvent,
     QDropEvent,
+    QKeyEvent,
+    QMouseEvent,
+    QPainter,
+    QPen,
+    QWheelEvent,
+)
+from PyQt6.QtWidgets import (
+    QGraphicsScene,
+    QGraphicsView,
+    QMenu,
+    QWidget,
 )
 
 if TYPE_CHECKING:
     from glider.core.flow_engine import FlowEngine
-    from glider.gui.node_graph.node_item import NodeItem
     from glider.gui.node_graph.connection_item import ConnectionItem
+    from glider.gui.node_graph.node_item import NodeItem
 
 logger = logging.getLogger(__name__)
 
@@ -126,9 +126,9 @@ class NodeGraphView(QGraphicsView):
         self._setup_view()
 
         # State
-        self._nodes: Dict[str, "NodeItem"] = {}
-        self._connections: Dict[str, "ConnectionItem"] = {}
-        self._flow_engine: Optional["FlowEngine"] = None
+        self._nodes: Dict[str, NodeItem] = {}
+        self._connections: Dict[str, ConnectionItem] = {}
+        self._flow_engine: Optional[FlowEngine] = None
 
         # Interaction state
         self._panning = False

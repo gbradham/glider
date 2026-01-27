@@ -8,25 +8,24 @@ and flow execution.
 
 import asyncio
 import logging
-import signal
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
-from glider.core.experiment_session import ExperimentSession, SessionState
-from glider.core.hardware_manager import HardwareManager
-from glider.core.flow_engine import FlowEngine, FlowState
 from glider.core.data_recorder import DataRecorder
+from glider.core.experiment_session import ExperimentSession, SessionState
+from glider.core.flow_engine import FlowEngine
+from glider.core.hardware_manager import HardwareManager
+from glider.vision.calibration import CameraCalibration
 from glider.vision.camera_manager import CameraManager
-from glider.vision.video_recorder import VideoRecorder
+from glider.vision.cv_processor import CVProcessor
 from glider.vision.multi_camera_manager import MultiCameraManager
 from glider.vision.multi_video_recorder import MultiVideoRecorder
-from glider.vision.cv_processor import CVProcessor
 from glider.vision.tracking_logger import TrackingDataLogger
-from glider.vision.calibration import CameraCalibration
+from glider.vision.video_recorder import VideoRecorder
 
 if TYPE_CHECKING:
-    from glider.plugins.plugin_manager import PluginManager
     from glider.agent.agent_controller import AgentController
+    from glider.plugins.plugin_manager import PluginManager
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +46,7 @@ class GliderCore:
         self._session: Optional[ExperimentSession] = None
         self._hardware_manager = HardwareManager()
         self._flow_engine = FlowEngine(self._hardware_manager)
-        self._plugin_manager: Optional["PluginManager"] = None
+        self._plugin_manager: Optional[PluginManager] = None
         self._data_recorder = DataRecorder(self._hardware_manager)
 
         # Vision components
@@ -63,7 +62,7 @@ class GliderCore:
         self._multi_camera_enabled = False
 
         # Agent (lazy initialization)
-        self._agent_controller: Optional["AgentController"] = None
+        self._agent_controller: Optional[AgentController] = None
 
         self._initialized = False
         self._shutting_down = False
@@ -269,7 +268,6 @@ class GliderCore:
 
     def _on_flow_complete(self) -> None:
         """Handle flow completion (EndExperiment reached)."""
-        import asyncio
         logger.info("Flow completed - transitioning to READY state")
         # Schedule the async completion handler
         asyncio.create_task(self._handle_flow_complete())
@@ -604,7 +602,7 @@ class GliderCore:
                     for cam_id, path in video_paths.items():
                         logger.info(f"Recording {cam_id} video to: {path}")
                     if record_annotated:
-                        logger.info(f"Also recording annotated video (primary camera only)")
+                        logger.info("Also recording annotated video (primary camera only)")
                 except Exception as e:
                     logger.error(f"Failed to start multi-camera video recording: {e}")
             elif self._camera_manager.is_connected:
@@ -614,7 +612,7 @@ class GliderCore:
                     video_path = await self._video_recorder.start(experiment_name, record_annotated=record_annotated)
                     logger.info(f"Recording video to: {video_path}")
                     if record_annotated:
-                        logger.info(f"Also recording annotated video with tracking overlays")
+                        logger.info("Also recording annotated video with tracking overlays")
                 except Exception as e:
                     logger.error(f"Failed to start video recording: {e}")
 

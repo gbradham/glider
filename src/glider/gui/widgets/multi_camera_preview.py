@@ -5,17 +5,22 @@ Displays multiple camera feeds in an adaptive grid layout,
 with visual indicators for the primary camera and recording status.
 """
 
-import cv2
-import numpy as np
 import logging
 from typing import Dict, Optional
 
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QLabel, QFrame, QSizePolicy
-)
-from PyQt6.QtGui import QImage, QPixmap
+import cv2
+import numpy as np
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QImage, QPixmap
+from PyQt6.QtWidgets import (
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 logger = logging.getLogger(__name__)
 

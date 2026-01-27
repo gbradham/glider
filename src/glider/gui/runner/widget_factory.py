@@ -2,7 +2,7 @@
 Widget Factory - Creates dashboard widgets for interface nodes.
 """
 
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from PyQt6.QtWidgets import QWidget
 
@@ -25,14 +25,14 @@ class WidgetFactory:
             Created widget or None if not supported
         """
         from glider.gui.widgets.touch_widgets import (
-            TouchLabel,
             TouchButton,
-            TouchToggle,
-            TouchSlider,
-            TouchGauge,
             TouchChart,
+            TouchGauge,
+            TouchLabel,
             TouchLED,
             TouchNumericInput,
+            TouchSlider,
+            TouchToggle,
         )
 
         node_type = type(node).__name__

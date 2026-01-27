@@ -4,17 +4,17 @@ GLIDER Widgets - Custom Qt widgets for the GLIDER interface.
 Includes touch-optimized widgets for the Runner dashboard.
 """
 
+from glider.gui.widgets.device_card import DeviceCard, get_device_state_info
 from glider.gui.widgets.touch_widgets import (
-    TouchLabel,
     TouchButton,
-    TouchToggle,
-    TouchSlider,
-    TouchGauge,
     TouchChart,
+    TouchGauge,
+    TouchLabel,
     TouchLED,
     TouchNumericInput,
+    TouchSlider,
+    TouchToggle,
 )
-from glider.gui.widgets.device_card import DeviceCard, get_device_state_info
 
 __all__ = [
     "TouchLabel",

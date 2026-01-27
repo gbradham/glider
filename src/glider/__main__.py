@@ -18,9 +18,9 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import QApplication
 
 # Configure logging before importing GLIDER modules
 logging.basicConfig(
@@ -106,7 +106,6 @@ async def init_glider(
     """
     from glider.core.glider_core import GliderCore
     from glider.plugins.plugin_manager import PluginManager
-    from glider.serialization import get_serializer
 
     # Create and initialize core instance
     core = GliderCore()
@@ -144,8 +143,8 @@ def create_main_window(
         The main window instance
     """
     from glider.gui.main_window import MainWindow
-    from glider.gui.view_manager import ViewManager, ViewMode
     from glider.gui.styles import get_desktop_stylesheet, get_touch_stylesheet
+    from glider.gui.view_manager import ViewManager, ViewMode
 
     # Create view manager to detect display mode
     view_manager = ViewManager(app)

@@ -10,7 +10,7 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 if TYPE_CHECKING:
     from glider.core.flow_engine import FlowEngine
@@ -313,7 +313,13 @@ class FlowFunctionRunner:
 
     def _create_entry_node(self, parameters: Dict[str, Any]):
         """Create an entry node that triggers the flow."""
-        from glider.nodes.base_node import GliderNode, NodeDefinition, NodeCategory, PortDefinition, PortType
+        from glider.nodes.base_node import (
+            GliderNode,
+            NodeCategory,
+            NodeDefinition,
+            PortDefinition,
+            PortType,
+        )
 
         class EntryNode(GliderNode):
             definition = NodeDefinition(
@@ -343,7 +349,13 @@ class FlowFunctionRunner:
 
     def _create_exit_node(self):
         """Create an exit node that signals completion."""
-        from glider.nodes.base_node import GliderNode, NodeDefinition, NodeCategory, PortDefinition, PortType
+        from glider.nodes.base_node import (
+            GliderNode,
+            NodeCategory,
+            NodeDefinition,
+            PortDefinition,
+            PortType,
+        )
 
         runner = self
 
@@ -368,7 +380,13 @@ class FlowFunctionRunner:
 
     def _create_parameter_node(self, param_name: str, parameters: Dict[str, Any]):
         """Create a node that exposes a parameter value."""
-        from glider.nodes.base_node import GliderNode, NodeDefinition, NodeCategory, PortDefinition, PortType
+        from glider.nodes.base_node import (
+            GliderNode,
+            NodeCategory,
+            NodeDefinition,
+            PortDefinition,
+            PortType,
+        )
 
         param_def = self._definition.get_parameter(param_name)
         value = parameters.get(param_name)
@@ -444,8 +462,11 @@ def create_flow_function_node_class(definition: FlowFunctionDefinition) -> Type[
         A GliderNode subclass that executes the flow function
     """
     from glider.nodes.base_node import (
-        GliderNode, NodeDefinition, NodeCategory,
-        PortDefinition, PortType
+        GliderNode,
+        NodeCategory,
+        NodeDefinition,
+        PortDefinition,
+        PortType,
     )
 
     # Build input ports from parameters

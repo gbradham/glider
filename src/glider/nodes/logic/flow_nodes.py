@@ -7,8 +7,8 @@ from typing import Any, Dict, Optional
 
 from glider.nodes.base_node import (
     ExecNode,
-    NodeDefinition,
     NodeCategory,
+    NodeDefinition,
     PortDefinition,
     PortType,
 )

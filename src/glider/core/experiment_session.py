@@ -5,17 +5,16 @@ Represents the current state of an experiment: the Hardware Map
 (Boards/Devices) and the Logic Graph. Serializable to JSON.
 """
 
+import json
+import logging
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
-from typing import Any, Dict, List, Optional, Callable, TYPE_CHECKING
-import json
-import uuid
-import logging
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from glider.core.custom_device import CustomDeviceDefinition
-    from glider.core.flow_function import FlowFunctionDefinition
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -698,7 +697,7 @@ class ExperimentSession:
         Returns:
             Loaded session
         """
-        with open(file_path, 'r') as f:
+        with open(file_path) as f:
             session = cls.from_json(f.read())
 
         session._file_path = file_path

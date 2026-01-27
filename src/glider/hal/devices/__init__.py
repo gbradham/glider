@@ -6,15 +6,15 @@ into semantic actions.
 """
 
 from glider.hal.base_device import (
+    DEVICE_REGISTRY,
+    AnalogInputDevice,
     BaseDevice,
     DeviceConfig,
-    DigitalOutputDevice,
     DigitalInputDevice,
-    AnalogInputDevice,
+    DigitalOutputDevice,
+    MotorGovernorDevice,
     PWMOutputDevice,
     ServoDevice,
-    MotorGovernorDevice,
-    DEVICE_REGISTRY,
     create_device_from_dict,
 )
 

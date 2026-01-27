@@ -8,17 +8,17 @@ extracted from MainWindow to improve modularity.
 import logging
 from typing import TYPE_CHECKING, Callable, Optional
 
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
     QHBoxLayout,
+    QMenu,
+    QMessageBox,
     QPushButton,
     QTreeWidget,
     QTreeWidgetItem,
-    QMenu,
-    QMessageBox,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
 
 if TYPE_CHECKING:
     from glider.core.glider_core import GliderCore

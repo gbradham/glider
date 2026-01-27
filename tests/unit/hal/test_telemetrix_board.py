@@ -1,7 +1,9 @@
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import MagicMock, patch
+
 from glider.hal.boards.telemetrix_board import TelemetrixBoard
-from glider.hal.base_board import BoardConnectionState
+
 
 @pytest.fixture
 def mock_telemetrix():

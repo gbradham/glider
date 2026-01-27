@@ -6,19 +6,23 @@ Chat interface for AI agent interaction.
 
 import asyncio
 import logging
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit,
-    QPushButton, QLabel, QScrollArea, QFrame, QSizePolicy,
-    QApplication,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-from PyQt6.QtGui import QFont, QTextCursor, QKeyEvent
 
 if TYPE_CHECKING:
-    from glider.agent.agent_controller import AgentController, AgentResponse
-    from glider.agent.actions import AgentAction
+    from glider.agent.agent_controller import AgentController
 
 logger = logging.getLogger(__name__)
 
@@ -488,7 +492,7 @@ class AgentPanel(QWidget):
         try:
             response = await self._controller.reject_actions()
             self._add_message("assistant", response.content)
-        except Exception as e:
+        except Exception:
             logger.exception("Error rejecting actions")
 
     def _set_status(self, status: str) -> None:

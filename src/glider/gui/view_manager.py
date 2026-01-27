@@ -8,11 +8,11 @@ for either Desktop (Builder) or Runner (Raspberry Pi) mode.
 import logging
 from enum import Enum, auto
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from PyQt6.QtWidgets import QApplication, QWidget
     from PyQt6.QtCore import QSize
+    from PyQt6.QtWidgets import QApplication, QWidget
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class ViewManager:
         self._app = app
         self._mode = ViewMode.AUTO
         self._detected_mode: Optional[ViewMode] = None
-        self._screen_size: Optional["QSize"] = None
+        self._screen_size: Optional[QSize] = None
         self._style_path = Path(__file__).parent / "styles"
 
     @property
@@ -134,7 +134,7 @@ class ViewManager:
         style_path = self.get_stylesheet_path()
 
         if style_path.exists():
-            with open(style_path, 'r') as f:
+            with open(style_path) as f:
                 stylesheet = f.read()
             widget.setStyleSheet(stylesheet)
             logger.info(f"Applied stylesheet: {style_path}")

@@ -9,7 +9,7 @@ that allows for callback-based reporting.
 import asyncio
 import logging
 import threading
-from typing import Any, Callable, Dict, Optional, Set
+from typing import Any, Callable, Dict, Optional
 
 from glider.hal.base_board import (
     BaseBoard,

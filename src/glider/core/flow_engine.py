@@ -8,10 +8,10 @@ flow. Supports both Data Flow (reactive) and Execution Flow (imperative).
 import asyncio
 import logging
 from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Optional, Set, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Type
 
 if TYPE_CHECKING:
-    from glider.nodes.experiment_nodes import StartExperimentNode, EndExperimentNode
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -232,7 +232,7 @@ class FlowEngine:
             node.set_custom_device_context(runner, definition_id)
             logger.info(f"Bound CustomDeviceRunner for '{definition.name}' to node")
         else:
-            logger.warning(f"Node does not support set_custom_device_context")
+            logger.warning("Node does not support set_custom_device_context")
 
     def _bind_function_runner(self, node, start_node_id: str) -> None:
         """
@@ -252,7 +252,7 @@ class FlowEngine:
             node.set_function_context(start_node_id, runner)
             logger.info(f"Bound FlowFunctionRunner for StartFunction '{start_node_id}' to node")
         else:
-            logger.warning(f"Node does not support set_function_context")
+            logger.warning("Node does not support set_function_context")
 
     def create_node(
         self,
@@ -306,26 +306,26 @@ class FlowEngine:
         # Handle CustomDevice nodes - create and bind the runner
         logger.info(f"create_node: type={node_type}, state={state}, session={session is not None}")
         if node_type in ("CustomDevice", "CustomDeviceAction"):
-            logger.info(f"CustomDevice node detected, binding runner...")
+            logger.info("CustomDevice node detected, binding runner...")
             if state and session:
                 definition_id = state.get("definition_id")
                 if definition_id:
                     self._bind_custom_device_runner(node, definition_id, session)
                 else:
-                    logger.warning(f"CustomDevice node has no definition_id in state")
+                    logger.warning("CustomDevice node has no definition_id in state")
             else:
                 logger.warning(f"CustomDevice node missing state ({state}) or session ({session is not None})")
 
         # Handle FunctionCall nodes - bind the runner
         if node_type == "FunctionCall":
-            logger.info(f"FunctionCall node detected, binding runner...")
+            logger.info("FunctionCall node detected, binding runner...")
             if state:
                 # Check both key names for compatibility
                 start_node_id = state.get("function_start_id") or state.get("start_node_id")
                 if start_node_id:
                     self._bind_function_runner(node, start_node_id)
                 else:
-                    logger.warning(f"FunctionCall node has no function_start_id in state")
+                    logger.warning("FunctionCall node has no function_start_id in state")
 
         # Bind to device if specified
         if device_id and self._hardware_manager:

@@ -6,16 +6,16 @@ users to interact with the experiment during execution.
 """
 
 from glider.nodes.interface.display_nodes import (
-    LabelNode,
-    GaugeNode,
     ChartNode,
+    GaugeNode,
+    LabelNode,
     LEDIndicatorNode,
 )
 from glider.nodes.interface.input_nodes import (
     ButtonNode,
-    ToggleSwitchNode,
-    SliderNode,
     NumericInputNode,
+    SliderNode,
+    ToggleSwitchNode,
 )
 
 __all__ = [

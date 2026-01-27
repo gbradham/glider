@@ -5,23 +5,34 @@ Allows users to draw lines on the camera preview and assign
 real-world measurements for pixel-to-distance calibration.
 """
 
-import cv2
-import math
-import numpy as np
 import logging
-from typing import Optional, Tuple, List, TYPE_CHECKING
+import math
+from typing import TYPE_CHECKING, Optional, Tuple
 
+import cv2
+import numpy as np
+from PyQt6.QtCore import QPoint, Qt, pyqtSignal
+from PyQt6.QtGui import QImage, QMouseEvent, QPixmap
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QDoubleSpinBox, QComboBox, QLineEdit,
-    QTableWidget, QTableWidgetItem, QHeaderView,
-    QGroupBox, QFormLayout, QFileDialog, QMessageBox,
-    QSizePolicy, QFrame
+    QComboBox,
+    QDialog,
+    QDoubleSpinBox,
+    QFileDialog,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QSizePolicy,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
 )
-from PyQt6.QtGui import QImage, QPixmap, QPainter, QPen, QColor, QMouseEvent
-from PyQt6.QtCore import Qt, QPoint, pyqtSignal
 
-from glider.vision.calibration import CameraCalibration, CalibrationLine, LengthUnit
+from glider.vision.calibration import CameraCalibration, LengthUnit
 
 if TYPE_CHECKING:
     from glider.vision.camera_manager import CameraManager

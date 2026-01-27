@@ -5,25 +5,37 @@ Allows users to draw zones of various shapes (rectangle, circle, polygon)
 on the camera preview and assign labels for use in the node graph.
 """
 
-import cv2
-import math
-import numpy as np
 import logging
+import math
 import uuid
-from typing import Optional, Tuple, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
+import cv2
+import numpy as np
+from PyQt6.QtCore import QPoint, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QImage, QMouseEvent, QPixmap
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QComboBox, QLineEdit, QColorDialog,
-    QTableWidget, QTableWidgetItem, QHeaderView,
-    QGroupBox, QFormLayout, QFileDialog, QMessageBox,
-    QSizePolicy, QFrame, QRadioButton, QButtonGroup,
-    QInputDialog
+    QButtonGroup,
+    QColorDialog,
+    QDialog,
+    QFileDialog,
+    QFormLayout,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QRadioButton,
+    QSizePolicy,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
 )
-from PyQt6.QtGui import QImage, QPixmap, QColor, QMouseEvent
-from PyQt6.QtCore import Qt, QPoint, pyqtSignal
 
-from glider.vision.zones import Zone, ZoneShape, ZoneConfiguration, draw_zones
+from glider.vision.zones import Zone, ZoneConfiguration, ZoneShape, draw_zones
 
 if TYPE_CHECKING:
     from glider.vision.camera_manager import CameraManager

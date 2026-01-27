@@ -8,23 +8,20 @@ extracted from MainWindow to improve modularity.
 import logging
 from typing import TYPE_CHECKING, Callable, Optional
 
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QPushButton,
-    QLabel,
+    QCheckBox,
     QComboBox,
     QGroupBox,
-    QSpinBox,
-    QDoubleSpinBox,
-    QCheckBox,
-    QScrollArea,
-    QFrame,
+    QHBoxLayout,
+    QLabel,
     QMessageBox,
+    QPushButton,
     QSizePolicy,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 
 from glider.core.config import get_config
 from glider.core.types import DeviceType

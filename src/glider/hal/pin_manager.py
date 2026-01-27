@@ -5,11 +5,11 @@ Prevents pin conflicts by tracking which pins are claimed by devices
 and ensuring no duplicate assignments.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Dict, List, Optional, Set
 
 if TYPE_CHECKING:
-    from glider.hal.base_board import BaseBoard, PinCapability, PinType
+    from glider.hal.base_board import BaseBoard, PinType
     from glider.hal.base_device import BaseDevice
 
 

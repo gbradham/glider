@@ -4,9 +4,9 @@ Connection Item - Visual representation of connections between nodes.
 
 from typing import TYPE_CHECKING
 
-from PyQt6.QtWidgets import QGraphicsPathItem, QGraphicsItem
-from PyQt6.QtCore import Qt, QPointF
-from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath
+from PyQt6.QtCore import QPointF, Qt
+from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen
+from PyQt6.QtWidgets import QGraphicsItem, QGraphicsPathItem
 
 if TYPE_CHECKING:
     from glider.gui.node_graph.node_item import NodeItem
@@ -175,7 +175,7 @@ class ConnectionItem(QGraphicsPathItem):
             end.y() - arrow_size * (dy * math.cos(arrow_angle) - dx * math.sin(arrow_angle)),
         )
 
-        from PyQt6.QtGui import QPolygonF, QBrush
+        from PyQt6.QtGui import QBrush, QPolygonF
         arrow = QPolygonF([end, p1, p2])
         painter.setBrush(QBrush(color))
         painter.drawPolygon(arrow)

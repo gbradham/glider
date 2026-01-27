@@ -8,7 +8,7 @@ wraps these calls using asyncio.to_thread() to ensure non-blocking operation.
 
 import asyncio
 import logging
-from typing import Any, Callable, Dict, Optional, Set
+from typing import Any, Dict, Optional
 
 from glider.hal.base_board import (
     BaseBoard,

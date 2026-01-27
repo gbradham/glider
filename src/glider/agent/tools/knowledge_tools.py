@@ -5,10 +5,10 @@ Tools for explaining concepts and providing suggestions.
 """
 
 import logging
-from typing import Any, Dict, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List
 
+from glider.agent.actions import ActionType, AgentAction
 from glider.agent.llm_backend import ToolDefinition
-from glider.agent.actions import AgentAction, ActionType
 
 if TYPE_CHECKING:
     from glider.core.glider_core import GliderCore

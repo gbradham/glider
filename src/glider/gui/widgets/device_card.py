@@ -6,10 +6,10 @@ Reduces code duplication between creation and update methods.
 """
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from glider.core.config import get_config
 from glider.core.types import DeviceType

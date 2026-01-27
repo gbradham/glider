@@ -11,19 +11,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Optional, Type
 
 from glider.serialization.schema import (
-    ExperimentSchema,
-    MetadataSchema,
-    HardwareConfigSchema,
-    FlowConfigSchema,
-    DashboardConfigSchema,
-    NodeSchema,
-    ConnectionSchema,
+    SCHEMA_VERSION,
     BoardConfigSchema,
+    ConnectionSchema,
+    DashboardConfigSchema,
     DeviceConfigSchema,
-    DashboardWidgetSchema,
+    ExperimentSchema,
+    FlowConfigSchema,
+    HardwareConfigSchema,
+    MetadataSchema,
+    NodeSchema,
     PortSchema,
     SchemaValidationError,
-    SCHEMA_VERSION,
 )
 
 if TYPE_CHECKING:
@@ -47,7 +46,7 @@ class ExperimentSerializer:
     FILE_EXTENSION = ".glider"
 
     def __init__(self):
-        self._node_registry: Dict[str, Type["GliderNode"]] = {}
+        self._node_registry: Dict[str, Type[GliderNode]] = {}
 
     def register_node_type(self, node_type: str, node_class: Type["GliderNode"]) -> None:
         """
@@ -108,7 +107,7 @@ class ExperimentSerializer:
             ValueError: If schema validation fails
         """
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 content = f.read()
         except FileNotFoundError:
             logger.error(f"Experiment file not found: {path}")

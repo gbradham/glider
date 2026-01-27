@@ -7,14 +7,15 @@ Provides configurable CV processing including:
 - Motion detection
 """
 
-import cv2
-import numpy as np
 import logging
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Callable, Any, TYPE_CHECKING
 from enum import Enum, auto
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
+
+import cv2
+import numpy as np
 from scipy.spatial import distance as dist
 
 if TYPE_CHECKING:
@@ -303,9 +304,9 @@ class CVProcessor:
         self._last_motion: MotionResult = MotionResult(False, 0.0)
 
         # Zone tracking
-        self._zone_tracker: Optional["ZoneTracker"] = None
-        self._zone_config: Optional["ZoneConfiguration"] = None
-        self._zone_callbacks: List[Callable[[Dict[str, "ZoneState"]], None]] = []
+        self._zone_tracker: Optional[ZoneTracker] = None
+        self._zone_config: Optional[ZoneConfiguration] = None
+        self._zone_callbacks: List[Callable[[Dict[str, ZoneState]], None]] = []
 
     @property
     def settings(self) -> CVSettings:

@@ -5,12 +5,11 @@ Custom devices allow users to define arbitrary hardware devices with
 configurable pins. Flow logic is created via the node graph.
 """
 
-import asyncio
 import logging
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from glider.hal.base_board import BaseBoard
@@ -158,7 +157,8 @@ class CustomDeviceRunner:
 
     async def initialize(self) -> None:
         """Initialize all pins to their configured modes and defaults."""
-        from glider.hal.base_board import PinMode, PinType as BoardPinType
+        from glider.hal.base_board import PinMode
+        from glider.hal.base_board import PinType as BoardPinType
 
         for pin_def in self._definition.pins:
             pin_num = self._pin_assignments.get(pin_def.name)

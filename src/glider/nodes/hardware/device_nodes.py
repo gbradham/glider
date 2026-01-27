@@ -9,8 +9,8 @@ from typing import Any, Dict
 
 from glider.nodes.base_node import (
     HardwareNode,
-    NodeDefinition,
     NodeCategory,
+    NodeDefinition,
     PortDefinition,
     PortType,
 )

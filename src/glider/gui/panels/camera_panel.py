@@ -7,7 +7,7 @@ and quick access to camera settings.
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import cv2
 import numpy as np
@@ -515,8 +515,8 @@ class CameraPanel(QWidget):
     def _process_frame_on_main_thread(
         self,
         frame_data: FrameData,
-        detections: Optional[List] = None,
-        tracked: Optional[List] = None,
+        detections: Optional[list] = None,
+        tracked: Optional[list] = None,
         motion: Optional[Any] = None
     ) -> None:
         """
@@ -571,8 +571,8 @@ class CameraPanel(QWidget):
     def _process_cv_results_on_main_thread(
         self,
         frame_data: FrameData,
-        detections: List,
-        tracked: List,
+        detections: list,
+        tracked: list,
         motion: Any
     ) -> None:
         """Handle results from CV worker on main thread."""
@@ -745,8 +745,8 @@ class CameraPanel(QWidget):
     def _process_multi_frame_on_main_thread(
         self,
         frame_data: FrameData,
-        detections: Optional[List] = None,
-        tracked: Optional[List] = None,
+        detections: Optional[list] = None,
+        tracked: Optional[list] = None,
         motion: Optional[Any] = None
     ) -> None:
         """

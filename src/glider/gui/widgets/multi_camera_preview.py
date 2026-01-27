@@ -6,7 +6,7 @@ with visual indicators for the primary camera and recording status.
 """
 
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 import cv2
 import numpy as np
@@ -216,7 +216,7 @@ class MultiCameraPreviewWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._tiles: Dict[str, CameraPreviewTile] = {}
+        self._tiles: dict[str, CameraPreviewTile] = {}
         self._primary_id: Optional[str] = None
 
         self._setup_ui()
@@ -352,15 +352,15 @@ class MultiCameraPreviewWidget(QWidget):
 
         # Determine grid dimensions
         if count == 1:
-            cols, rows = 1, 1
+            cols, _rows = 1, 1
         elif count == 2:
-            cols, rows = 2, 1
+            cols, _rows = 2, 1
         elif count <= 4:
-            cols, rows = 2, 2
+            cols, _rows = 2, 2
         elif count <= 6:
-            cols, rows = 3, 2
+            cols, _rows = 3, 2
         else:
-            cols, rows = 3, 3
+            cols, _rows = 3, 3
 
         # Add tiles to grid
         camera_ids = list(self._tiles.keys())

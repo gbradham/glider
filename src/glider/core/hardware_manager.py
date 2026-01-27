@@ -6,7 +6,7 @@ connection/disconnection, device initialization, and error recovery.
 """
 
 import logging
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Callable, Optional
 
 from glider.hal.base_board import BaseBoard, BoardConnectionState
 from glider.hal.base_device import BaseDevice, create_device_from_dict
@@ -47,19 +47,19 @@ class HardwareManager:
     """
 
     # Registry of available board drivers
-    _driver_registry: Dict[str, Type[BaseBoard]] = {}
+    _driver_registry: dict[str, type[BaseBoard]] = {}
 
     def __init__(self):
         """Initialize the hardware manager."""
-        self._boards: Dict[str, BaseBoard] = {}
-        self._devices: Dict[str, BaseDevice] = {}
-        self._pin_managers: Dict[str, PinManager] = {}
-        self._error_callbacks: List[Callable[[str, Exception], None]] = []
-        self._connection_callbacks: List[Callable[[str, BoardConnectionState], None]] = []
+        self._boards: dict[str, BaseBoard] = {}
+        self._devices: dict[str, BaseDevice] = {}
+        self._pin_managers: dict[str, PinManager] = {}
+        self._error_callbacks: list[Callable[[str, Exception], None]] = []
+        self._connection_callbacks: list[Callable[[str, BoardConnectionState], None]] = []
         self._initialized = False
 
     @classmethod
-    def register_driver(cls, name: str, driver_class: Type[BaseBoard]) -> None:
+    def register_driver(cls, name: str, driver_class: type[BaseBoard]) -> None:
         """
         Register a board driver.
 
@@ -71,22 +71,22 @@ class HardwareManager:
         logger.debug(f"Registered driver: {name}")
 
     @classmethod
-    def get_available_drivers(cls) -> List[str]:
+    def get_available_drivers(cls) -> list[str]:
         """Get list of available driver names."""
         return list(cls._driver_registry.keys())
 
     @classmethod
-    def get_driver_class(cls, name: str) -> Optional[Type[BaseBoard]]:
+    def get_driver_class(cls, name: str) -> Optional[type[BaseBoard]]:
         """Get a driver class by name."""
         return cls._driver_registry.get(name)
 
     @property
-    def boards(self) -> Dict[str, BaseBoard]:
+    def boards(self) -> dict[str, BaseBoard]:
         """Dictionary of active board instances."""
         return self._boards.copy()
 
     @property
-    def devices(self) -> Dict[str, BaseDevice]:
+    def devices(self) -> dict[str, BaseDevice]:
         """Dictionary of active device instances."""
         return self._devices.copy()
 
@@ -253,7 +253,7 @@ class HardwareManager:
         pin_manager = self._pin_managers.get(config.board_id)
 
         # Create HAL device config
-        hal_config = HALDeviceConfig(
+        HALDeviceConfig(
             pins=config.pins,
             settings=config.settings,
         )
@@ -283,7 +283,7 @@ class HardwareManager:
             try:
                 pin_manager.allocate_device_pins(device)
             except PinConflictError as e:
-                raise HardwareError(str(e))
+                raise HardwareError(str(e)) from e
 
         self._devices[config.id] = device
         logger.info(f"Created device: {device.name} (ID: {config.id})")
@@ -438,7 +438,7 @@ class HardwareManager:
             try:
                 pin_manager.allocate_device_pins(device)
             except PinConflictError as e:
-                raise HardwareError(str(e))
+                raise HardwareError(str(e)) from e
 
         self._devices[device_id] = device
         logger.info(f"Added device: {device_id} (type: {device_type}, pin: {pin})")
@@ -448,7 +448,7 @@ class HardwareManager:
         device_id: str,
         device_type: str,
         board_id: str,
-        pins: Dict[str, int],
+        pins: dict[str, int],
         name: Optional[str] = None,
         **kwargs
     ) -> None:
@@ -491,7 +491,7 @@ class HardwareManager:
             try:
                 pin_manager.allocate_device_pins(device)
             except PinConflictError as e:
-                raise HardwareError(str(e))
+                raise HardwareError(str(e)) from e
 
         self._devices[device_id] = device
         pins_str = ", ".join(f"{k}={v}" for k, v in pins.items())
@@ -504,7 +504,7 @@ class HardwareManager:
         self._pin_managers.clear()
         logger.info("Cleared all hardware")
 
-    async def connect_all(self) -> Dict[str, bool]:
+    async def connect_all(self) -> dict[str, bool]:
         """
         Connect to all boards.
 
@@ -520,7 +520,7 @@ class HardwareManager:
                 results[board_id] = False
         return results
 
-    async def initialize_all_devices(self) -> Dict[str, bool]:
+    async def initialize_all_devices(self) -> dict[str, bool]:
         """
         Initialize all devices.
 

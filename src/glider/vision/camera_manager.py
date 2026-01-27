@@ -22,7 +22,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from queue import Empty, Queue
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Optional
 
 import cv2
 import numpy as np
@@ -116,7 +116,7 @@ class FFmpegCapture:
         """Check if capture is open."""
         return self._is_open and self._process is not None and self._process.poll() is None
 
-    def read(self) -> Tuple[bool, Optional[np.ndarray]]:
+    def read(self) -> tuple[bool, Optional[np.ndarray]]:
         """Read a frame from FFmpeg."""
         if not self.isOpened():
             return False, None
@@ -143,7 +143,7 @@ class FFmpegCapture:
         ret, self._last_frame = self.read()
         return ret
 
-    def retrieve(self) -> Tuple[bool, Optional[np.ndarray]]:
+    def retrieve(self) -> tuple[bool, Optional[np.ndarray]]:
         """Retrieve the last grabbed frame."""
         if hasattr(self, '_last_frame') and self._last_frame is not None:
             return True, self._last_frame
@@ -201,7 +201,7 @@ def _get_camera_backend() -> int:
         return cv2.CAP_ANY
 
 
-def _get_windows_fallback_backends() -> List[int]:
+def _get_windows_fallback_backends() -> list[int]:
     """Get list of backends to try on Windows in order of preference."""
     return [
         cv2.CAP_DSHOW,  # DirectShow - most compatible with USB cameras
@@ -236,7 +236,7 @@ def _is_raspberry_pi() -> bool:
         return False
 
 
-def _get_windows_camera_names() -> List[str]:
+def _get_windows_camera_names() -> list[str]:
     """
     Get camera device names on Windows using DirectShow enumeration.
 
@@ -593,7 +593,7 @@ class CameraInfo:
     """Information about an available camera."""
     index: int
     name: str
-    resolutions: List[Tuple[int, int]] = field(default_factory=list)
+    resolutions: list[tuple[int, int]] = field(default_factory=list)
     max_fps: float = 30.0
     is_available: bool = True
 
@@ -605,7 +605,7 @@ class CameraInfo:
 class CameraSettings:
     """Camera configuration settings."""
     camera_index: int = 0
-    resolution: Tuple[int, int] = (640, 480)
+    resolution: tuple[int, int] = (640, 480)
     fps: int = 30
     exposure: int = -1  # -1 = auto
     brightness: int = 128
@@ -631,7 +631,7 @@ class CameraSettings:
     led_power: int = 0  # 0-100 (percentage, 0=off, 100=max brightness)
     ewl_focus: int = 128  # 0-255 (electrowetting lens focus)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
         return {
             "camera_index": self.camera_index,
@@ -661,7 +661,7 @@ class CameraSettings:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CameraSettings":
+    def from_dict(cls, data: dict[str, Any]) -> "CameraSettings":
         """Deserialize from dictionary."""
         return cls(
             camera_index=data.get("camera_index", 0),
@@ -731,7 +731,7 @@ class CameraManager:
         self._capture_thread: Optional[threading.Thread] = None
         self._frame_queue: Queue = Queue(maxsize=2)  # Double buffer
         self._running = False
-        self._frame_callbacks: List[Callable[[np.ndarray, float], None]] = []
+        self._frame_callbacks: list[Callable[[np.ndarray, float], None]] = []
         self._lock = threading.Lock()
         self._last_frame: Optional[np.ndarray] = None
         self._last_timestamp: float = 0.0
@@ -765,7 +765,7 @@ class CameraManager:
         return self._current_fps
 
     @staticmethod
-    def enumerate_cameras(max_cameras: int = 10) -> List[CameraInfo]:
+    def enumerate_cameras(max_cameras: int = 10) -> list[CameraInfo]:
         """
         Enumerate all available camera devices.
 
@@ -912,7 +912,7 @@ class CameraManager:
 
             # Warmup and verify we can actually read frames
             success_count = 0
-            for attempt in range(max_attempts):
+            for _attempt in range(max_attempts):
                 try:
                     if self._capture.grab():
                         ret, frame = self._capture.retrieve()
@@ -1131,7 +1131,7 @@ class CameraManager:
             # If read() failed, try grab()/retrieve()
             if success_count == 0:
                 logger.info("Trying grab/retrieve method...")
-                for attempt in range(10):
+                for _attempt in range(10):
                     try:
                         if self._capture.grab():
                             ret, frame = self._capture.retrieve()
@@ -1157,7 +1157,7 @@ class CameraManager:
 
             if self._capture.isOpened():
                 time.sleep(0.5)
-                for attempt in range(10):
+                for _attempt in range(10):
                     ret, frame = self._capture.read()
                     if ret and frame is not None and frame.size > 0:
                         logger.info(f"Minimal config SUCCESS: frame shape={frame.shape}, dtype={frame.dtype}")
@@ -1177,7 +1177,7 @@ class CameraManager:
                 self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, self._settings.resolution[0])
                 self._capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self._settings.resolution[1])
                 time.sleep(0.5)
-                for attempt in range(10):
+                for _attempt in range(10):
                     ret, frame = self._capture.read()
                     if ret and frame is not None and frame.size > 0:
                         logger.info(f"RGB conversion SUCCESS: frame shape={frame.shape}, dtype={frame.dtype}")
@@ -1194,7 +1194,7 @@ class CameraManager:
                     self._capture = cv2.VideoCapture(f"video={device_name}", cv2.CAP_FFMPEG)
                     if self._capture.isOpened():
                         time.sleep(0.5)
-                        for attempt in range(10):
+                        for _attempt in range(10):
                             ret, frame = self._capture.read()
                             if ret and frame is not None and frame.size > 0:
                                 logger.info(f"FFmpeg dshow SUCCESS: frame shape={frame.shape}")
@@ -1209,7 +1209,7 @@ class CameraManager:
                     ffmpeg_cap = FFmpegCapture(device_name, width, height, self._settings.fps)
                     if ffmpeg_cap.open():
                         # Test reading frames
-                        for attempt in range(5):
+                        for _attempt in range(5):
                             ret, frame = ffmpeg_cap.read()
                             if ret and frame is not None:
                                 logger.info(f"FFmpeg external capture SUCCESS: frame shape={frame.shape}")
@@ -1225,7 +1225,7 @@ class CameraManager:
             if self._capture is not None:
                 try:
                     self._capture.release()
-                except:
+                except Exception:
                     pass
             self._capture = None
             return False
@@ -1586,7 +1586,7 @@ class CameraManager:
 
         logger.info("Camera streaming stopped")
 
-    def get_frame(self) -> Optional[Tuple[np.ndarray, float]]:
+    def get_frame(self) -> Optional[tuple[np.ndarray, float]]:
         """
         Get the latest frame (non-blocking).
 

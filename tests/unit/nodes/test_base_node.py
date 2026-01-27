@@ -60,7 +60,7 @@ class TestPortDefinition:
 
         assert port.name == "input_1"
         assert port.port_type == PortType.DATA
-        assert port.data_type == float
+        assert port.data_type is float
         assert port.default_value == 0.0
         assert port.description == "An input port"
 
@@ -69,7 +69,7 @@ class TestPortDefinition:
         port = PortDefinition(name="port_1")
 
         assert port.port_type == PortType.DATA
-        assert port.data_type == object
+        assert port.data_type is object
         assert port.default_value is None
         assert port.description == ""
 

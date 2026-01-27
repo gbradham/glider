@@ -8,7 +8,7 @@ standalone files for sharing and reuse across projects.
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from glider.core.custom_device import CustomDeviceDefinition
 from glider.core.flow_function import FlowFunctionDefinition
@@ -113,7 +113,7 @@ class DeviceLibrary:
         logger.info(f"Imported custom device '{definition.name}' from {path}")
         return definition
 
-    def list_library_devices(self) -> List[Dict[str, Any]]:
+    def list_library_devices(self) -> list[dict[str, Any]]:
         """
         List all devices in the library.
 
@@ -198,7 +198,7 @@ class DeviceLibrary:
         logger.info(f"Imported flow function '{definition.name}' from {path}")
         return definition
 
-    def list_library_functions(self) -> List[Dict[str, Any]]:
+    def list_library_functions(self) -> list[dict[str, Any]]:
         """
         List all flow functions in the library.
 
@@ -231,8 +231,8 @@ class DeviceLibrary:
 
     def export_library(
         self,
-        devices: List[CustomDeviceDefinition],
-        functions: List[FlowFunctionDefinition],
+        devices: list[CustomDeviceDefinition],
+        functions: list[FlowFunctionDefinition],
         path: Path
     ) -> Path:
         """
@@ -266,7 +266,7 @@ class DeviceLibrary:
     def import_library(
         self,
         path: Path
-    ) -> tuple[List[CustomDeviceDefinition], List[FlowFunctionDefinition]]:
+    ) -> tuple[list[CustomDeviceDefinition], list[FlowFunctionDefinition]]:
         """
         Import devices and functions from a library file.
 

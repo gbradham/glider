@@ -7,8 +7,6 @@ Tests the configuration classes and persistence.
 import json
 from pathlib import Path
 
-import pytest
-
 from glider.core.config import (
     GliderConfig,
     HardwareConfig,

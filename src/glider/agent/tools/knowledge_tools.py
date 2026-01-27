@@ -5,7 +5,7 @@ Tools for explaining concepts and providing suggestions.
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 from glider.agent.actions import ActionType, AgentAction
 from glider.agent.llm_backend import ToolDefinition
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 # Tool Definitions
-KNOWLEDGE_TOOLS: List[ToolDefinition] = [
+KNOWLEDGE_TOOLS: list[ToolDefinition] = [
     ToolDefinition(
         name="explain_node",
         description="Get detailed explanation of a node type",
@@ -363,7 +363,7 @@ class KnowledgeToolExecutor:
     def __init__(self, core: "GliderCore"):
         self._core = core
 
-    async def execute(self, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(self, tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
         """Execute a tool and return the result."""
         method = getattr(self, f"_execute_{tool_name}", None)
         if method is None:
@@ -376,7 +376,7 @@ class KnowledgeToolExecutor:
             logger.exception(f"Tool execution failed: {tool_name}")
             return {"success": False, "error": str(e)}
 
-    def create_action(self, tool_name: str, args: Dict[str, Any]) -> AgentAction:
+    def create_action(self, tool_name: str, args: dict[str, Any]) -> AgentAction:
         """Create an action for a tool call."""
         descriptions = {
             "explain_node": f"Explain {args.get('node_type', 'node')} node",
@@ -393,7 +393,7 @@ class KnowledgeToolExecutor:
             description=descriptions.get(tool_name, tool_name),
         )
 
-    async def _execute_explain_node(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_explain_node(self, args: dict[str, Any]) -> dict[str, Any]:
         """Explain a node type."""
         node_type = args["node_type"]
 
@@ -412,7 +412,7 @@ class KnowledgeToolExecutor:
             **doc,
         }
 
-    async def _execute_explain_concept(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_explain_concept(self, args: dict[str, Any]) -> dict[str, Any]:
         """Explain a concept."""
         concept = args["concept"].lower()
 
@@ -436,7 +436,7 @@ class KnowledgeToolExecutor:
             "explanation": explanation,
         }
 
-    async def _execute_get_examples(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_get_examples(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get example experiments."""
         category = args.get("category", "all")
 
@@ -455,7 +455,7 @@ class KnowledgeToolExecutor:
             "count": len(examples),
         }
 
-    async def _execute_suggest_flow(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_suggest_flow(self, args: dict[str, Any]) -> dict[str, Any]:
         """Suggest a flow design for a task."""
         task = args["task"]
 
@@ -501,7 +501,7 @@ class KnowledgeToolExecutor:
 
         return suggestion
 
-    async def _execute_troubleshoot(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_troubleshoot(self, args: dict[str, Any]) -> dict[str, Any]:
         """Help troubleshoot an issue."""
         issue = args["issue"]
         error_message = args.get("error_message", "")

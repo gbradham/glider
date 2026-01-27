@@ -7,7 +7,7 @@ Defines action types and their validation/execution states.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class ActionType(Enum):
@@ -71,7 +71,7 @@ class AgentAction:
 
     action_type: ActionType
     tool_name: str
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
     description: str  # Human-readable description
 
     # State
@@ -127,7 +127,7 @@ class AgentAction:
         self.status = ActionStatus.FAILED
         self.error = error
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for display."""
         return {
             "id": self.id,
@@ -145,7 +145,7 @@ class AgentAction:
 class ActionBatch:
     """A batch of related actions from a single agent response."""
 
-    actions: List[AgentAction] = field(default_factory=list)
+    actions: list[AgentAction] = field(default_factory=list)
     message: str = ""  # The agent's explanation
 
     def add_action(self, action: AgentAction) -> None:
@@ -153,12 +153,12 @@ class ActionBatch:
         self.actions.append(action)
 
     @property
-    def pending_actions(self) -> List[AgentAction]:
+    def pending_actions(self) -> list[AgentAction]:
         """Get actions still pending confirmation."""
         return [a for a in self.actions if a.is_pending]
 
     @property
-    def confirmed_actions(self) -> List[AgentAction]:
+    def confirmed_actions(self) -> list[AgentAction]:
         """Get confirmed actions."""
         return [a for a in self.actions if a.status == ActionStatus.CONFIRMED]
 

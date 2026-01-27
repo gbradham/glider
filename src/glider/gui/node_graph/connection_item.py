@@ -102,7 +102,7 @@ class ConnectionItem(QGraphicsPathItem):
 
         # Calculate control points
         dx = abs(end.x() - start.x())
-        dy = abs(end.y() - start.y())
+        abs(end.y() - start.y())
         ctrl_offset = max(50, min(dx * 0.5, 150))
 
         # Horizontal offset for control points

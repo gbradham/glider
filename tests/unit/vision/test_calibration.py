@@ -4,7 +4,6 @@ Tests for glider.vision.calibration module.
 Tests camera calibration and pixel-to-real-world conversion.
 """
 
-import math
 
 from glider.vision.calibration import (
     CalibrationLine,

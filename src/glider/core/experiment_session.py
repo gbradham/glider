@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 if TYPE_CHECKING:
     pass
@@ -42,7 +42,7 @@ class SessionMetadata:
     modified_at: str = field(default_factory=lambda: datetime.now().isoformat())
     glider_version: str = "1.0.0"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -55,7 +55,7 @@ class SessionMetadata:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SessionMetadata":
+    def from_dict(cls, data: dict[str, Any]) -> "SessionMetadata":
         return cls(
             id=data.get("id", str(uuid.uuid4())),
             name=data.get("name", "Untitled Experiment"),
@@ -76,9 +76,9 @@ class BoardConfig:
     port: Optional[str] = None
     board_type: Optional[str] = None  # e.g., "uno", "mega"
     auto_reconnect: bool = False
-    settings: Dict[str, Any] = field(default_factory=dict)
+    settings: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "driver_type": self.driver_type,
@@ -89,7 +89,7 @@ class BoardConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "BoardConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "BoardConfig":
         return cls(
             id=data["id"],
             driver_type=data["driver_type"],
@@ -107,10 +107,10 @@ class DeviceConfig:
     device_type: str  # e.g., "DigitalOutput", "DHT22"
     name: str
     board_id: str
-    pins: Dict[str, int]
-    settings: Dict[str, Any] = field(default_factory=dict)
+    pins: dict[str, int]
+    settings: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "device_type": self.device_type,
@@ -121,7 +121,7 @@ class DeviceConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "DeviceConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "DeviceConfig":
         return cls(
             id=data["id"],
             device_type=data["device_type"],
@@ -148,7 +148,7 @@ class CameraConfig:
     max_disappeared: int = 50
     video_recording_enabled: bool = True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "camera_index": self.camera_index,
             "resolution": list(self.resolution),
@@ -165,7 +165,7 @@ class CameraConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CameraConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "CameraConfig":
         return cls(
             camera_index=data.get("camera_index", 0),
             resolution=tuple(data.get("resolution", [640, 480])),
@@ -185,17 +185,17 @@ class CameraConfig:
 @dataclass
 class HardwareConfig:
     """Complete hardware configuration."""
-    boards: List[BoardConfig] = field(default_factory=list)
-    devices: List[DeviceConfig] = field(default_factory=list)
+    boards: list[BoardConfig] = field(default_factory=list)
+    devices: list[DeviceConfig] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "boards": [b.to_dict() for b in self.boards],
             "devices": [d.to_dict() for d in self.devices],
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "HardwareConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "HardwareConfig":
         return cls(
             boards=[BoardConfig.from_dict(b) for b in data.get("boards", [])],
             devices=[DeviceConfig.from_dict(d) for d in data.get("devices", [])],
@@ -208,11 +208,11 @@ class NodeConfig:
     id: str
     node_type: str
     position: tuple = (0, 0)
-    state: Dict[str, Any] = field(default_factory=dict)
+    state: dict[str, Any] = field(default_factory=dict)
     device_id: Optional[str] = None  # For hardware nodes
     visible_in_runner: bool = False  # Show in dashboard
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "node_type": self.node_type,
@@ -223,7 +223,7 @@ class NodeConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "NodeConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "NodeConfig":
         return cls(
             id=data["id"],
             node_type=data["node_type"],
@@ -244,7 +244,7 @@ class ConnectionConfig:
     to_input: int
     connection_type: str = "data"  # "data" or "exec"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "from_node": self.from_node,
@@ -255,7 +255,7 @@ class ConnectionConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ConnectionConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "ConnectionConfig":
         return cls(
             id=data["id"],
             from_node=data["from_node"],
@@ -269,17 +269,17 @@ class ConnectionConfig:
 @dataclass
 class FlowConfig:
     """Configuration for the experiment flow graph."""
-    nodes: List[NodeConfig] = field(default_factory=list)
-    connections: List[ConnectionConfig] = field(default_factory=list)
+    nodes: list[NodeConfig] = field(default_factory=list)
+    connections: list[ConnectionConfig] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "nodes": [n.to_dict() for n in self.nodes],
             "connections": [c.to_dict() for c in self.connections],
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "FlowConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "FlowConfig":
         return cls(
             nodes=[NodeConfig.from_dict(n) for n in data.get("nodes", [])],
             connections=[ConnectionConfig.from_dict(c) for c in data.get("connections", [])],
@@ -289,11 +289,11 @@ class FlowConfig:
 @dataclass
 class DashboardConfig:
     """Configuration for the runner dashboard layout."""
-    widgets: List[Dict[str, Any]] = field(default_factory=list)
+    widgets: list[dict[str, Any]] = field(default_factory=list)
     layout: str = "vertical"  # "vertical", "horizontal", "grid"
     columns: int = 1  # For grid layout
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "widgets": self.widgets,
             "layout": self.layout,
@@ -301,7 +301,7 @@ class DashboardConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "DashboardConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "DashboardConfig":
         return cls(
             widgets=data.get("widgets", []),
             layout=data.get("layout", "vertical"),
@@ -312,11 +312,11 @@ class DashboardConfig:
 @dataclass
 class ZoneConfig:
     """Configuration for zones within the camera view."""
-    zones: List[Dict[str, Any]] = field(default_factory=list)  # Serialized Zone objects
+    zones: list[dict[str, Any]] = field(default_factory=list)  # Serialized Zone objects
     config_width: int = 0
     config_height: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "zones": self.zones,
             "config_width": self.config_width,
@@ -324,7 +324,7 @@ class ZoneConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ZoneConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "ZoneConfig":
         return cls(
             zones=data.get("zones", []),
             config_width=data.get("config_width", 0),
@@ -354,12 +354,12 @@ class ExperimentSession:
         self._file_path: Optional[str] = None
 
         # Custom devices and flow functions
-        self._custom_device_definitions: Dict[str, Any] = {}  # id -> definition dict
-        self._flow_function_definitions: Dict[str, Any] = {}  # id -> definition dict
+        self._custom_device_definitions: dict[str, Any] = {}  # id -> definition dict
+        self._flow_function_definitions: dict[str, Any] = {}  # id -> definition dict
 
         # Callbacks for state changes
-        self._state_callbacks: List[Callable[[SessionState], None]] = []
-        self._change_callbacks: List[Callable[[], None]] = []
+        self._state_callbacks: list[Callable[[SessionState], None]] = []
+        self._change_callbacks: list[Callable[[], None]] = []
 
     @property
     def metadata(self) -> SessionMetadata:
@@ -392,12 +392,12 @@ class ExperimentSession:
         return self._zones
 
     @property
-    def custom_device_definitions(self) -> Dict[str, Any]:
+    def custom_device_definitions(self) -> dict[str, Any]:
         """Custom device definitions (id -> definition dict)."""
         return self._custom_device_definitions
 
     @property
-    def flow_function_definitions(self) -> Dict[str, Any]:
+    def flow_function_definitions(self) -> dict[str, Any]:
         """Flow function definitions (id -> definition dict)."""
         return self._flow_function_definitions
 
@@ -480,7 +480,7 @@ class ExperimentSession:
         return None
 
     def update_board(self, board_id: str, port: Optional[str] = None,
-                     board_type: Optional[str] = None, settings: Optional[Dict[str, Any]] = None) -> bool:
+                     board_type: Optional[str] = None, settings: Optional[dict[str, Any]] = None) -> bool:
         """Update a board's configuration."""
         board = self.get_board(board_id)
         if board is None:
@@ -515,8 +515,8 @@ class ExperimentSession:
         return None
 
     def update_device(self, device_id: str, name: Optional[str] = None,
-                      pins: Optional[Dict[str, int]] = None,
-                      settings: Optional[Dict[str, Any]] = None) -> bool:
+                      pins: Optional[dict[str, int]] = None,
+                      settings: Optional[dict[str, Any]] = None) -> bool:
         """Update a device's configuration."""
         device = self.get_device(device_id)
         if device is None:
@@ -559,7 +559,7 @@ class ExperimentSession:
             node.position = (x, y)
             self._mark_dirty()
 
-    def update_node_state(self, node_id: str, state: Dict[str, Any]) -> None:
+    def update_node_state(self, node_id: str, state: dict[str, Any]) -> None:
         """Update a node's state."""
         node = self.get_node(node_id)
         if node:
@@ -585,7 +585,7 @@ class ExperimentSession:
         return None
 
     # Custom device definition management
-    def add_custom_device_definition(self, definition_dict: Dict[str, Any]) -> None:
+    def add_custom_device_definition(self, definition_dict: dict[str, Any]) -> None:
         """Add a custom device definition."""
         def_id = definition_dict.get("id")
         if def_id:
@@ -598,12 +598,12 @@ class ExperimentSession:
             del self._custom_device_definitions[definition_id]
             self._mark_dirty()
 
-    def get_custom_device_definition(self, definition_id: str) -> Optional[Dict[str, Any]]:
+    def get_custom_device_definition(self, definition_id: str) -> Optional[dict[str, Any]]:
         """Get a custom device definition by ID."""
         return self._custom_device_definitions.get(definition_id)
 
     # Flow function definition management
-    def add_flow_function_definition(self, definition_dict: Dict[str, Any]) -> None:
+    def add_flow_function_definition(self, definition_dict: dict[str, Any]) -> None:
         """Add a flow function definition."""
         def_id = definition_dict.get("id")
         if def_id:
@@ -616,12 +616,12 @@ class ExperimentSession:
             del self._flow_function_definitions[definition_id]
             self._mark_dirty()
 
-    def get_flow_function_definition(self, definition_id: str) -> Optional[Dict[str, Any]]:
+    def get_flow_function_definition(self, definition_id: str) -> Optional[dict[str, Any]]:
         """Get a flow function definition by ID."""
         return self._flow_function_definitions.get(definition_id)
 
     # Serialization
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize session to dictionary."""
         result = {
             "metadata": self._metadata.to_dict(),
@@ -639,7 +639,7 @@ class ExperimentSession:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ExperimentSession":
+    def from_dict(cls, data: dict[str, Any]) -> "ExperimentSession":
         """Create session from dictionary."""
         session = cls()
         session._metadata = SessionMetadata.from_dict(data.get("metadata", {}))

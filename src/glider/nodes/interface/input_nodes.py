@@ -2,7 +2,7 @@
 Input Nodes - Interactive input widgets for the dashboard.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from glider.nodes.base_node import (
     ExecNode,
@@ -55,12 +55,12 @@ class ButtonNode(ExecNode, InterfaceNode):
         """Buttons don't update on input changes."""
         pass
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = ExecNode.get_state(self)
         state["label"] = self._label
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         ExecNode.set_state(self, state)
         self._label = state.get("label", "Button")
 
@@ -115,13 +115,13 @@ class ToggleSwitchNode(InterfaceNode):
         """Toggle switches update from UI interactions, not inputs."""
         pass
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["label"] = self._label
         state["switch_state"] = self._state
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._label = state.get("label", "Switch")
         self._state = state.get("switch_state", False)
@@ -198,7 +198,7 @@ class SliderNode(InterfaceNode):
         """Sliders update from UI interactions, not inputs."""
         pass
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["label"] = self._label
         state["slider_value"] = self._value
@@ -207,7 +207,7 @@ class SliderNode(InterfaceNode):
         state["step"] = self._step
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._label = state.get("label", "Slider")
         self._value = state.get("slider_value", 0.0)
@@ -276,7 +276,7 @@ class NumericInputNode(InterfaceNode):
         """Numeric inputs update from UI interactions, not inputs."""
         pass
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["label"] = self._label
         state["numeric_value"] = self._value
@@ -285,7 +285,7 @@ class NumericInputNode(InterfaceNode):
         state["decimal_places"] = self._decimal_places
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._label = state.get("label", "Input")
         self._value = state.get("numeric_value", 0.0)

@@ -8,7 +8,7 @@ on the camera preview and assign labels for use in the node graph.
 import logging
 import math
 import uuid
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 import cv2
 import numpy as np
@@ -89,7 +89,7 @@ class ZonePreviewWidget(QLabel):
         self._current_color = DEFAULT_COLORS[0]
 
         # Drawing state
-        self._points: List[QPoint] = []  # Points collected for current shape
+        self._points: list[QPoint] = []  # Points collected for current shape
         self._current_point: Optional[QPoint] = None  # Mouse position
         self._image_rect = None  # Actual image area within widget
         self._close_threshold = 15  # Pixels - snap to close polygon
@@ -118,7 +118,7 @@ class ZonePreviewWidget(QLabel):
             self.setCursor(Qt.CursorShape.ArrowCursor)
         self._update_display()
 
-    def set_current_color(self, color: Tuple[int, int, int]) -> None:
+    def set_current_color(self, color: tuple[int, int, int]) -> None:
         """Set the color for new zones."""
         self._current_color = color
 
@@ -163,7 +163,7 @@ class ZonePreviewWidget(QLabel):
         self.setPixmap(scaled)
         self.update()
 
-    def _widget_to_image_coords(self, pos: QPoint) -> Optional[Tuple[int, int]]:
+    def _widget_to_image_coords(self, pos: QPoint) -> Optional[tuple[int, int]]:
         """Convert widget coordinates to image coordinates."""
         if self._image_rect is None or self._frame is None:
             return None
@@ -402,7 +402,7 @@ class ZoneDialog(QDialog):
         self._camera = camera_manager
         self._zone_config = zone_config
         self._color_index = len(zone_config.zones) % len(DEFAULT_COLORS)
-        self._custom_color: Optional[Tuple[int, int, int]] = None
+        self._custom_color: Optional[tuple[int, int, int]] = None
         self._pending_zone: Optional[Zone] = None
 
         self._setup_ui()
@@ -686,7 +686,7 @@ class ZoneDialog(QDialog):
             self._update_color_preview()
             self._preview.set_current_color(bgr)
 
-    def _get_current_color(self) -> Tuple[int, int, int]:
+    def _get_current_color(self) -> tuple[int, int, int]:
         """Get the current zone color."""
         if hasattr(self, '_custom_color') and self._custom_color:
             return self._custom_color

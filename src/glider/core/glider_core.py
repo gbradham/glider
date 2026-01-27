@@ -9,7 +9,7 @@ and flow execution.
 import asyncio
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from glider.core.data_recorder import DataRecorder
 from glider.core.experiment_session import ExperimentSession, SessionState
@@ -72,9 +72,9 @@ class GliderCore:
         self._cv_processing_enabled = True  # Enable CV processing by default
 
         # Callbacks
-        self._session_callbacks: List[Callable[[ExperimentSession], None]] = []
-        self._state_callbacks: List[Callable[[SessionState], None]] = []
-        self._error_callbacks: List[Callable[[str, Exception], None]] = []
+        self._session_callbacks: list[Callable[[ExperimentSession], None]] = []
+        self._state_callbacks: list[Callable[[SessionState], None]] = []
+        self._error_callbacks: list[Callable[[str, Exception], None]] = []
 
         # Register hardware error handling
         self._hardware_manager.on_error(self._on_hardware_error)
@@ -513,7 +513,7 @@ class GliderCore:
 
         return success
 
-    async def connect_hardware(self) -> Dict[str, bool]:
+    async def connect_hardware(self) -> dict[str, bool]:
         """
         Connect to all configured hardware.
 
@@ -753,7 +753,7 @@ class GliderCore:
         self._initialized = False
         logger.info("GLIDER Core shutdown complete")
 
-    def get_available_board_types(self) -> List[Dict[str, Any]]:
+    def get_available_board_types(self) -> list[dict[str, Any]]:
         """Get list of available board types."""
         board_types = []
         for driver_name in self._hardware_manager.get_available_drivers():
@@ -769,12 +769,12 @@ class GliderCore:
                 board_types.append(info)
         return board_types
 
-    def get_available_device_types(self) -> List[str]:
+    def get_available_device_types(self) -> list[str]:
         """Get list of available device types."""
         from glider.hal.base_device import DEVICE_REGISTRY
         return list(DEVICE_REGISTRY.keys())
 
-    def get_available_node_types(self) -> List[str]:
+    def get_available_node_types(self) -> list[str]:
         """Get list of available node types."""
         return self._flow_engine.get_available_nodes()
 

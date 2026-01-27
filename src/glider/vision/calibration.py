@@ -11,7 +11,6 @@ import math
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +52,7 @@ class CalibrationLine:
 
     # Display properties
     name: str = ""
-    color: Tuple[int, int, int] = (0, 255, 0)  # BGR for OpenCV
+    color: tuple[int, int, int] = (0, 255, 0)  # BGR for OpenCV
 
     @property
     def pixel_length(self) -> float:
@@ -67,7 +66,7 @@ class CalibrationLine:
         """Get length in millimeters."""
         return self.length * LengthUnit.conversion_to_mm(self.unit)
 
-    def get_pixel_coords(self, width: int, height: int) -> Tuple[int, int, int, int]:
+    def get_pixel_coords(self, width: int, height: int) -> tuple[int, int, int, int]:
         """Convert normalized coords to pixel coords for given resolution."""
         return (
             int(self.start_x * width),
@@ -113,7 +112,7 @@ class CameraCalibration:
     Supports saving/loading calibration to/from JSON files.
     """
 
-    lines: List[CalibrationLine] = field(default_factory=list)
+    lines: list[CalibrationLine] = field(default_factory=list)
 
     # Camera resolution at time of calibration
     calibration_width: int = 0
@@ -150,12 +149,12 @@ class CameraCalibration:
 
     def add_line(
         self,
-        start: Tuple[int, int],
-        end: Tuple[int, int],
+        start: tuple[int, int],
+        end: tuple[int, int],
         length: float,
         unit: LengthUnit = LengthUnit.MILLIMETERS,
         name: str = "",
-        resolution: Tuple[int, int] = None
+        resolution: tuple[int, int] = None
     ) -> CalibrationLine:
         """
         Add a calibration line.
@@ -266,8 +265,8 @@ class CameraCalibration:
 
     def pixel_distance(
         self,
-        p1: Tuple[int, int],
-        p2: Tuple[int, int]
+        p1: tuple[int, int],
+        p2: tuple[int, int]
     ) -> float:
         """Calculate pixel distance between two points."""
         dx = p2[0] - p1[0]
@@ -276,8 +275,8 @@ class CameraCalibration:
 
     def real_distance(
         self,
-        p1: Tuple[int, int],
-        p2: Tuple[int, int],
+        p1: tuple[int, int],
+        p2: tuple[int, int],
         current_width: int = None,
         current_height: int = None
     ) -> float:

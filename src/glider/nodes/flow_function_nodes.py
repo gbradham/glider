@@ -8,7 +8,7 @@ nodes that can be reused throughout the flow.
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from glider.nodes.base_node import (
     GliderNode,
@@ -43,7 +43,7 @@ class FlowFunctionRunner:
         self._start_node_id = start_node_id
         self._flow_engine = flow_engine
         self._completion_event = None
-        self._end_node_ids: List[str] = []
+        self._end_node_ids: list[str] = []
 
     def _find_end_nodes(self) -> None:
         """Find all EndFunction nodes connected to this function's StartFunction."""

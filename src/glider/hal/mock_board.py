@@ -6,7 +6,7 @@ actual hardware to be connected.
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from glider.hal.base_board import (
     BaseBoard,
@@ -30,8 +30,8 @@ class MockBoard(BaseBoard):
 
     def __init__(self, port: str = "MOCK", auto_reconnect: bool = False):
         super().__init__(port, auto_reconnect)
-        self._pin_states: Dict[int, Any] = {}
-        self._pin_modes: Dict[int, PinMode] = {}
+        self._pin_states: dict[int, Any] = {}
+        self._pin_modes: dict[int, PinMode] = {}
         self._set_state(BoardConnectionState.CONNECTED)
 
     @property

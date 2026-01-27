@@ -12,7 +12,7 @@ import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import cv2
 import numpy as np
@@ -38,8 +38,8 @@ class Detection:
     class_id: int
     class_name: str
     confidence: float
-    bbox: Tuple[int, int, int, int]  # x, y, w, h
-    centroid: Tuple[int, int] = field(default=(0, 0))
+    bbox: tuple[int, int, int, int]  # x, y, w, h
+    centroid: tuple[int, int] = field(default=(0, 0))
     track_id: Optional[int] = None  # ByteTrack assigned ID
 
     def __post_init__(self):
@@ -53,13 +53,13 @@ class TrackedObject:
     """Tracked object with persistent ID."""
     track_id: int
     class_name: str
-    bbox: Tuple[int, int, int, int]
+    bbox: tuple[int, int, int, int]
     confidence: float
-    centroid: Tuple[int, int]
+    centroid: tuple[int, int]
     age: int = 0  # Frames since first seen
     disappeared: int = 0  # Frames since last seen
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "track_id": self.track_id,
             "class_name": self.class_name,
@@ -75,7 +75,7 @@ class MotionResult:
     """Motion detection result."""
     motion_detected: bool
     motion_area: float  # Percentage of frame with motion (0.0 to 1.0)
-    motion_contours: List[np.ndarray] = field(default_factory=list)
+    motion_contours: list[np.ndarray] = field(default_factory=list)
     motion_mask: Optional[np.ndarray] = None
 
 
@@ -92,13 +92,13 @@ class CVSettings:
     tracking_enabled: bool = True
     max_disappeared: int = 50  # Frames before dropping track
     draw_overlays: bool = True
-    overlay_color: Tuple[int, int, int] = (0, 255, 0)  # BGR green
+    overlay_color: tuple[int, int, int] = (0, 255, 0)  # BGR green
     overlay_thickness: int = 2
     show_labels: bool = True
     show_trails: bool = False
     process_every_n_frames: int = 1  # Process CV every N frames (1 = every frame)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "enabled": self.enabled,
             "backend": self.backend.name,
@@ -118,7 +118,7 @@ class CVSettings:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CVSettings":
+    def from_dict(cls, data: dict[str, Any]) -> "CVSettings":
         backend_name = data.get("backend", "BACKGROUND_SUBTRACTION")
         backend = DetectionBackend[backend_name] if isinstance(backend_name, str) else DetectionBackend.BACKGROUND_SUBTRACTION
 
@@ -184,7 +184,7 @@ class ObjectTracker:
         """Deregister an object."""
         del self._objects[track_id]
 
-    def update(self, detections: List[Detection]) -> List[TrackedObject]:
+    def update(self, detections: list[Detection]) -> list[TrackedObject]:
         """
         Update tracker with new detections.
 
@@ -216,11 +216,11 @@ class ObjectTracker:
         input_centroids = [d.centroid for d in detections]
 
         # Compute distance matrix
-        D = dist.cdist(np.array(object_centroids), np.array(input_centroids))
+        distance_matrix = dist.cdist(np.array(object_centroids), np.array(input_centroids))
 
         # Find minimum distance assignments
-        rows = D.min(axis=1).argsort()
-        cols = D.argmin(axis=1)[rows]
+        rows = distance_matrix.min(axis=1).argsort()
+        cols = distance_matrix.argmin(axis=1)[rows]
 
         used_rows = set()
         used_cols = set()
@@ -244,7 +244,7 @@ class ObjectTracker:
             used_cols.add(col)
 
         # Handle unmatched existing objects (disappeared)
-        unused_rows = set(range(D.shape[0])) - used_rows
+        unused_rows = set(range(distance_matrix.shape[0])) - used_rows
         for row in unused_rows:
             track_id = object_ids[row]
             self._objects[track_id].disappeared += 1
@@ -252,7 +252,7 @@ class ObjectTracker:
                 self._deregister(track_id)
 
         # Handle unmatched detections (new objects)
-        unused_cols = set(range(D.shape[1])) - used_cols
+        unused_cols = set(range(distance_matrix.shape[1])) - used_cols
         for col in unused_cols:
             self._register(detections[col])
 
@@ -286,27 +286,27 @@ class CVProcessor:
         self._lock = threading.Lock()
 
         # Results callbacks
-        self._detection_callbacks: List[Callable] = []
-        self._tracking_callbacks: List[Callable] = []
-        self._motion_callbacks: List[Callable] = []
+        self._detection_callbacks: list[Callable] = []
+        self._tracking_callbacks: list[Callable] = []
+        self._motion_callbacks: list[Callable] = []
 
         # Trail history for visualization
-        self._trail_history: Dict[int, List[Tuple[int, int]]] = {}
+        self._trail_history: dict[int, list[tuple[int, int]]] = {}
         self._max_trail_length = 30
 
         # ByteTrack age tracking (since ByteTrack doesn't expose this)
-        self._bytetrack_ages: Dict[int, int] = {}
+        self._bytetrack_ages: dict[int, int] = {}
 
         # Frame skipping state
         self._frame_counter = 0
-        self._last_detections: List[Detection] = []
-        self._last_tracked: List[TrackedObject] = []
+        self._last_detections: list[Detection] = []
+        self._last_tracked: list[TrackedObject] = []
         self._last_motion: MotionResult = MotionResult(False, 0.0)
 
         # Zone tracking
         self._zone_tracker: Optional[ZoneTracker] = None
         self._zone_config: Optional[ZoneConfiguration] = None
-        self._zone_callbacks: List[Callable[[Dict[str, ZoneState]], None]] = []
+        self._zone_callbacks: list[Callable[[dict[str, ZoneState]], None]] = []
 
     @property
     def settings(self) -> CVSettings:
@@ -335,7 +335,7 @@ class CVProcessor:
         else:
             self._zone_tracker = None
 
-    def get_zone_states(self) -> Dict[str, "ZoneState"]:
+    def get_zone_states(self) -> dict[str, "ZoneState"]:
         """
         Get current zone states.
 
@@ -346,7 +346,7 @@ class CVProcessor:
             return self._zone_tracker.get_zone_states()
         return {}
 
-    def on_zone_update(self, callback: Callable[[Dict[str, "ZoneState"]], None]) -> None:
+    def on_zone_update(self, callback: Callable[[dict[str, "ZoneState"]], None]) -> None:
         """Register callback for zone state updates."""
         self._zone_callbacks.append(callback)
 
@@ -416,7 +416,7 @@ class CVProcessor:
         self,
         frame: np.ndarray,
         timestamp: float
-    ) -> Tuple[List[Detection], List[TrackedObject], MotionResult]:
+    ) -> tuple[list[Detection], list[TrackedObject], MotionResult]:
         """
         Process a frame for detections, tracking, and motion.
 
@@ -500,7 +500,7 @@ class CVProcessor:
 
         return detections, tracked, motion
 
-    def _detect(self, frame: np.ndarray) -> List[Detection]:
+    def _detect(self, frame: np.ndarray) -> list[Detection]:
         """Run detection on frame."""
         if self._settings.backend == DetectionBackend.YOLO_V8 and self._yolo_model:
             return self._detect_yolo(frame)
@@ -511,7 +511,7 @@ class CVProcessor:
         else:
             return self._detect_background_subtraction(frame)
 
-    def _detect_yolo(self, frame: np.ndarray) -> List[Detection]:
+    def _detect_yolo(self, frame: np.ndarray) -> list[Detection]:
         """YOLO-based detection."""
         if self._yolo_model is None:
             return []
@@ -535,7 +535,7 @@ class CVProcessor:
                 ))
         return detections
 
-    def _bytetrack_to_tracked(self, detections: List[Detection]) -> List[TrackedObject]:
+    def _bytetrack_to_tracked(self, detections: list[Detection]) -> list[TrackedObject]:
         """
         Convert ByteTrack detection results to TrackedObjects.
 
@@ -561,7 +561,7 @@ class CVProcessor:
                 ))
         return tracked
 
-    def _detect_yolo_bytetrack(self, frame: np.ndarray) -> List[Detection]:
+    def _detect_yolo_bytetrack(self, frame: np.ndarray) -> list[Detection]:
         """
         YOLO detection with ByteTrack multi-object tracking.
 
@@ -584,7 +584,7 @@ class CVProcessor:
         for r in results:
             if r.boxes is None:
                 continue
-            for i, box in enumerate(r.boxes):
+            for _i, box in enumerate(r.boxes):
                 x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
                 class_id = int(box.cls)
 
@@ -604,7 +604,7 @@ class CVProcessor:
 
         return detections
 
-    def _detect_background_subtraction(self, frame: np.ndarray) -> List[Detection]:
+    def _detect_background_subtraction(self, frame: np.ndarray) -> list[Detection]:
         """Background subtraction based detection."""
         if self._bg_subtractor is None:
             return []
@@ -671,7 +671,7 @@ class CVProcessor:
             motion_mask=fg_mask
         )
 
-    def _update_trails(self, tracked: List[TrackedObject]) -> None:
+    def _update_trails(self, tracked: list[TrackedObject]) -> None:
         """Update trail history for tracked objects."""
         current_ids = set()
         for obj in tracked:
@@ -691,8 +691,8 @@ class CVProcessor:
     def draw_overlays(
         self,
         frame: np.ndarray,
-        detections: List[Detection],
-        tracked: List[TrackedObject],
+        detections: list[Detection],
+        tracked: list[TrackedObject],
         motion: Optional[MotionResult] = None
     ) -> np.ndarray:
         """
@@ -761,11 +761,11 @@ class CVProcessor:
 
         return output
 
-    def on_detection(self, callback: Callable[[List[Detection], float], None]) -> None:
+    def on_detection(self, callback: Callable[[list[Detection], float], None]) -> None:
         """Register callback for detection results."""
         self._detection_callbacks.append(callback)
 
-    def on_tracking(self, callback: Callable[[List[TrackedObject], float], None]) -> None:
+    def on_tracking(self, callback: Callable[[list[TrackedObject], float], None]) -> None:
         """Register callback for tracking results."""
         self._tracking_callbacks.append(callback)
 

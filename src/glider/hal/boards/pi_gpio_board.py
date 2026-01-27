@@ -8,7 +8,7 @@ wraps these calls using asyncio.to_thread() to ensure non-blocking operation.
 
 import asyncio
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from glider.hal.base_board import (
     BaseBoard,
@@ -80,10 +80,10 @@ class PiGPIOBoard(BaseBoard):
         super().__init__(None, auto_reconnect)
         self._gpiozero_available = False
         self._lgpio_available = False
-        self._devices: Dict[int, Any] = {}  # gpiozero device instances
-        self._pin_modes: Dict[int, PinMode] = {}
-        self._pin_types: Dict[int, PinType] = {}
-        self._pin_values: Dict[int, Any] = {}
+        self._devices: dict[int, Any] = {}  # gpiozero device instances
+        self._pin_modes: dict[int, PinMode] = {}
+        self._pin_types: dict[int, PinType] = {}
+        self._pin_values: dict[int, Any] = {}
         self._event_loop: Optional[asyncio.AbstractEventLoop] = None
 
     @property
@@ -303,7 +303,7 @@ class PiGPIOBoard(BaseBoard):
             except Exception as e:
                 logger.error(f"Error during emergency stop on pin {pin}: {e}")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize board configuration to dictionary."""
         return {
             "id": self._id,
@@ -314,7 +314,7 @@ class PiGPIOBoard(BaseBoard):
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PiGPIOBoard":
+    def from_dict(cls, data: dict[str, Any]) -> "PiGPIOBoard":
         """Create board instance from dictionary configuration."""
         instance = cls(auto_reconnect=data.get("auto_reconnect", True))
         instance._id = data.get("id", instance._id)

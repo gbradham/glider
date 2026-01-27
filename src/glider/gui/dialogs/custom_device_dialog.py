@@ -6,7 +6,7 @@ including pin configuration. Flow logic is created via the node graph.
 """
 
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
@@ -110,7 +110,7 @@ class PinEditorWidget(QWidget):
             self._table.removeRow(row)
             self.pins_changed.emit()
 
-    def get_pins(self) -> List[PinDefinition]:
+    def get_pins(self) -> list[PinDefinition]:
         """Get the list of pin definitions."""
         pins = []
         for row in range(self._table.rowCount()):
@@ -147,7 +147,7 @@ class PinEditorWidget(QWidget):
                 ))
         return pins
 
-    def set_pins(self, pins: List[PinDefinition]):
+    def set_pins(self, pins: list[PinDefinition]):
         """Set the pin definitions."""
         self._table.setRowCount(0)
         for pin in pins:

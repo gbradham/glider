@@ -11,7 +11,7 @@ import logging
 import math
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from glider.vision.calibration import CameraCalibration
@@ -50,8 +50,8 @@ class TrackingDataLogger:
         self._frame_width: int = 0
         self._frame_height: int = 0
         # Track previous positions and cumulative distances for each object
-        self._prev_positions: Dict[int, Tuple[float, float]] = {}
-        self._cumulative_distances: Dict[int, float] = {}
+        self._prev_positions: dict[int, tuple[float, float]] = {}
+        self._cumulative_distances: dict[int, float] = {}
 
     @property
     def is_recording(self) -> bool:
@@ -221,7 +221,7 @@ class TrackingDataLogger:
     def log_frame(
         self,
         timestamp: float,
-        tracked_objects: List["TrackedObject"],
+        tracked_objects: list["TrackedObject"],
         motion_detected: bool = False,
         motion_area: float = 0.0
     ) -> None:

@@ -20,7 +20,7 @@ import logging
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +34,14 @@ class PluginInfo:
     author: str = ""
     entry_point: str = ""  # e.g., "my_plugin:setup"
     plugin_type: str = "generic"  # "driver", "device", "node", "generic"
-    requirements: List[str] = field(default_factory=list)
+    requirements: list[str] = field(default_factory=list)
     enabled: bool = True
     loaded: bool = False
     module: Optional[Any] = None
     error: Optional[str] = None
     path: Optional[str] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "version": self.version,
@@ -57,7 +57,7 @@ class PluginInfo:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PluginInfo":
+    def from_dict(cls, data: dict[str, Any]) -> "PluginInfo":
         return cls(
             name=data["name"],
             version=data.get("version", "1.0.0"),
@@ -83,14 +83,14 @@ class PluginManager:
     # Default plugin directory
     DEFAULT_PLUGIN_DIR = Path.home() / ".glider" / "plugins"
 
-    def __init__(self, plugin_dirs: Optional[List[Path]] = None):
+    def __init__(self, plugin_dirs: Optional[list[Path]] = None):
         """
         Initialize the plugin manager.
 
         Args:
             plugin_dirs: Additional directories to search for plugins
         """
-        self._plugins: Dict[str, PluginInfo] = {}
+        self._plugins: dict[str, PluginInfo] = {}
         self._plugin_dirs = [self.DEFAULT_PLUGIN_DIR]
         if plugin_dirs:
             self._plugin_dirs.extend(plugin_dirs)
@@ -100,12 +100,12 @@ class PluginManager:
             plugin_dir.mkdir(parents=True, exist_ok=True)
 
     @property
-    def plugins(self) -> Dict[str, PluginInfo]:
+    def plugins(self) -> dict[str, PluginInfo]:
         """Dictionary of discovered plugins."""
         return self._plugins.copy()
 
     @property
-    def loaded_plugins(self) -> Dict[str, PluginInfo]:
+    def loaded_plugins(self) -> dict[str, PluginInfo]:
         """Dictionary of loaded plugins."""
         return {k: v for k, v in self._plugins.items() if v.loaded}
 
@@ -113,7 +113,7 @@ class PluginManager:
         """Get a plugin by name."""
         return self._plugins.get(name)
 
-    async def discover_plugins(self) -> List[PluginInfo]:
+    async def discover_plugins(self) -> list[PluginInfo]:
         """
         Discover all available plugins.
 
@@ -139,7 +139,7 @@ class PluginManager:
         logger.info(f"Discovered {len(discovered)} plugins")
         return discovered
 
-    async def _discover_from_entry_points(self) -> List[PluginInfo]:
+    async def _discover_from_entry_points(self) -> list[PluginInfo]:
         """Discover plugins from Python entry points."""
         discovered = []
 
@@ -183,7 +183,7 @@ class PluginManager:
 
         return discovered
 
-    async def _discover_from_directory(self, plugin_dir: Path) -> List[PluginInfo]:
+    async def _discover_from_directory(self, plugin_dir: Path) -> list[PluginInfo]:
         """Discover plugins from a directory."""
         discovered = []
 
@@ -243,7 +243,7 @@ class PluginManager:
 
         return discovered
 
-    async def load_plugins(self) -> Dict[str, bool]:
+    async def load_plugins(self) -> dict[str, bool]:
         """
         Load all enabled plugins.
 
@@ -495,6 +495,6 @@ class PluginManager:
             logger.error(f"Error installing requirements: {e}")
             return False
 
-    def get_plugin_info_list(self) -> List[Dict[str, Any]]:
+    def get_plugin_info_list(self) -> list[dict[str, Any]]:
         """Get list of all plugins as dictionaries."""
         return [info.to_dict() for info in self._plugins.values()]

@@ -10,7 +10,7 @@ import logging
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 import cv2
 import numpy as np
@@ -45,20 +45,20 @@ class MultiVideoRecorder:
             multi_camera_manager: MultiCameraManager instance to record from
         """
         self._multi_cam = multi_camera_manager
-        self._writers: Dict[str, cv2.VideoWriter] = {}
+        self._writers: dict[str, cv2.VideoWriter] = {}
         self._annotated_writer: Optional[cv2.VideoWriter] = None
-        self._file_paths: Dict[str, Path] = {}
+        self._file_paths: dict[str, Path] = {}
         self._annotated_file_path: Optional[Path] = None
-        self._frame_counts: Dict[str, int] = {}
+        self._frame_counts: dict[str, int] = {}
         self._annotated_frame_count = 0
         self._state = RecordingState.IDLE
         self._output_dir: Path = Path.cwd()
         self._start_time: Optional[datetime] = None
         self._video_format = VideoFormat()
         self._lock = threading.Lock()
-        self._frame_callbacks_registered: Dict[str, bool] = {}
+        self._frame_callbacks_registered: dict[str, bool] = {}
         self._record_annotated = False
-        self._recording_fps: Dict[str, float] = {}
+        self._recording_fps: dict[str, float] = {}
 
     @property
     def is_recording(self) -> bool:
@@ -71,7 +71,7 @@ class MultiVideoRecorder:
         return self._state
 
     @property
-    def file_paths(self) -> Dict[str, Path]:
+    def file_paths(self) -> dict[str, Path]:
         """Paths to all video files being recorded."""
         return self._file_paths.copy()
 
@@ -131,7 +131,7 @@ class MultiVideoRecorder:
             cam_num = camera_id.replace("cam_", "")
             return f"{safe_name}_{timestamp}_cam{cam_num}{self._video_format.extension}"
 
-    async def start(self, experiment_name: str = "experiment", record_annotated: bool = False) -> Dict[str, Path]:
+    async def start(self, experiment_name: str = "experiment", record_annotated: bool = False) -> dict[str, Path]:
         """
         Start recording video from all connected cameras.
 
@@ -263,7 +263,7 @@ class MultiVideoRecorder:
                 return True
         return False
 
-    async def stop(self) -> Dict[str, Path]:
+    async def stop(self) -> dict[str, Path]:
         """
         Stop recording and finalize all video files.
 

@@ -17,7 +17,6 @@ from glider.serialization.schema import (
     HardwareConfigSchema,
     MetadataSchema,
     NodeSchema,
-    PortSchema,
     SchemaValidationError,
 )
 

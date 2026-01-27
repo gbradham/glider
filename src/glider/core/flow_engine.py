@@ -8,7 +8,7 @@ flow. Supports both Data Flow (reactive) and Execution Flow (imperative).
 import asyncio
 import logging
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Type
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 if TYPE_CHECKING:
     pass
@@ -34,7 +34,7 @@ class FlowEngine:
     """
 
     # Registry of available node types
-    _node_registry: Dict[str, Type] = {}
+    _node_registry: dict[str, type] = {}
 
     def __init__(self, hardware_manager=None):
         """
@@ -47,15 +47,15 @@ class FlowEngine:
         self._session = None  # ryvencore Session
         self._flow = None  # Current flow
         self._state = FlowState.STOPPED
-        self._nodes: Dict[str, Any] = {}  # node_id -> node instance
-        self._connections: List[Dict[str, Any]] = []  # Connection list for standalone mode
-        self._running_tasks: Set[asyncio.Task] = set()
+        self._nodes: dict[str, Any] = {}  # node_id -> node instance
+        self._connections: list[dict[str, Any]] = []  # Connection list for standalone mode
+        self._running_tasks: set[asyncio.Task] = set()
 
         # Callbacks
-        self._state_callbacks: List[Callable[[FlowState], None]] = []
-        self._node_update_callbacks: List[Callable[[str, str, Any], None]] = []
-        self._error_callbacks: List[Callable[[str, Exception], None]] = []
-        self._complete_callbacks: List[Callable[[], None]] = []
+        self._state_callbacks: list[Callable[[FlowState], None]] = []
+        self._node_update_callbacks: list[Callable[[str, str, Any], None]] = []
+        self._error_callbacks: list[Callable[[str, Exception], None]] = []
+        self._complete_callbacks: list[Callable[[], None]] = []
 
         # Try to import ryvencore
         self._ryvencore_available = False
@@ -67,18 +67,18 @@ class FlowEngine:
             logger.warning("ryvencore not available - flow engine will operate in limited mode")
 
     @classmethod
-    def register_node(cls, node_type: str, node_class: Type) -> None:
+    def register_node(cls, node_type: str, node_class: type) -> None:
         """Register a node type."""
         cls._node_registry[node_type] = node_class
         logger.debug(f"Registered node type: {node_type}")
 
     @classmethod
-    def get_available_nodes(cls) -> List[str]:
+    def get_available_nodes(cls) -> list[str]:
         """Get list of available node type names."""
         return list(cls._node_registry.keys())
 
     @classmethod
-    def get_node_class(cls, node_type: str) -> Optional[Type]:
+    def get_node_class(cls, node_type: str) -> Optional[type]:
         """Get a node class by type name."""
         return cls._node_registry.get(node_type)
 
@@ -105,7 +105,7 @@ class FlowEngine:
         return self._state == FlowState.RUNNING
 
     @property
-    def nodes(self) -> Dict[str, Any]:
+    def nodes(self) -> dict[str, Any]:
         """Dictionary of node instances."""
         return self._nodes.copy()
 
@@ -259,7 +259,7 @@ class FlowEngine:
         node_id: str,
         node_type: str,
         position: tuple = (0, 0),
-        state: Optional[Dict[str, Any]] = None,
+        state: Optional[dict[str, Any]] = None,
         device_id: Optional[str] = None,
         session=None,
     ) -> Any:
@@ -657,7 +657,7 @@ class FlowEngine:
         self._session = None
         self._flow = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize flow state to dictionary."""
         nodes = []
         for node_id, node in self._nodes.items():
@@ -675,7 +675,7 @@ class FlowEngine:
     # Agent Tool Helper Methods
     # =========================================================================
 
-    def get_nodes(self) -> List[Dict[str, Any]]:
+    def get_nodes(self) -> list[dict[str, Any]]:
         """Get list of all nodes with their metadata."""
         result = []
         for node_id, node in self._nodes.items():
@@ -691,7 +691,7 @@ class FlowEngine:
             result.append(node_info)
         return result
 
-    def get_connections(self) -> List[Dict[str, Any]]:
+    def get_connections(self) -> list[dict[str, Any]]:
         """Get list of all connections."""
         return self._connections.copy()
 
@@ -806,7 +806,7 @@ class FlowEngine:
 
         return False
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """Validate the flow graph. Returns list of error messages."""
         errors = []
 

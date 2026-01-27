@@ -7,7 +7,7 @@ with a visual graph editor for the internal node graph.
 
 import logging
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor, QPen
@@ -111,7 +111,7 @@ class ParameterEditorWidget(QWidget):
             self._table.removeRow(row)
             self.parameters_changed.emit()
 
-    def get_parameters(self) -> List[FlowFunctionParameter]:
+    def get_parameters(self) -> list[FlowFunctionParameter]:
         """Get the list of parameter definitions."""
         params = []
         for row in range(self._table.rowCount()):
@@ -152,7 +152,7 @@ class ParameterEditorWidget(QWidget):
                 ))
         return params
 
-    def set_parameters(self, params: List[FlowFunctionParameter]):
+    def set_parameters(self, params: list[FlowFunctionParameter]):
         """Set the parameter definitions."""
         self._table.setRowCount(0)
         for param in params:
@@ -193,13 +193,13 @@ class FlowGraphPreview(QGraphicsView):
         super().__init__(parent)
         self._scene = QGraphicsScene()
         self.setScene(self._scene)
-        self._nodes: Dict[str, Any] = {}
-        self._connections: List[InternalConnectionConfig] = []
+        self._nodes: dict[str, Any] = {}
+        self._connections: list[InternalConnectionConfig] = []
 
         self.setMinimumHeight(200)
         self.setRenderHint(self.renderHints().Antialiasing)
 
-    def set_graph(self, nodes: List[InternalNodeConfig], connections: List[InternalConnectionConfig]):
+    def set_graph(self, nodes: list[InternalNodeConfig], connections: list[InternalConnectionConfig]):
         """Set the graph to display."""
         self._scene.clear()
         self._nodes.clear()
@@ -245,10 +245,10 @@ class NodeListEditor(QWidget):
 
     nodes_changed = pyqtSignal()
 
-    def __init__(self, available_node_types: List[str], parent=None):
+    def __init__(self, available_node_types: list[str], parent=None):
         super().__init__(parent)
         self._available_types = available_node_types
-        self._nodes: List[InternalNodeConfig] = []
+        self._nodes: list[InternalNodeConfig] = []
         self._setup_ui()
 
     def _setup_ui(self):
@@ -304,11 +304,11 @@ class NodeListEditor(QWidget):
                 self._nodes = [n for n in self._nodes if n.id != node_id]
                 self.nodes_changed.emit()
 
-    def get_nodes(self) -> List[InternalNodeConfig]:
+    def get_nodes(self) -> list[InternalNodeConfig]:
         """Get the list of internal node configs."""
         return self._nodes
 
-    def set_nodes(self, nodes: List[InternalNodeConfig]):
+    def set_nodes(self, nodes: list[InternalNodeConfig]):
         """Set the internal nodes."""
         self._nodes = nodes
         self._list.clear()
@@ -325,8 +325,8 @@ class ConnectionEditor(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._connections: List[InternalConnectionConfig] = []
-        self._node_ids: List[str] = []
+        self._connections: list[InternalConnectionConfig] = []
+        self._node_ids: list[str] = []
         self._setup_ui()
 
     def _setup_ui(self):
@@ -359,7 +359,7 @@ class ConnectionEditor(QWidget):
         self._remove_btn.clicked.connect(self._remove_connection)
         layout.addWidget(self._remove_btn)
 
-    def update_nodes(self, node_ids: List[str]):
+    def update_nodes(self, node_ids: list[str]):
         """Update available nodes for connections."""
         self._node_ids = node_ids
         current_from = self._from_combo.currentData()
@@ -419,11 +419,11 @@ class ConnectionEditor(QWidget):
                 self._connections = [c for c in self._connections if c.id != conn_id]
                 self.connections_changed.emit()
 
-    def get_connections(self) -> List[InternalConnectionConfig]:
+    def get_connections(self) -> list[InternalConnectionConfig]:
         """Get the connection configurations."""
         return self._connections
 
-    def set_connections(self, connections: List[InternalConnectionConfig]):
+    def set_connections(self, connections: list[InternalConnectionConfig]):
         """Set the connections."""
         self._connections = connections
         self._list.clear()
@@ -441,7 +441,7 @@ class FlowFunctionDialog(QDialog):
     def __init__(
         self,
         definition: Optional[FlowFunctionDefinition] = None,
-        available_node_types: List[str] = None,
+        available_node_types: list[str] = None,
         parent=None
     ):
         super().__init__(parent)

@@ -10,7 +10,7 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from glider.core.flow_engine import FlowEngine
@@ -35,7 +35,7 @@ class FlowFunctionParameter:
     default_value: Any = None
     description: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "param_type": self.param_type.value,
@@ -44,7 +44,7 @@ class FlowFunctionParameter:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "FlowFunctionParameter":
+    def from_dict(cls, data: dict[str, Any]) -> "FlowFunctionParameter":
         return cls(
             name=data["name"],
             param_type=ParameterType(data["param_type"]),
@@ -74,7 +74,7 @@ class FlowFunctionOutput:
     output_type: ParameterType = ParameterType.STRING
     description: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "output_type": self.output_type.value,
@@ -82,7 +82,7 @@ class FlowFunctionOutput:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "FlowFunctionOutput":
+    def from_dict(cls, data: dict[str, Any]) -> "FlowFunctionOutput":
         return cls(
             name=data["name"],
             output_type=ParameterType(data.get("output_type", "string")),
@@ -96,10 +96,10 @@ class InternalNodeConfig:
     id: str
     node_type: str
     position: tuple = (0, 0)
-    state: Dict[str, Any] = field(default_factory=dict)
+    state: dict[str, Any] = field(default_factory=dict)
     device_id: Optional[str] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "node_type": self.node_type,
@@ -109,7 +109,7 @@ class InternalNodeConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "InternalNodeConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "InternalNodeConfig":
         return cls(
             id=data["id"],
             node_type=data["node_type"],
@@ -129,7 +129,7 @@ class InternalConnectionConfig:
     to_input: int
     connection_type: str = "exec"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "from_node": self.from_node,
@@ -140,7 +140,7 @@ class InternalConnectionConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "InternalConnectionConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "InternalConnectionConfig":
         return cls(
             id=data["id"],
             from_node=data["from_node"],
@@ -157,14 +157,14 @@ class FlowFunctionDefinition:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: str = "Untitled Function"
     description: str = ""
-    parameters: List[FlowFunctionParameter] = field(default_factory=list)
-    outputs: List[FlowFunctionOutput] = field(default_factory=list)
-    nodes: List[InternalNodeConfig] = field(default_factory=list)
-    connections: List[InternalConnectionConfig] = field(default_factory=list)
+    parameters: list[FlowFunctionParameter] = field(default_factory=list)
+    outputs: list[FlowFunctionOutput] = field(default_factory=list)
+    nodes: list[InternalNodeConfig] = field(default_factory=list)
+    connections: list[InternalConnectionConfig] = field(default_factory=list)
     entry_node_id: Optional[str] = None
-    exit_node_ids: List[str] = field(default_factory=list)
+    exit_node_ids: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -178,7 +178,7 @@ class FlowFunctionDefinition:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "FlowFunctionDefinition":
+    def from_dict(cls, data: dict[str, Any]) -> "FlowFunctionDefinition":
         return cls(
             id=data.get("id", str(uuid.uuid4())),
             name=data.get("name", "Untitled Function"),
@@ -224,15 +224,15 @@ class FlowFunctionRunner:
         self._definition = definition
         self._flow_engine = flow_engine
         self._hardware_manager = hardware_manager
-        self._internal_nodes: Dict[str, Any] = {}
+        self._internal_nodes: dict[str, Any] = {}
         self._completion_event: Optional[asyncio.Event] = None
-        self._output_values: Dict[str, Any] = {}
+        self._output_values: dict[str, Any] = {}
 
     @property
     def definition(self) -> FlowFunctionDefinition:
         return self._definition
 
-    async def execute(self, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def execute(self, parameters: dict[str, Any] = None) -> dict[str, Any]:
         """
         Execute the flow function.
 
@@ -279,7 +279,7 @@ class FlowFunctionRunner:
 
         return self._output_values
 
-    async def _create_internal_nodes(self, parameters: Dict[str, Any]) -> None:
+    async def _create_internal_nodes(self, parameters: dict[str, Any]) -> None:
         """Create all internal nodes for this execution."""
         for node_config in self._definition.nodes:
             node_class = self._flow_engine.get_node_class(node_config.node_type)
@@ -311,7 +311,7 @@ class FlowFunctionRunner:
 
             self._internal_nodes[node_config.id] = node
 
-    def _create_entry_node(self, parameters: Dict[str, Any]):
+    def _create_entry_node(self, parameters: dict[str, Any]):
         """Create an entry node that triggers the flow."""
         from glider.nodes.base_node import (
             GliderNode,
@@ -378,7 +378,7 @@ class FlowFunctionRunner:
         node._glider_id = f"ff_{self._definition.id}_exit"
         return node
 
-    def _create_parameter_node(self, param_name: str, parameters: Dict[str, Any]):
+    def _create_parameter_node(self, param_name: str, parameters: dict[str, Any]):
         """Create a node that exposes a parameter value."""
         from glider.nodes.base_node import (
             GliderNode,
@@ -448,7 +448,7 @@ class FlowFunctionRunner:
         self._internal_nodes.clear()
 
 
-def create_flow_function_node_class(definition: FlowFunctionDefinition) -> Type["GliderNode"]:
+def create_flow_function_node_class(definition: FlowFunctionDefinition) -> type["GliderNode"]:
     """
     Dynamically create a GliderNode class from a FlowFunctionDefinition.
 

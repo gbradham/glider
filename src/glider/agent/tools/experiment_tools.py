@@ -5,7 +5,7 @@ Tools for creating and modifying experiment flow graphs.
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 from glider.agent.actions import ActionType, AgentAction
 from glider.agent.llm_backend import ToolDefinition
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 # Tool Definitions
-EXPERIMENT_TOOLS: List[ToolDefinition] = [
+EXPERIMENT_TOOLS: list[ToolDefinition] = [
     ToolDefinition(
         name="create_node",
         description="Create a new node in the experiment flow graph",
@@ -204,7 +204,7 @@ class ExperimentToolExecutor:
         self._auto_layout_x = 100
         self._auto_layout_y = 100
 
-    async def execute(self, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(self, tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
         """Execute a tool and return the result."""
         method = getattr(self, f"_execute_{tool_name}", None)
         if method is None:
@@ -217,7 +217,7 @@ class ExperimentToolExecutor:
             logger.exception(f"Tool execution failed: {tool_name}")
             return {"success": False, "error": str(e)}
 
-    def create_action(self, tool_name: str, args: Dict[str, Any]) -> AgentAction:
+    def create_action(self, tool_name: str, args: dict[str, Any]) -> AgentAction:
         """Create an action for a tool call."""
         action_types = {
             "create_node": ActionType.CREATE_NODE,
@@ -248,7 +248,7 @@ class ExperimentToolExecutor:
             description=descriptions.get(tool_name, tool_name),
         )
 
-    async def _execute_create_node(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_create_node(self, args: dict[str, Any]) -> dict[str, Any]:
         """Create a new node."""
         import uuid
 
@@ -310,7 +310,7 @@ class ExperimentToolExecutor:
             "position": {"x": x, "y": y},
         }
 
-    async def _execute_delete_node(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_delete_node(self, args: dict[str, Any]) -> dict[str, Any]:
         """Delete a node."""
         node_id = args["node_id"]
 
@@ -323,7 +323,7 @@ class ExperimentToolExecutor:
         else:
             raise ValueError(f"Node not found: {node_id}")
 
-    async def _execute_connect_nodes(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_connect_nodes(self, args: dict[str, Any]) -> dict[str, Any]:
         """Connect two nodes."""
         from_node = args["from_node"]
         from_port = args["from_port"]
@@ -343,7 +343,7 @@ class ExperimentToolExecutor:
             "to": f"{to_node}.{to_port}",
         }
 
-    async def _execute_disconnect_nodes(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_disconnect_nodes(self, args: dict[str, Any]) -> dict[str, Any]:
         """Disconnect nodes."""
         from_node = args["from_node"]
         from_port = args["from_port"]
@@ -361,7 +361,7 @@ class ExperimentToolExecutor:
         else:
             raise ValueError("Connection not found")
 
-    async def _execute_set_node_property(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_set_node_property(self, args: dict[str, Any]) -> dict[str, Any]:
         """Set a node property."""
         node_id = args["node_id"]
         property_name = args["property_name"]
@@ -376,7 +376,7 @@ class ExperimentToolExecutor:
         else:
             raise ValueError(f"Failed to set property on node: {node_id}")
 
-    async def _execute_get_flow_state(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_get_flow_state(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get current flow state."""
         flow_engine = self._core.flow_engine
 
@@ -390,7 +390,7 @@ class ExperimentToolExecutor:
             "connection_count": len(connections),
         }
 
-    async def _execute_validate_flow(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_validate_flow(self, args: dict[str, Any]) -> dict[str, Any]:
         """Validate the flow graph."""
         flow_engine = self._core.flow_engine
 
@@ -401,7 +401,7 @@ class ExperimentToolExecutor:
             "errors": errors,
         }
 
-    async def _execute_clear_flow(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_clear_flow(self, args: dict[str, Any]) -> dict[str, Any]:
         """Clear all nodes and connections."""
         if not args.get("confirm", False):
             raise ValueError("Must confirm with confirm=true to clear flow")

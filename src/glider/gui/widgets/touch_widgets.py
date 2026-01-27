@@ -7,16 +7,7 @@ large touch targets (min 80px height) and high-contrast visuals.
 
 import sys
 from collections import deque
-from typing import TYPE_CHECKING, Any, List, Optional
-
-
-def _get_system_font() -> str:
-    """Get the system font for the current platform."""
-    if sys.platform == "darwin":
-        return ".AppleSystemUIFont"
-    elif sys.platform == "win32":
-        return "Segoe UI"
-    return "DejaVu Sans"
+from typing import TYPE_CHECKING, Any, Optional
 
 from PyQt6.QtCore import QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen
@@ -32,6 +23,15 @@ from PyQt6.QtWidgets import (
 
 if TYPE_CHECKING:
     from glider.nodes.base_node import GliderNode
+
+
+def _get_system_font() -> str:
+    """Get the system font for the current platform."""
+    if sys.platform == "darwin":
+        return ".AppleSystemUIFont"
+    elif sys.platform == "win32":
+        return "Segoe UI"
+    return "DejaVu Sans"
 
 
 class TouchWidgetBase(QWidget):
@@ -502,7 +502,7 @@ class TouchChart(TouchWidgetBase):
         self._data.append(float(value))
         self._chart.set_data(list(self._data))
 
-    def get_value(self) -> List[float]:
+    def get_value(self) -> list[float]:
         return list(self._data)
 
 
@@ -512,7 +512,7 @@ class ChartCanvas(QWidget):
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
 
-        self._data: List[float] = []
+        self._data: list[float] = []
         self._min = 0.0
         self._max = 100.0
 
@@ -524,7 +524,7 @@ class ChartCanvas(QWidget):
         self._max = max_val
         self.update()
 
-    def set_data(self, data: List[float]) -> None:
+    def set_data(self, data: list[float]) -> None:
         """Set the chart data."""
         self._data = data
         self.update()

@@ -9,7 +9,7 @@ that allows for callback-based reporting.
 import asyncio
 import logging
 import threading
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Optional
 
 from glider.hal.base_board import (
     BaseBoard,
@@ -256,11 +256,11 @@ class TelemetrixBoard(BaseBoard):
         self._board_type = board_type
         self._board_config = self.BOARD_CONFIGS.get(board_type, self.BOARD_CONFIGS["uno"])
         self._telemetrix_thread: Optional[TelemetrixThread] = None
-        self._pin_modes: Dict[int, PinMode] = {}
-        self._pin_values: Dict[int, Any] = {}
+        self._pin_modes: dict[int, PinMode] = {}
+        self._pin_values: dict[int, Any] = {}
         self._pin_values_lock = threading.Lock()  # Thread-safe access to _pin_values
-        self._analog_map: Dict[int, int] = {}  # Maps analog pin to Arduino analog number
-        self._analog_callbacks: Dict[int, Callable] = {}  # Store callback references
+        self._analog_map: dict[int, int] = {}  # Maps analog pin to Arduino analog number
+        self._analog_callbacks: dict[int, Callable] = {}  # Store callback references
 
     @property
     def _telemetrix(self):
@@ -522,13 +522,11 @@ class TelemetrixBoard(BaseBoard):
             value = max(0, min(1023, value))
 
             # Map analog pin back to actual pin number
-            found = False
             for actual_pin, analog_pin in self._analog_map.items():
                 if analog_pin == pin:
                     with self._pin_values_lock:
                         self._pin_values[actual_pin] = value
                     self._notify_callbacks(actual_pin, value)
-                    found = True
                     break
         except Exception as e:
             logger.error(f"Error in analog callback: {e}, data={data}", exc_info=True)
@@ -550,14 +548,14 @@ class TelemetrixBoard(BaseBoard):
         except Exception as e:
             logger.error(f"Error during emergency stop: {e}")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize board configuration to dictionary."""
         data = super().to_dict()
         data["board_type"] = self._board_type
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TelemetrixBoard":
+    def from_dict(cls, data: dict[str, Any]) -> "TelemetrixBoard":
         """Create board instance from dictionary configuration."""
         instance = cls(
             port=data.get("port"),

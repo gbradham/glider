@@ -250,7 +250,7 @@ class WaitForInputNode(GliderNode):
 
                 if self._threshold_mode == "digital":
                     # Digital mode: detect rising edge (LOW to HIGH)
-                    if last_value == False and value == True:
+                    if not last_value and value:
                         logger.info("  TRIGGERED! Rising edge detected")
                         triggered = True
 

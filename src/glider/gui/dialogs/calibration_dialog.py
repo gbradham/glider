@@ -7,7 +7,7 @@ real-world measurements for pixel-to-distance calibration.
 
 import logging
 import math
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 import cv2
 import numpy as np
@@ -165,7 +165,7 @@ class CalibrationPreviewWidget(QLabel):
         self.setPixmap(scaled)
         self.update()
 
-    def _widget_to_image_coords(self, pos: QPoint) -> Optional[Tuple[int, int]]:
+    def _widget_to_image_coords(self, pos: QPoint) -> Optional[tuple[int, int]]:
         """Convert widget coordinates to image coordinates."""
         if self._image_rect is None or self._frame is None:
             return None
@@ -186,7 +186,7 @@ class CalibrationPreviewWidget(QLabel):
 
         return (img_x, img_y)
 
-    def _find_nearest_endpoint(self, x: int, y: int) -> Optional[Tuple[int, int]]:
+    def _find_nearest_endpoint(self, x: int, y: int) -> Optional[tuple[int, int]]:
         """
         Find the nearest existing line endpoint within snap threshold.
 
@@ -349,7 +349,7 @@ class CalibrationDialog(QDialog):
         super().__init__(parent)
         self._camera = camera_manager
         self._calibration = calibration
-        self._pending_line: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None
+        self._pending_line: Optional[tuple[tuple[int, int], tuple[int, int]]] = None
 
         self._setup_ui()
         self._update_table()
@@ -512,7 +512,7 @@ class CalibrationDialog(QDialog):
                 self._new_line_group.hide()
                 self._add_btn.setEnabled(False)
 
-    def _on_line_defined(self, start: Tuple[int, int], end: Tuple[int, int]) -> None:
+    def _on_line_defined(self, start: tuple[int, int], end: tuple[int, int]) -> None:
         """Handle line definition from preview widget."""
         logger.info(f"_on_line_defined: start={start}, end={end}")
         self._pending_line = (start, end)

@@ -8,7 +8,7 @@ JSON-serializable schema objects.
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Optional, Type
+from typing import TYPE_CHECKING, Any, Optional
 
 from glider.serialization.schema import (
     SCHEMA_VERSION,
@@ -46,9 +46,9 @@ class ExperimentSerializer:
     FILE_EXTENSION = ".glider"
 
     def __init__(self):
-        self._node_registry: Dict[str, Type[GliderNode]] = {}
+        self._node_registry: dict[str, type[GliderNode]] = {}
 
-    def register_node_type(self, node_type: str, node_class: Type["GliderNode"]) -> None:
+    def register_node_type(self, node_type: str, node_class: type["GliderNode"]) -> None:
         """
         Register a node type for deserialization.
 
@@ -120,13 +120,13 @@ class ExperimentSerializer:
             raise SchemaValidationError(
                 f"File encoding error: {e}. Ensure the file is UTF-8 encoded.",
                 path=str(path),
-            )
+            ) from e
         except OSError as e:
             logger.error(f"Error reading experiment file {path}: {e}")
             raise SchemaValidationError(
                 f"Error reading file: {e}",
                 path=str(path),
-            )
+            ) from e
 
         # Validate file is not empty
         if not content.strip():
@@ -142,7 +142,7 @@ class ExperimentSerializer:
             raise SchemaValidationError(
                 f"Invalid JSON at line {e.lineno}, column {e.colno}: {e.msg}",
                 path=str(path),
-            )
+            ) from e
         except SchemaValidationError:
             # Re-raise with file path context
             raise
@@ -151,7 +151,7 @@ class ExperimentSerializer:
         try:
             schema = self._validate_and_migrate(schema)
         except ValueError as e:
-            raise SchemaValidationError(str(e), path=str(path))
+            raise SchemaValidationError(str(e), path=str(path)) from e
 
         logger.info(f"Loaded experiment from {path}")
         return schema
@@ -312,7 +312,7 @@ class ExperimentSerializer:
 
         return FlowConfigSchema(nodes=nodes, connections=connections)
 
-    def _extract_node_properties(self, node: "GliderNode") -> Dict[str, Any]:
+    def _extract_node_properties(self, node: "GliderNode") -> dict[str, Any]:
         """Extract serializable properties from a node."""
         properties = {}
 

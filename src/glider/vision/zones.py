@@ -13,7 +13,7 @@ import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Optional
 
 import cv2
 import numpy as np
@@ -42,8 +42,8 @@ class Zone:
     # For rectangles: [(x1,y1), (x2,y2)] top-left and bottom-right
     # For circles: [(cx,cy), (rx,ry)] center and radius point
     # For polygons: list of vertices
-    vertices: List[Tuple[float, float]]
-    color: Tuple[int, int, int] = (0, 255, 0)  # BGR for OpenCV
+    vertices: list[tuple[float, float]]
+    color: tuple[int, int, int] = (0, 255, 0)  # BGR for OpenCV
 
     def contains_point(self, x: float, y: float) -> bool:
         """
@@ -114,7 +114,7 @@ class Zone:
         norm_y = py / height
         return self.contains_point(norm_x, norm_y)
 
-    def get_pixel_vertices(self, width: int, height: int) -> List[Tuple[int, int]]:
+    def get_pixel_vertices(self, width: int, height: int) -> list[tuple[int, int]]:
         """
         Convert normalized vertices to pixel coordinates.
 
@@ -127,7 +127,7 @@ class Zone:
         """
         return [(int(v[0] * width), int(v[1] * height)) for v in self.vertices]
 
-    def get_bounding_rect(self) -> Tuple[float, float, float, float]:
+    def get_bounding_rect(self) -> tuple[float, float, float, float]:
         """
         Get bounding rectangle in normalized coordinates.
 
@@ -153,7 +153,7 @@ class Zone:
         min_y, max_y = min(ys), max(ys)
         return (min_x, min_y, max_x - min_x, max_y - min_y)
 
-    def get_center(self) -> Tuple[float, float]:
+    def get_center(self) -> tuple[float, float]:
         """Get the center point of the zone in normalized coordinates."""
         if not self.vertices:
             return (0.5, 0.5)
@@ -166,7 +166,7 @@ class Zone:
         ys = [v[1] for v in self.vertices]
         return (sum(xs) / len(xs), sum(ys) / len(ys))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "id": self.id,
@@ -177,7 +177,7 @@ class Zone:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Zone":
+    def from_dict(cls, data: dict[str, Any]) -> "Zone":
         """Create from dictionary."""
         return cls(
             id=data.get("id", str(uuid.uuid4())),
@@ -195,7 +195,7 @@ class ZoneState:
     zone_name: str
     occupied: bool = False
     object_count: int = 0
-    object_ids: Set[int] = field(default_factory=set)
+    object_ids: set[int] = field(default_factory=set)
 
     # Event flags (reset each frame)
     entered: bool = False  # Object entered this frame
@@ -209,7 +209,7 @@ class ZoneConfiguration:
 
     Stores zones and the resolution they were configured at.
     """
-    zones: List[Zone] = field(default_factory=list)
+    zones: list[Zone] = field(default_factory=list)
     config_width: int = 0
     config_height: int = 0
 
@@ -248,7 +248,7 @@ class ZoneConfiguration:
         self.config_height = 0
         logger.info("Cleared all zones")
 
-    def point_in_zones(self, x: float, y: float) -> List[str]:
+    def point_in_zones(self, x: float, y: float) -> list[str]:
         """
         Get list of zone IDs containing a point (normalized coords).
 
@@ -262,7 +262,7 @@ class ZoneConfiguration:
         return [zone.id for zone in self.zones if zone.contains_point(x, y)]
 
     def point_in_zones_pixels(self, px: int, py: int,
-                               width: int, height: int) -> List[str]:
+                               width: int, height: int) -> list[str]:
         """
         Get list of zone IDs containing a pixel point.
 
@@ -281,7 +281,7 @@ class ZoneConfiguration:
         norm_y = py / height
         return self.point_in_zones(norm_x, norm_y)
 
-    def get_zone_names_for_point(self, x: float, y: float) -> List[str]:
+    def get_zone_names_for_point(self, x: float, y: float) -> list[str]:
         """
         Get list of zone names containing a point (normalized coords).
 
@@ -294,7 +294,7 @@ class ZoneConfiguration:
         """
         return [zone.name for zone in self.zones if zone.contains_point(x, y)]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "zones": [zone.to_dict() for zone in self.zones],
@@ -303,7 +303,7 @@ class ZoneConfiguration:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ZoneConfiguration":
+    def from_dict(cls, data: dict[str, Any]) -> "ZoneConfiguration":
         """Create from dictionary."""
         config = cls()
         config.zones = [Zone.from_dict(z) for z in data.get("zones", [])]
@@ -345,8 +345,8 @@ class ZoneTracker:
     def __init__(self):
         """Initialize the zone tracker."""
         self._zone_config: Optional[ZoneConfiguration] = None
-        self._zone_states: Dict[str, ZoneState] = {}
-        self._prev_zone_objects: Dict[str, Set[int]] = {}  # zone_id -> object IDs
+        self._zone_states: dict[str, ZoneState] = {}
+        self._prev_zone_objects: dict[str, set[int]] = {}  # zone_id -> object IDs
 
     def set_zone_configuration(self, config: ZoneConfiguration) -> None:
         """Set the zone configuration to track."""
@@ -362,8 +362,8 @@ class ZoneTracker:
             )
             self._prev_zone_objects[zone.id] = set()
 
-    def update(self, tracked_objects: List[Any],
-               frame_width: int, frame_height: int) -> Dict[str, ZoneState]:
+    def update(self, tracked_objects: list[Any],
+               frame_width: int, frame_height: int) -> dict[str, ZoneState]:
         """
         Update zone states based on tracked objects.
 
@@ -379,7 +379,7 @@ class ZoneTracker:
             return {}
 
         # Build current zone occupancy
-        current_zone_objects: Dict[str, Set[int]] = {
+        current_zone_objects: dict[str, set[int]] = {
             zone.id: set() for zone in self._zone_config.zones
         }
 
@@ -431,7 +431,7 @@ class ZoneTracker:
 
         return self._zone_states.copy()
 
-    def get_zone_states(self) -> Dict[str, ZoneState]:
+    def get_zone_states(self) -> dict[str, ZoneState]:
         """Get current zone states."""
         return self._zone_states.copy()
 

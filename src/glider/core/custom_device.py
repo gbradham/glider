@@ -9,7 +9,7 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from glider.hal.base_board import BaseBoard
@@ -35,7 +35,7 @@ class PinDefinition:
     default_value: Any = None
     description: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "pin_type": self.pin_type.value,
@@ -45,7 +45,7 @@ class PinDefinition:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PinDefinition":
+    def from_dict(cls, data: dict[str, Any]) -> "PinDefinition":
         return cls(
             name=data["name"],
             pin_type=PinType(data["pin_type"]),
@@ -61,9 +61,9 @@ class CustomDeviceDefinition:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: str = "Custom Device"
     description: str = ""
-    pins: List[PinDefinition] = field(default_factory=list)
+    pins: list[PinDefinition] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -72,7 +72,7 @@ class CustomDeviceDefinition:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CustomDeviceDefinition":
+    def from_dict(cls, data: dict[str, Any]) -> "CustomDeviceDefinition":
         return cls(
             id=data.get("id", str(uuid.uuid4())),
             name=data.get("name", "Custom Device"),
@@ -100,7 +100,7 @@ class CustomDeviceRunner:
         self,
         definition: CustomDeviceDefinition,
         board: "BaseBoard",
-        pin_assignments: Optional[Dict[str, int]] = None,
+        pin_assignments: Optional[dict[str, int]] = None,
         name: Optional[str] = None,
     ):
         """
@@ -118,8 +118,8 @@ class CustomDeviceRunner:
         self._board = board
         self._name = name or definition.name
         self._initialized = False
-        self._pin_states: Dict[str, Any] = {}
-        self._last_read_values: Dict[str, Any] = {}
+        self._pin_states: dict[str, Any] = {}
+        self._last_read_values: dict[str, Any] = {}
 
         # Build pin assignments from definitions if not provided
         if pin_assignments is not None:
@@ -151,7 +151,7 @@ class CustomDeviceRunner:
         return self._initialized
 
     @property
-    def pins(self) -> List[PinDefinition]:
+    def pins(self) -> list[PinDefinition]:
         """List of pin definitions."""
         return self._definition.pins
 
@@ -273,7 +273,7 @@ class CustomDeviceRunner:
         """Get the last known state of a pin."""
         return self._pin_states.get(pin_name)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize device instance configuration."""
         return {
             "id": self._id,

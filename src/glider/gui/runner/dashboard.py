@@ -3,7 +3,7 @@ Runner Dashboard - Main dashboard view for experiment execution.
 """
 
 import logging
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -37,7 +37,7 @@ class RunnerDashboard(QWidget):
         super().__init__(parent)
 
         self._flow_engine: Optional[FlowEngine] = None
-        self._widgets: Dict[str, QWidget] = {}
+        self._widgets: dict[str, QWidget] = {}
         self._layout_mode = "vertical"  # "vertical", "horizontal", "grid"
         self._columns = 1
 
@@ -117,7 +117,7 @@ class RunnerDashboard(QWidget):
 
         logger.info(f"Dashboard rebuilt with {len(visible_nodes)} widgets")
 
-    def _create_linear_layout(self, nodes: List["GliderNode"]) -> None:
+    def _create_linear_layout(self, nodes: list["GliderNode"]) -> None:
         """Create a linear (vertical/horizontal) layout."""
         from glider.gui.runner.widget_factory import WidgetFactory
 
@@ -136,7 +136,7 @@ class RunnerDashboard(QWidget):
                         lambda v, n=node: self.widget_value_changed.emit(n.id, v)
                     )
 
-    def _create_grid_layout(self, nodes: List["GliderNode"]) -> None:
+    def _create_grid_layout(self, nodes: list["GliderNode"]) -> None:
         """Create a grid layout."""
         from glider.gui.runner.widget_factory import WidgetFactory
 

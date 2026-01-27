@@ -3,7 +3,7 @@ Flow Control Nodes - Execution flow control, delays, and timers.
 """
 
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from glider.nodes.base_node import (
     ExecNode,
@@ -147,11 +147,11 @@ class TimerNode(ExecNode):
         """Manual execution not used for timers."""
         pass
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["count"] = self._count
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._count = state.get("count", 0)

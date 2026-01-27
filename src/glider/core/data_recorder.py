@@ -9,7 +9,7 @@ import csv
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from glider.core.experiment_session import ExperimentSession
@@ -53,8 +53,8 @@ class DataRecorder:
         self._file_path: Optional[Path] = None
         self._start_time: Optional[datetime] = None
         self._sample_task: Optional[asyncio.Task] = None
-        self._device_columns: List[str] = []
-        self._zone_columns: List[str] = []
+        self._device_columns: list[str] = []
+        self._zone_columns: list[str] = []
         self._zone_config: Optional[ZoneConfiguration] = None
         self._cv_processor: Optional[CVProcessor] = None
 
@@ -96,7 +96,7 @@ class DataRecorder:
         """Set CV processor for reading zone states."""
         self._cv_processor = cv_processor
 
-    def _get_device_columns(self) -> List[str]:
+    def _get_device_columns(self) -> list[str]:
         """Get list of device column names."""
         columns = []
         for device_id, device in self._hardware_manager.devices.items():
@@ -104,7 +104,7 @@ class DataRecorder:
             columns.append(f"{device_id}:{device_type}")
         return columns
 
-    def _get_zone_columns(self) -> List[str]:
+    def _get_zone_columns(self) -> list[str]:
         """Get list of zone column names."""
         if not self._zone_config or not self._zone_config.zones:
             return []
@@ -131,7 +131,7 @@ class DataRecorder:
             logger.debug(f"Could not read state for device: {e}")
             return None
 
-    async def _sample_devices(self) -> Dict[str, Any]:
+    async def _sample_devices(self) -> dict[str, Any]:
         """Sample all device states."""
         states = {}
         for device_id, device in self._hardware_manager.devices.items():
@@ -264,7 +264,7 @@ class DataRecorder:
             zone_name = col.replace("zone:", "")
             # Find zone state by name
             state_value = ""
-            for zone_id, zone_state in zone_states.items():
+            for _zone_id, zone_state in zone_states.items():
                 if zone_state.zone_name == zone_name:
                     state_value = "1" if zone_state.occupied else "0"
                     break

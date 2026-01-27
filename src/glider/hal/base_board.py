@@ -12,7 +12,7 @@ import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class PinMode(Enum):
 class PinCapability:
     """Describes the capabilities of a specific pin."""
     pin: int
-    supported_types: Set[PinType] = field(default_factory=set)
+    supported_types: set[PinType] = field(default_factory=set)
     max_value: int = 1  # For analog/PWM, max value (e.g., 255 for 8-bit PWM)
     description: str = ""
 
@@ -48,13 +48,13 @@ class PinCapability:
 class BoardCapabilities:
     """Describes the overall capabilities of a board."""
     name: str
-    pins: Dict[int, PinCapability] = field(default_factory=dict)
+    pins: dict[int, PinCapability] = field(default_factory=dict)
     supports_analog: bool = False
     analog_resolution: int = 10  # bits
     pwm_resolution: int = 8  # bits
     pwm_frequency: int = 490  # Hz
-    i2c_buses: List[int] = field(default_factory=list)
-    spi_buses: List[int] = field(default_factory=list)
+    i2c_buses: list[int] = field(default_factory=list)
+    spi_buses: list[int] = field(default_factory=list)
 
 
 class BoardConnectionState(Enum):
@@ -87,9 +87,9 @@ class BaseBoard(ABC):
         self._port = port
         self._auto_reconnect = auto_reconnect
         self._state = BoardConnectionState.DISCONNECTED
-        self._callbacks: Dict[int, List[Callable]] = {}
-        self._error_callbacks: List[Callable] = []
-        self._state_callbacks: List[Callable[[BoardConnectionState], None]] = []
+        self._callbacks: dict[int, list[Callable]] = {}
+        self._error_callbacks: list[Callable] = []
+        self._state_callbacks: list[Callable[[BoardConnectionState], None]] = []
         self._reconnect_task: Optional[asyncio.Task] = None
         self._reconnect_interval = 5.0  # seconds (increased to reduce spam)
 
@@ -347,7 +347,7 @@ class BaseBoard(ABC):
         """
         pass
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize board configuration to dictionary."""
         return {
             "id": self._id,
@@ -357,7 +357,7 @@ class BaseBoard(ABC):
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "BaseBoard":
+    def from_dict(cls, data: dict[str, Any]) -> "BaseBoard":
         """Create board instance from dictionary configuration."""
         instance = cls(port=data.get("port"), auto_reconnect=data.get("auto_reconnect", False))
         instance._id = data.get("id", instance._id)

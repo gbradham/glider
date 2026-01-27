@@ -7,7 +7,7 @@ Provides shared fixtures for unit and integration tests.
 import asyncio
 import tempfile
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import numpy as np
@@ -292,7 +292,7 @@ def mock_core(mock_hardware_manager, mock_flow_engine, mock_session):
 # =============================================================================
 
 @pytest.fixture
-def sample_board_config() -> Dict[str, Any]:
+def sample_board_config() -> dict[str, Any]:
     """Provide sample board configuration."""
     return {
         "id": "arduino_1",
@@ -304,7 +304,7 @@ def sample_board_config() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def sample_device_config() -> Dict[str, Any]:
+def sample_device_config() -> dict[str, Any]:
     """Provide sample device configuration."""
     return {
         "id": "led_1",
@@ -317,7 +317,7 @@ def sample_device_config() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def sample_node_config() -> Dict[str, Any]:
+def sample_node_config() -> dict[str, Any]:
     """Provide sample node configuration."""
     return {
         "id": "node_1",
@@ -328,7 +328,7 @@ def sample_node_config() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def sample_connection_config() -> Dict[str, Any]:
+def sample_connection_config() -> dict[str, Any]:
     """Provide sample connection configuration."""
     return {
         "source_node": "node_1",
@@ -339,7 +339,7 @@ def sample_connection_config() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def sample_experiment_schema() -> Dict[str, Any]:
+def sample_experiment_schema() -> dict[str, Any]:
     """Provide a complete sample experiment schema."""
     return {
         "schema_version": "1.0",
@@ -415,11 +415,13 @@ def qtbot_or_skip(request):
                 pytest.skip("pytest-qt not available")
             # ... rest of test
     """
+    import importlib.util
+    if importlib.util.find_spec("pytestqt") is None:
+        return None
     try:
-        from pytestqt.qtbot import QtBot
         # Get qtbot from pytest-qt plugin
         return request.getfixturevalue('qtbot')
-    except (ImportError, Exception):
+    except Exception:
         return None
 
 

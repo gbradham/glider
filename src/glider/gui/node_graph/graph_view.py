@@ -6,7 +6,7 @@ of nodes, connections, and interactive editing.
 """
 
 import logging
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import (
@@ -126,8 +126,8 @@ class NodeGraphView(QGraphicsView):
         self._setup_view()
 
         # State
-        self._nodes: Dict[str, NodeItem] = {}
-        self._connections: Dict[str, ConnectionItem] = {}
+        self._nodes: dict[str, NodeItem] = {}
+        self._connections: dict[str, ConnectionItem] = {}
         self._flow_engine: Optional[FlowEngine] = None
 
         # Interaction state
@@ -137,7 +137,7 @@ class NodeGraphView(QGraphicsView):
         self._temp_connection = None
         self._connection_start_port = None
         self._connection_start_node = None
-        self._selected_nodes: List[str] = []
+        self._selected_nodes: list[str] = []
 
         # Zoom settings
         self._zoom = 1.0
@@ -162,12 +162,12 @@ class NodeGraphView(QGraphicsView):
         self._flow_engine = engine
 
     @property
-    def nodes(self) -> Dict[str, "NodeItem"]:
+    def nodes(self) -> dict[str, "NodeItem"]:
         """Get all node items."""
         return self._nodes.copy()
 
     @property
-    def connections(self) -> Dict[str, "ConnectionItem"]:
+    def connections(self) -> dict[str, "ConnectionItem"]:
         """Get all connection items."""
         return self._connections.copy()
 

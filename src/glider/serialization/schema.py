@@ -8,7 +8,7 @@ structure specified in the design document.
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 # Current schema version
 SCHEMA_VERSION = "1.0.0"
@@ -17,7 +17,7 @@ SCHEMA_VERSION = "1.0.0"
 class SchemaValidationError(Exception):
     """Raised when schema validation fails."""
 
-    def __init__(self, message: str, path: str = "", details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, path: str = "", details: Optional[dict[str, Any]] = None):
         self.path = path
         self.details = details or {}
         full_message = f"{path}: {message}" if path else message
@@ -33,7 +33,7 @@ def _validate_type(value: Any, expected_type: type, field_name: str, path: str) 
         )
 
 
-def _validate_required(data: Dict[str, Any], fields: List[str], path: str) -> None:
+def _validate_required(data: dict[str, Any], fields: list[str], path: str) -> None:
     """Validate that required fields are present."""
     missing = [f for f in fields if f not in data]
     if missing:
@@ -57,12 +57,12 @@ class NodeSchema:
     id: str
     type: str  # Full node type path, e.g., "glider.nodes.hardware.DigitalWriteNode"
     title: str
-    position: Dict[str, float]  # {"x": float, "y": float}
-    properties: Dict[str, Any] = field(default_factory=dict)
-    inputs: List[PortSchema] = field(default_factory=list)
-    outputs: List[PortSchema] = field(default_factory=list)
+    position: dict[str, float]  # {"x": float, "y": float}
+    properties: dict[str, Any] = field(default_factory=dict)
+    inputs: list[PortSchema] = field(default_factory=list)
+    outputs: list[PortSchema] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "id": self.id,
@@ -75,7 +75,7 @@ class NodeSchema:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], path: str = "node") -> "NodeSchema":
+    def from_dict(cls, data: dict[str, Any], path: str = "node") -> "NodeSchema":
         """Create from dictionary with validation."""
         if not isinstance(data, dict):
             raise SchemaValidationError(f"Expected dict, got {type(data).__name__}", path)
@@ -95,7 +95,7 @@ class NodeSchema:
             inputs = [PortSchema(**p) for p in data.get("inputs", [])]
             outputs = [PortSchema(**p) for p in data.get("outputs", [])]
         except TypeError as e:
-            raise SchemaValidationError(f"Invalid port definition: {e}", f"{path}.ports")
+            raise SchemaValidationError(f"Invalid port definition: {e}", f"{path}.ports") from e
 
         return cls(
             id=data["id"],
@@ -118,12 +118,12 @@ class ConnectionSchema:
     to_port: int
     connection_type: str = "data"  # "data" or "exec"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], path: str = "connection") -> "ConnectionSchema":
+    def from_dict(cls, data: dict[str, Any], path: str = "connection") -> "ConnectionSchema":
         """Create from dictionary with validation."""
         if not isinstance(data, dict):
             raise SchemaValidationError(f"Expected dict, got {type(data).__name__}", path)
@@ -161,14 +161,14 @@ class BoardConfigSchema:
     id: str
     type: str  # e.g., "telemetrix", "pigpio"
     port: Optional[str] = None  # Serial port for Arduino
-    settings: Dict[str, Any] = field(default_factory=dict)
+    settings: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], path: str = "board") -> "BoardConfigSchema":
+    def from_dict(cls, data: dict[str, Any], path: str = "board") -> "BoardConfigSchema":
         """Create from dictionary with validation."""
         if not isinstance(data, dict):
             raise SchemaValidationError(f"Expected dict, got {type(data).__name__}", path)
@@ -207,14 +207,14 @@ class DeviceConfigSchema:
     board_id: str
     pin: int
     name: Optional[str] = None
-    settings: Dict[str, Any] = field(default_factory=dict)
+    settings: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], path: str = "device") -> "DeviceConfigSchema":
+    def from_dict(cls, data: dict[str, Any], path: str = "device") -> "DeviceConfigSchema":
         """Create from dictionary with validation."""
         if not isinstance(data, dict):
             raise SchemaValidationError(f"Expected dict, got {type(data).__name__}", path)
@@ -257,10 +257,10 @@ class DeviceConfigSchema:
 @dataclass
 class HardwareConfigSchema:
     """Schema for hardware configuration."""
-    boards: List[BoardConfigSchema] = field(default_factory=list)
-    devices: List[DeviceConfigSchema] = field(default_factory=list)
+    boards: list[BoardConfigSchema] = field(default_factory=list)
+    devices: list[DeviceConfigSchema] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "boards": [b.to_dict() for b in self.boards],
@@ -268,7 +268,7 @@ class HardwareConfigSchema:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], path: str = "hardware") -> "HardwareConfigSchema":
+    def from_dict(cls, data: dict[str, Any], path: str = "hardware") -> "HardwareConfigSchema":
         """Create from dictionary with validation."""
         if not isinstance(data, dict):
             raise SchemaValidationError(f"Expected dict, got {type(data).__name__}", path)
@@ -306,12 +306,12 @@ class DashboardWidgetSchema:
     size: str = "normal"  # "small", "normal", "large"
     visible: bool = True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "DashboardWidgetSchema":
+    def from_dict(cls, data: dict[str, Any]) -> "DashboardWidgetSchema":
         """Create from dictionary."""
         return cls(**data)
 
@@ -321,9 +321,9 @@ class DashboardConfigSchema:
     """Schema for dashboard configuration."""
     layout_mode: str = "vertical"  # "vertical", "horizontal", "grid"
     columns: int = 1
-    widgets: List[DashboardWidgetSchema] = field(default_factory=list)
+    widgets: list[DashboardWidgetSchema] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "layout_mode": self.layout_mode,
@@ -332,7 +332,7 @@ class DashboardConfigSchema:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], path: str = "dashboard") -> "DashboardConfigSchema":
+    def from_dict(cls, data: dict[str, Any], path: str = "dashboard") -> "DashboardConfigSchema":
         """Create from dictionary."""
         if not isinstance(data, dict):
             raise SchemaValidationError(f"Expected dict, got {type(data).__name__}", path)
@@ -348,10 +348,10 @@ class DashboardConfigSchema:
 @dataclass
 class FlowConfigSchema:
     """Schema for flow graph configuration."""
-    nodes: List[NodeSchema] = field(default_factory=list)
-    connections: List[ConnectionSchema] = field(default_factory=list)
+    nodes: list[NodeSchema] = field(default_factory=list)
+    connections: list[ConnectionSchema] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "nodes": [n.to_dict() for n in self.nodes],
@@ -359,7 +359,7 @@ class FlowConfigSchema:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], path: str = "flow") -> "FlowConfigSchema":
+    def from_dict(cls, data: dict[str, Any], path: str = "flow") -> "FlowConfigSchema":
         """Create from dictionary with validation."""
         if not isinstance(data, dict):
             raise SchemaValidationError(f"Expected dict, got {type(data).__name__}", path)
@@ -397,7 +397,7 @@ class MetadataSchema:
     author: str = ""
     created: str = ""
     modified: str = ""
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.created:
@@ -405,12 +405,12 @@ class MetadataSchema:
         if not self.modified:
             self.modified = self.created
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], path: str = "metadata") -> "MetadataSchema":
+    def from_dict(cls, data: dict[str, Any], path: str = "metadata") -> "MetadataSchema":
         """Create from dictionary with validation."""
         if not isinstance(data, dict):
             raise SchemaValidationError(f"Expected dict, got {type(data).__name__}", path)
@@ -463,7 +463,7 @@ class ExperimentSchema:
     flow: FlowConfigSchema = field(default_factory=FlowConfigSchema)
     dashboard: DashboardConfigSchema = field(default_factory=DashboardConfigSchema)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "schema_version": self.schema_version,
@@ -478,7 +478,7 @@ class ExperimentSchema:
         return json.dumps(self.to_dict(), indent=indent)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], path: str = "") -> "ExperimentSchema":
+    def from_dict(cls, data: dict[str, Any], path: str = "") -> "ExperimentSchema":
         """Create from dictionary with validation."""
         if not isinstance(data, dict):
             raise SchemaValidationError(f"Expected dict, got {type(data).__name__}", path or "root")
@@ -513,7 +513,7 @@ class ExperimentSchema:
             raise SchemaValidationError(
                 f"Invalid JSON at line {e.lineno}, column {e.colno}: {e.msg}",
                 path="",
-            )
+            ) from e
         return cls.from_dict(data)
 
     def update_modified(self) -> None:

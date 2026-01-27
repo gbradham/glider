@@ -3,7 +3,7 @@ Control Nodes - PID controller, counter, toggle, and state machines.
 """
 
 import time
-from typing import Any, Dict
+from typing import Any
 
 from glider.nodes.base_node import (
     ExecNode,
@@ -92,7 +92,7 @@ class PIDNode(LogicNode):
 
         self.set_output(0, output)
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["integral"] = self._integral
         state["last_error"] = self._last_error
@@ -100,7 +100,7 @@ class PIDNode(LogicNode):
         state["output_max"] = self._output_max
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._integral = state.get("integral", 0.0)
         self._last_error = state.get("last_error", 0.0)
@@ -163,11 +163,11 @@ class ToggleNode(ExecNode):
         """Execute based on which input was triggered."""
         pass
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["toggle_state"] = self._state
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._state = state.get("toggle_state", False)

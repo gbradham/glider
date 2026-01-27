@@ -6,7 +6,7 @@ and ensuring no duplicate assignments.
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from glider.hal.base_board import BaseBoard, PinType
@@ -36,7 +36,7 @@ class PinConflictError(Exception):
 
 class InvalidPinError(Exception):
     """Raised when attempting to use a pin for an unsupported operation."""
-    def __init__(self, pin: int, requested_type: str, supported_types: Set[str]):
+    def __init__(self, pin: int, requested_type: str, supported_types: set[str]):
         self.pin = pin
         self.requested_type = requested_type
         self.supported_types = supported_types
@@ -62,7 +62,7 @@ class PinManager:
             board: The board to manage pins for
         """
         self._board = board
-        self._allocations: Dict[int, PinAllocation] = {}
+        self._allocations: dict[int, PinAllocation] = {}
 
     @property
     def board(self) -> "BaseBoard":
@@ -70,12 +70,12 @@ class PinManager:
         return self._board
 
     @property
-    def allocated_pins(self) -> Set[int]:
+    def allocated_pins(self) -> set[int]:
         """Set of currently allocated pins."""
         return set(self._allocations.keys())
 
     @property
-    def available_pins(self) -> Set[int]:
+    def available_pins(self) -> set[int]:
         """Set of available (unallocated) pins."""
         all_pins = set(self._board.capabilities.pins.keys())
         return all_pins - self.allocated_pins
@@ -88,14 +88,14 @@ class PinManager:
         """Check if a pin is available for allocation."""
         return pin not in self._allocations
 
-    def get_pins_for_device(self, device_id: str) -> List[PinAllocation]:
+    def get_pins_for_device(self, device_id: str) -> list[PinAllocation]:
         """Get all pin allocations for a specific device."""
         return [
             alloc for alloc in self._allocations.values()
             if alloc.device_id == device_id
         ]
 
-    def get_compatible_pins(self, pin_type: "PinType") -> List[int]:
+    def get_compatible_pins(self, pin_type: "PinType") -> list[int]:
         """
         Get list of pins compatible with a specific type.
 
@@ -113,7 +113,7 @@ class PinManager:
                 compatible.append(pin_num)
         return sorted(compatible)
 
-    def get_available_compatible_pins(self, pin_type: "PinType") -> List[int]:
+    def get_available_compatible_pins(self, pin_type: "PinType") -> list[int]:
         """Get available pins that are compatible with a specific type."""
         compatible = self.get_compatible_pins(pin_type)
         return [p for p in compatible if p not in self._allocations]
@@ -170,7 +170,7 @@ class PinManager:
         self._allocations[pin] = allocation
         return allocation
 
-    def allocate_device_pins(self, device: "BaseDevice") -> List[PinAllocation]:
+    def allocate_device_pins(self, device: "BaseDevice") -> list[PinAllocation]:
         """
         Allocate all pins for a device.
 
@@ -186,7 +186,7 @@ class PinManager:
         allocations = []
 
         # First, validate all pins are available (don't partially allocate)
-        for pin_role, pin in device.pins.items():
+        for _pin_role, pin in device.pins.items():
             if pin in self._allocations:
                 existing = self._allocations[pin]
                 raise PinConflictError(pin, existing.device_name, device.name)
@@ -216,7 +216,7 @@ class PinManager:
         """
         return self._allocations.pop(pin, None)
 
-    def release_device_pins(self, device_id: str) -> List[PinAllocation]:
+    def release_device_pins(self, device_id: str) -> list[PinAllocation]:
         """
         Release all pins allocated to a device.
 
@@ -239,7 +239,7 @@ class PinManager:
         """Clear all pin allocations."""
         self._allocations.clear()
 
-    def to_dict(self) -> Dict[int, Dict]:
+    def to_dict(self) -> dict[int, dict]:
         """Serialize allocations to dictionary."""
         return {
             pin: {

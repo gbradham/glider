@@ -6,7 +6,7 @@ Aggregates all tools available to the AI agent.
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from glider.agent.actions import AgentAction
 from glider.agent.llm_backend import ToolDefinition
@@ -58,8 +58,8 @@ class AgentToolkit:
         self._knowledge_executor = KnowledgeToolExecutor(core)
 
         # Build tool registry
-        self._tools: Dict[str, ToolDefinition] = {}
-        self._tool_executors: Dict[str, Any] = {}
+        self._tools: dict[str, ToolDefinition] = {}
+        self._tool_executors: dict[str, Any] = {}
 
         for tool in EXPERIMENT_TOOLS:
             self._tools[tool.name] = tool
@@ -73,7 +73,7 @@ class AgentToolkit:
             self._tools[tool.name] = tool
             self._tool_executors[tool.name] = self._knowledge_executor
 
-    def get_tool_definitions(self) -> List[ToolDefinition]:
+    def get_tool_definitions(self) -> list[ToolDefinition]:
         """Get all tool definitions for the LLM."""
         return list(self._tools.values())
 
@@ -81,7 +81,7 @@ class AgentToolkit:
         """Get a specific tool definition."""
         return self._tools.get(name)
 
-    def create_action(self, tool_name: str, args: Dict[str, Any]) -> Optional[AgentAction]:
+    def create_action(self, tool_name: str, args: dict[str, Any]) -> Optional[AgentAction]:
         """Create an action for a tool call."""
         executor = self._tool_executors.get(tool_name)
         if executor is None:
@@ -89,7 +89,7 @@ class AgentToolkit:
 
         return executor.create_action(tool_name, args)
 
-    async def execute(self, tool_name: str, args: Dict[str, Any]) -> ToolResult:
+    async def execute(self, tool_name: str, args: dict[str, Any]) -> ToolResult:
         """
         Execute a tool.
 
@@ -134,7 +134,7 @@ class AgentToolkit:
         self._experiment_executor.reset_layout()
 
     @property
-    def tool_names(self) -> List[str]:
+    def tool_names(self) -> list[str]:
         """Get list of all tool names."""
         return list(self._tools.keys())
 

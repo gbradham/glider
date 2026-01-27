@@ -9,7 +9,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +119,7 @@ class GliderConfig:
     hardware: HardwareConfig = field(default_factory=HardwareConfig)
     paths: PathConfig = field(default_factory=PathConfig)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert configuration to dictionary."""
         return {
             "timing": {
@@ -146,7 +146,7 @@ class GliderConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "GliderConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "GliderConfig":
         """Create configuration from dictionary."""
         config = cls()
 

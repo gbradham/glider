@@ -5,7 +5,7 @@ Generic nodes for interacting with any device type through
 their action interfaces.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from glider.nodes.base_node import (
     HardwareNode,
@@ -91,12 +91,12 @@ class DeviceActionNode(HardwareNode):
         # Trigger exec output
         self.exec_output(0)
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["action_name"] = self._action_name
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._action_name = state.get("action_name", "")
 
@@ -154,11 +154,11 @@ class DeviceReadNode(HardwareNode):
         # Trigger exec output
         self.exec_output(0)
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["read_action"] = self._read_action
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._read_action = state.get("read_action", "read")

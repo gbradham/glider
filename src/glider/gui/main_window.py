@@ -7,7 +7,7 @@ Desktop (Builder) and Runner modes.
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 from PyQt6.QtCore import QMimeData, Qt, QTimer, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QAction, QDrag, QKeySequence
@@ -471,7 +471,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(controls)
 
         # Store device widgets for updates
-        self._runner_device_cards: Dict[str, QWidget] = {}
+        self._runner_device_cards: dict[str, QWidget] = {}
 
         # Timer for periodic device state updates in runner view
         config = get_config()
@@ -1925,9 +1925,9 @@ class MainWindow(QMainWindow):
         layout.addRow(pin_container)
 
         # Dictionary to hold pin spinboxes
-        pin_spinboxes: Dict[str, QSpinBox] = {}
+        pin_spinboxes: dict[str, QSpinBox] = {}
         # Dictionary to hold ADS1115 settings spinboxes
-        ads1115_settings: Dict[str, QSpinBox] = {}
+        ads1115_settings: dict[str, QSpinBox] = {}
 
         def update_pin_inputs():
             """Update pin inputs based on selected device type."""
@@ -2202,7 +2202,7 @@ class MainWindow(QMainWindow):
         layout.addRow("Name:", name_edit)
 
         # Pin inputs
-        pin_spinboxes: Dict[str, QSpinBox] = {}
+        pin_spinboxes: dict[str, QSpinBox] = {}
 
         # Determine if this is an analog device
         is_analog = "Analog" in device_type

@@ -10,7 +10,7 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +21,8 @@ if TYPE_CHECKING:
 @dataclass
 class DeviceConfig:
     """Configuration for a device including pin assignments."""
-    pins: Dict[str, int] = field(default_factory=dict)
-    settings: Dict[str, Any] = field(default_factory=dict)
+    pins: dict[str, int] = field(default_factory=dict)
+    settings: dict[str, Any] = field(default_factory=dict)
 
 
 class BaseDevice(ABC):
@@ -85,7 +85,7 @@ class BaseDevice(ABC):
         return self._config
 
     @property
-    def pins(self) -> Dict[str, int]:
+    def pins(self) -> dict[str, int]:
         """Pin assignments for this device."""
         return self._config.pins
 
@@ -101,7 +101,7 @@ class BaseDevice(ABC):
 
     @property
     @abstractmethod
-    def actions(self) -> Dict[str, Callable]:
+    def actions(self) -> dict[str, Callable]:
         """
         Dictionary mapping command strings to methods.
 
@@ -114,7 +114,7 @@ class BaseDevice(ABC):
         ...
 
     @property
-    def required_pins(self) -> List[str]:
+    def required_pins(self) -> list[str]:
         """
         List of required pin names for this device.
 
@@ -150,7 +150,7 @@ class BaseDevice(ABC):
         """Disable the device (stops responding to commands)."""
         self._enabled = False
 
-    def validate_config(self) -> List[str]:
+    def validate_config(self) -> list[str]:
         """
         Validate the device configuration.
 
@@ -184,7 +184,7 @@ class BaseDevice(ABC):
         action = self.actions[action_name]
         return await action(*args, **kwargs)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize device configuration to dictionary."""
         return {
             "id": self._id,
@@ -199,7 +199,7 @@ class BaseDevice(ABC):
 
     @classmethod
     @abstractmethod
-    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "BaseDevice":
+    def from_dict(cls, data: dict[str, Any], board: "BaseBoard") -> "BaseDevice":
         """Create device instance from dictionary configuration."""
         ...
 
@@ -212,11 +212,11 @@ class DigitalOutputDevice(BaseDevice):
         return "DigitalOutput"
 
     @property
-    def required_pins(self) -> List[str]:
+    def required_pins(self) -> list[str]:
         return ["output"]
 
     @property
-    def actions(self) -> Dict[str, Callable]:
+    def actions(self) -> dict[str, Callable]:
         return {
             "on": self.turn_on,
             "off": self.turn_off,
@@ -274,7 +274,7 @@ class DigitalOutputDevice(BaseDevice):
             await self.turn_off()
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "DigitalOutputDevice":
+    def from_dict(cls, data: dict[str, Any], board: "BaseBoard") -> "DigitalOutputDevice":
         config = DeviceConfig(
             pins=data["config"]["pins"],
             settings=data["config"].get("settings", {}),
@@ -292,11 +292,11 @@ class DigitalInputDevice(BaseDevice):
         return "DigitalInput"
 
     @property
-    def required_pins(self) -> List[str]:
+    def required_pins(self) -> list[str]:
         return ["input"]
 
     @property
-    def actions(self) -> Dict[str, Callable]:
+    def actions(self) -> dict[str, Callable]:
         return {
             "read": self.read,
         }
@@ -304,7 +304,7 @@ class DigitalInputDevice(BaseDevice):
     def __init__(self, board: "BaseBoard", config: DeviceConfig, name: Optional[str] = None):
         super().__init__(board, config, name)
         self._last_value: Optional[bool] = None
-        self._on_change_callbacks: List[Callable[[bool], None]] = []
+        self._on_change_callbacks: list[Callable[[bool], None]] = []
 
     @property
     def last_value(self) -> Optional[bool]:
@@ -340,7 +340,7 @@ class DigitalInputDevice(BaseDevice):
         self._on_change_callbacks.append(callback)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "DigitalInputDevice":
+    def from_dict(cls, data: dict[str, Any], board: "BaseBoard") -> "DigitalInputDevice":
         config = DeviceConfig(
             pins=data["config"]["pins"],
             settings=data["config"].get("settings", {}),
@@ -358,11 +358,11 @@ class AnalogInputDevice(BaseDevice):
         return "AnalogInput"
 
     @property
-    def required_pins(self) -> List[str]:
+    def required_pins(self) -> list[str]:
         return ["input"]
 
     @property
-    def actions(self) -> Dict[str, Callable]:
+    def actions(self) -> dict[str, Callable]:
         return {
             "read": self.read,
             "read_voltage": self.read_voltage,
@@ -407,7 +407,7 @@ class AnalogInputDevice(BaseDevice):
         return (raw / max_value) * self._reference_voltage
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "AnalogInputDevice":
+    def from_dict(cls, data: dict[str, Any], board: "BaseBoard") -> "AnalogInputDevice":
         config = DeviceConfig(
             pins=data["config"]["pins"],
             settings=data["config"].get("settings", {}),
@@ -425,11 +425,11 @@ class PWMOutputDevice(BaseDevice):
         return "PWMOutput"
 
     @property
-    def required_pins(self) -> List[str]:
+    def required_pins(self) -> list[str]:
         return ["output"]
 
     @property
-    def actions(self) -> Dict[str, Callable]:
+    def actions(self) -> dict[str, Callable]:
         return {
             "set": self.set_value,
             "set_percent": self.set_percent,
@@ -476,7 +476,7 @@ class PWMOutputDevice(BaseDevice):
         await self.set_value(0)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "PWMOutputDevice":
+    def from_dict(cls, data: dict[str, Any], board: "BaseBoard") -> "PWMOutputDevice":
         config = DeviceConfig(
             pins=data["config"]["pins"],
             settings=data["config"].get("settings", {}),
@@ -494,11 +494,11 @@ class ServoDevice(BaseDevice):
         return "Servo"
 
     @property
-    def required_pins(self) -> List[str]:
+    def required_pins(self) -> list[str]:
         return ["signal"]
 
     @property
-    def actions(self) -> Dict[str, Callable]:
+    def actions(self) -> dict[str, Callable]:
         return {
             "set_angle": self.set_angle,
             "center": self.center,
@@ -538,7 +538,7 @@ class ServoDevice(BaseDevice):
         await self.set_angle(center)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "ServoDevice":
+    def from_dict(cls, data: dict[str, Any], board: "BaseBoard") -> "ServoDevice":
         config = DeviceConfig(
             pins=data["config"]["pins"],
             settings=data["config"].get("settings", {}),
@@ -583,13 +583,13 @@ class ADS1115Device(BaseDevice):
         return "ADS1115"
 
     @property
-    def required_pins(self) -> List[str]:
+    def required_pins(self) -> list[str]:
         # I2C doesn't use traditional pin assignments in the same way
         # The SDA/SCL are fixed on the Pi (GPIO2/GPIO3)
         return []
 
     @property
-    def actions(self) -> Dict[str, Callable]:
+    def actions(self) -> dict[str, Callable]:
         return {
             "read": self.read,
             "read_channel": self.read_channel,
@@ -603,7 +603,7 @@ class ADS1115Device(BaseDevice):
         self._gain = config.settings.get("gain", 1)
         self._data_rate = config.settings.get("data_rate", 128)
         self._ads = None  # Will hold the ADS1115 object
-        self._last_values: Dict[int, int] = {}  # Channel -> raw value
+        self._last_values: dict[int, int] = {}  # Channel -> raw value
 
     @property
     def i2c_address(self) -> int:
@@ -723,7 +723,7 @@ class ADS1115Device(BaseDevice):
 
         return await asyncio.to_thread(_read_voltage)
 
-    async def read_all(self) -> Dict[int, int]:
+    async def read_all(self) -> dict[int, int]:
         """
         Read raw values from all 4 channels.
 
@@ -736,7 +736,7 @@ class ADS1115Device(BaseDevice):
         return results
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "ADS1115Device":
+    def from_dict(cls, data: dict[str, Any], board: "BaseBoard") -> "ADS1115Device":
         config = DeviceConfig(
             pins=data["config"].get("pins", {}),
             settings=data["config"].get("settings", {}),
@@ -761,11 +761,11 @@ class MotorGovernorDevice(BaseDevice):
         return "MotorGovernor"
 
     @property
-    def required_pins(self) -> List[str]:
+    def required_pins(self) -> list[str]:
         return ["up", "down", "signal"]
 
     @property
-    def actions(self) -> Dict[str, Callable]:
+    def actions(self) -> dict[str, Callable]:
         return {
             "up": self.move_up,
             "down": self.move_down,
@@ -859,7 +859,7 @@ class MotorGovernorDevice(BaseDevice):
         return self._position
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], board: "BaseBoard") -> "MotorGovernorDevice":
+    def from_dict(cls, data: dict[str, Any], board: "BaseBoard") -> "MotorGovernorDevice":
         config = DeviceConfig(
             pins=data["config"]["pins"],
             settings=data["config"].get("settings", {}),
@@ -870,7 +870,7 @@ class MotorGovernorDevice(BaseDevice):
 
 
 # Registry of built-in device types
-DEVICE_REGISTRY: Dict[str, type] = {
+DEVICE_REGISTRY: dict[str, type] = {
     "DigitalOutput": DigitalOutputDevice,
     "DigitalInput": DigitalInputDevice,
     "AnalogInput": AnalogInputDevice,
@@ -881,7 +881,7 @@ DEVICE_REGISTRY: Dict[str, type] = {
 }
 
 
-def create_device_from_dict(data: Dict[str, Any], board: "BaseBoard") -> BaseDevice:
+def create_device_from_dict(data: dict[str, Any], board: "BaseBoard") -> BaseDevice:
     """Factory function to create a device from dictionary configuration."""
     device_type = data.get("device_type")
     if device_type not in DEVICE_REGISTRY:

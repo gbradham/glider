@@ -2,7 +2,6 @@
 GLIDER Styles - Qt Style Sheets for desktop and touch modes.
 """
 
-import os
 from pathlib import Path
 
 STYLES_DIR = Path(__file__).parent

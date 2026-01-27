@@ -5,7 +5,7 @@ Tools for configuring boards and devices.
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 from glider.agent.actions import ActionType, AgentAction
 from glider.agent.llm_backend import ToolDefinition
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 # Tool Definitions
-HARDWARE_TOOLS: List[ToolDefinition] = [
+HARDWARE_TOOLS: list[ToolDefinition] = [
     ToolDefinition(
         name="list_boards",
         description="List all configured hardware boards",
@@ -237,7 +237,7 @@ class HardwareToolExecutor:
     def __init__(self, core: "GliderCore"):
         self._core = core
 
-    async def execute(self, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(self, tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
         """Execute a tool and return the result."""
         method = getattr(self, f"_execute_{tool_name}", None)
         if method is None:
@@ -250,7 +250,7 @@ class HardwareToolExecutor:
             logger.exception(f"Tool execution failed: {tool_name}")
             return {"success": False, "error": str(e)}
 
-    def create_action(self, tool_name: str, args: Dict[str, Any]) -> AgentAction:
+    def create_action(self, tool_name: str, args: dict[str, Any]) -> AgentAction:
         """Create an action for a tool call."""
         action_types = {
             "list_boards": ActionType.GET_STATE,
@@ -289,7 +289,7 @@ class HardwareToolExecutor:
             description=descriptions.get(tool_name, tool_name),
         )
 
-    async def _execute_list_boards(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_list_boards(self, args: dict[str, Any]) -> dict[str, Any]:
         """List all boards."""
         hw_manager = self._core.hardware_manager
 
@@ -305,7 +305,7 @@ class HardwareToolExecutor:
 
         return {"boards": boards, "count": len(boards)}
 
-    async def _execute_add_board(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_add_board(self, args: dict[str, Any]) -> dict[str, Any]:
         """Add a new board."""
         board_type = args["board_type"]
         name = args["name"]
@@ -336,7 +336,7 @@ class HardwareToolExecutor:
             "port": port,
         }
 
-    async def _execute_remove_board(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_remove_board(self, args: dict[str, Any]) -> dict[str, Any]:
         """Remove a board."""
         board_id = args["board_id"]
 
@@ -349,7 +349,7 @@ class HardwareToolExecutor:
         else:
             raise ValueError(f"Board not found: {board_id}")
 
-    async def _execute_connect_board(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_connect_board(self, args: dict[str, Any]) -> dict[str, Any]:
         """Connect to a board."""
         board_id = args["board_id"]
 
@@ -365,7 +365,7 @@ class HardwareToolExecutor:
 
         return {"connected": board_id, "success": board.is_connected}
 
-    async def _execute_disconnect_board(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_disconnect_board(self, args: dict[str, Any]) -> dict[str, Any]:
         """Disconnect from a board."""
         board_id = args["board_id"]
 
@@ -381,7 +381,7 @@ class HardwareToolExecutor:
 
         return {"disconnected": board_id}
 
-    async def _execute_list_devices(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_list_devices(self, args: dict[str, Any]) -> dict[str, Any]:
         """List all devices."""
         hw_manager = self._core.hardware_manager
         board_filter = args.get("board_id")
@@ -401,7 +401,7 @@ class HardwareToolExecutor:
 
         return {"devices": devices, "count": len(devices)}
 
-    async def _execute_add_device(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_add_device(self, args: dict[str, Any]) -> dict[str, Any]:
         """Add a new device."""
         board_id = args["board_id"]
         device_type = args["device_type"]
@@ -429,7 +429,7 @@ class HardwareToolExecutor:
             "pin": pin,
         }
 
-    async def _execute_remove_device(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_remove_device(self, args: dict[str, Any]) -> dict[str, Any]:
         """Remove a device."""
         device_id = args["device_id"]
 
@@ -442,7 +442,7 @@ class HardwareToolExecutor:
         else:
             raise ValueError(f"Device not found: {device_id}")
 
-    async def _execute_configure_device(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_configure_device(self, args: dict[str, Any]) -> dict[str, Any]:
         """Configure a device."""
         device_id = args["device_id"]
         settings = args["settings"]
@@ -462,7 +462,7 @@ class HardwareToolExecutor:
 
         return {"configured": device_id, "settings": settings}
 
-    async def _execute_scan_ports(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_scan_ports(self, args: dict[str, Any]) -> dict[str, Any]:
         """Scan for serial ports."""
         import serial.tools.list_ports
 
@@ -476,7 +476,7 @@ class HardwareToolExecutor:
 
         return {"ports": ports, "count": len(ports)}
 
-    async def _execute_test_device(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_test_device(self, args: dict[str, Any]) -> dict[str, Any]:
         """Test a device."""
         device_id = args["device_id"]
         action = args.get("action", "blink")
@@ -513,7 +513,7 @@ class HardwareToolExecutor:
 
         return result
 
-    async def _execute_get_pin_capabilities(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_get_pin_capabilities(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get pin capabilities for a board."""
         board_id = args["board_id"]
 

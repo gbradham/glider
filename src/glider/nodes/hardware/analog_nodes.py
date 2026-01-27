@@ -5,7 +5,7 @@ Nodes for analog input and PWM output operations.
 """
 
 import asyncio
-from typing import Any, Dict
+from typing import Any
 
 from glider.nodes.base_node import (
     HardwareNode,
@@ -138,7 +138,7 @@ class AnalogReadNode(HardwareNode):
                 self.set_error(str(e))
                 await asyncio.sleep(self._poll_interval)
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["pin"] = self._pin
         state["reference_voltage"] = self._reference_voltage
@@ -150,7 +150,7 @@ class AnalogReadNode(HardwareNode):
         state["visible_in_runner"] = self.visible_in_runner
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._pin = state.get("pin", 0)
         self._reference_voltage = state.get("reference_voltage", 5.0)
@@ -219,11 +219,11 @@ class PWMWriteNode(HardwareNode):
         # Trigger exec output
         self.exec_output(0)
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["pin"] = self._pin
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._pin = state.get("pin", 0)

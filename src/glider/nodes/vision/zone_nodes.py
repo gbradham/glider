@@ -9,7 +9,7 @@ Each zone can have its own ZoneInputNode that outputs:
 """
 
 import logging
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable
 
 from glider.nodes.base_node import (
     InterfaceNode,
@@ -54,7 +54,7 @@ class ZoneInputNode(InterfaceNode):
         self._zone_name: str = "Unnamed Zone"
         self._occupied = False
         self._object_count = 0
-        self._exec_callbacks: List[Callable[[int], None]] = []
+        self._exec_callbacks: list[Callable[[int], None]] = []
 
         # Set outputs to initial values
         self._outputs = [False, 0, None, None]
@@ -133,13 +133,13 @@ class ZoneInputNode(InterfaceNode):
         """Zone inputs update from CV processor, not from node inputs."""
         pass
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["zone_id"] = self._zone_id
         state["zone_name"] = self._zone_name
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._zone_id = state.get("zone_id", "")
         self._zone_name = state.get("zone_name", "Unnamed Zone")

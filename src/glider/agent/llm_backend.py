@@ -8,7 +8,7 @@ import json
 import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import httpx
 
@@ -22,11 +22,11 @@ class Message:
     """A chat message."""
     role: str  # "system", "user", "assistant", "tool"
     content: str
-    tool_calls: Optional[List[Dict[str, Any]]] = None
+    tool_calls: Optional[list[dict[str, Any]]] = None
     tool_call_id: Optional[str] = None
     name: Optional[str] = None  # Tool name for tool responses
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to API format."""
         msg = {"role": self.role, "content": self.content}
         if self.tool_calls:
@@ -43,9 +43,9 @@ class ToolDefinition:
     """Definition of a tool the LLM can call."""
     name: str
     description: str
-    parameters: Dict[str, Any]  # JSON Schema
+    parameters: dict[str, Any]  # JSON Schema
 
-    def to_ollama_format(self) -> Dict[str, Any]:
+    def to_ollama_format(self) -> dict[str, Any]:
         """Convert to Ollama tool format."""
         return {
             "type": "function",
@@ -56,7 +56,7 @@ class ToolDefinition:
             }
         }
 
-    def to_openai_format(self) -> Dict[str, Any]:
+    def to_openai_format(self) -> dict[str, Any]:
         """Convert to OpenAI tool format."""
         return {
             "type": "function",
@@ -73,23 +73,23 @@ class ToolCall:
     """A tool call from the LLM."""
     id: str
     name: str
-    arguments: Dict[str, Any]
+    arguments: dict[str, Any]
 
 
 @dataclass
 class ChatResponse:
     """Response from the LLM."""
     content: str
-    tool_calls: List[ToolCall]
+    tool_calls: list[ToolCall]
     finish_reason: str  # "stop", "tool_calls", "length"
-    usage: Optional[Dict[str, int]] = None
+    usage: Optional[dict[str, int]] = None
 
 
 @dataclass
 class ChatChunk:
     """A streaming chunk from the LLM."""
     content: str = ""
-    tool_calls: Optional[List[Dict[str, Any]]] = None
+    tool_calls: Optional[list[dict[str, Any]]] = None
     is_final: bool = False
     finish_reason: Optional[str] = None
 
@@ -123,8 +123,8 @@ class LLMBackend:
 
     async def chat(
         self,
-        messages: List[Message],
-        tools: Optional[List[ToolDefinition]] = None,
+        messages: list[Message],
+        tools: Optional[list[ToolDefinition]] = None,
         stream: bool = True,
     ) -> Union[ChatResponse, AsyncIterator[ChatChunk]]:
         """
@@ -157,8 +157,8 @@ class LLMBackend:
 
     async def _ollama_chat(
         self,
-        messages: List[Message],
-        tools: Optional[List[ToolDefinition]] = None,
+        messages: list[Message],
+        tools: Optional[list[ToolDefinition]] = None,
     ) -> ChatResponse:
         """Non-streaming Ollama chat."""
         client = await self._get_client()
@@ -191,8 +191,8 @@ class LLMBackend:
 
     async def _ollama_chat_stream(
         self,
-        messages: List[Message],
-        tools: Optional[List[ToolDefinition]] = None,
+        messages: list[Message],
+        tools: Optional[list[ToolDefinition]] = None,
     ) -> AsyncIterator[ChatChunk]:
         """Streaming Ollama chat."""
         client = await self._get_client()
@@ -260,7 +260,7 @@ class LLMBackend:
             logger.error(f"Ollama streaming request failed: {e}")
             raise
 
-    def _parse_ollama_response(self, data: Dict[str, Any]) -> ChatResponse:
+    def _parse_ollama_response(self, data: dict[str, Any]) -> ChatResponse:
         """Parse Ollama response into ChatResponse."""
         message = data.get("message", {})
         content = message.get("content", "")
@@ -293,8 +293,8 @@ class LLMBackend:
 
     async def _openai_chat(
         self,
-        messages: List[Message],
-        tools: Optional[List[ToolDefinition]] = None,
+        messages: list[Message],
+        tools: Optional[list[ToolDefinition]] = None,
     ) -> ChatResponse:
         """Non-streaming OpenAI chat."""
         client = await self._get_client()
@@ -330,8 +330,8 @@ class LLMBackend:
 
     async def _openai_chat_stream(
         self,
-        messages: List[Message],
-        tools: Optional[List[ToolDefinition]] = None,
+        messages: list[Message],
+        tools: Optional[list[ToolDefinition]] = None,
     ) -> AsyncIterator[ChatChunk]:
         """Streaming OpenAI chat."""
         client = await self._get_client()
@@ -387,7 +387,7 @@ class LLMBackend:
             logger.error(f"OpenAI streaming request failed: {e}")
             raise
 
-    def _parse_openai_response(self, data: Dict[str, Any]) -> ChatResponse:
+    def _parse_openai_response(self, data: dict[str, Any]) -> ChatResponse:
         """Parse OpenAI response into ChatResponse."""
         choice = data.get("choices", [{}])[0]
         message = choice.get("message", {})
@@ -447,7 +447,7 @@ class LLMBackend:
             logger.warning(f"Connection check failed: {e}")
             return False
 
-    async def list_models(self) -> List[str]:
+    async def list_models(self) -> list[str]:
         """List available models."""
         try:
             if self._config.provider == LLMProvider.OLLAMA:

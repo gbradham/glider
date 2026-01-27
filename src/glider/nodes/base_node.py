@@ -12,7 +12,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 if TYPE_CHECKING:
     from glider.hal.base_device import BaseDevice
@@ -49,8 +49,8 @@ class NodeDefinition:
     name: str
     category: NodeCategory
     description: str = ""
-    inputs: List[PortDefinition] = field(default_factory=list)
-    outputs: List[PortDefinition] = field(default_factory=list)
+    inputs: list[PortDefinition] = field(default_factory=list)
+    outputs: list[PortDefinition] = field(default_factory=list)
     color: str = "#444444"
 
 
@@ -76,17 +76,17 @@ class GliderNode(ABC):
     def __init__(self):
         """Initialize the node."""
         self._glider_id: str = ""
-        self._inputs: List[Any] = []
-        self._outputs: List[Any] = []
-        self._state: Dict[str, Any] = {}
+        self._inputs: list[Any] = []
+        self._outputs: list[Any] = []
+        self._state: dict[str, Any] = {}
         self._device: Optional[BaseDevice] = None
         self._error: Optional[str] = None
         self._enabled = True
         self._visible_in_runner = False
 
         # Callbacks
-        self._update_callbacks: List[Callable[[str, Any], None]] = []
-        self._error_callbacks: List[Callable[[Exception], None]] = []
+        self._update_callbacks: list[Callable[[str, Any], None]] = []
+        self._error_callbacks: list[Callable[[Exception], None]] = []
 
         # Initialize ports from definition
         self._init_ports()
@@ -95,7 +95,7 @@ class GliderNode(ABC):
         """Initialize input and output ports from definition."""
         for port_def in self.definition.inputs:
             self._inputs.append(port_def.default_value)
-        for port_def in self.definition.outputs:
+        for _port_def in self.definition.outputs:
             self._outputs.append(None)
 
     @property
@@ -114,12 +114,12 @@ class GliderNode(ABC):
         return self.definition.category
 
     @property
-    def inputs(self) -> List[Any]:
+    def inputs(self) -> list[Any]:
         """Current input values."""
         return self._inputs
 
     @property
-    def outputs(self) -> List[Any]:
+    def outputs(self) -> list[Any]:
         """Current output values."""
         return self._outputs
 
@@ -244,11 +244,11 @@ class GliderNode(ABC):
         """
         pass
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         """Get serializable state."""
         return self._state.copy()
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         """Restore state from dictionary."""
         self._state = state.copy()
 
@@ -276,7 +276,7 @@ class GliderNode(ABC):
         """Called when flow is resumed."""
         pass
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize node to dictionary."""
         return {
             "id": self._glider_id,
@@ -313,7 +313,7 @@ class ExecNode(GliderNode):
 
     def __init__(self):
         super().__init__()
-        self._exec_callbacks: List[Callable[[int], None]] = []
+        self._exec_callbacks: list[Callable[[int], None]] = []
 
     def on_exec(self, callback: Callable[[int], None]) -> None:
         """Register callback for execution output triggers."""
@@ -392,7 +392,7 @@ class InterfaceNode(GliderNode):
     def __init__(self):
         super().__init__()
         self._visible_in_runner = True  # Interface nodes visible by default
-        self._widget_callbacks: List[Callable[[Any], None]] = []
+        self._widget_callbacks: list[Callable[[Any], None]] = []
 
     def on_widget_update(self, callback: Callable[[Any], None]) -> None:
         """Register callback for widget value updates."""

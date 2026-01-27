@@ -6,16 +6,7 @@ QGraphicsProxyWidget.
 """
 
 import sys
-from typing import List, Optional
-
-
-def _get_system_font() -> str:
-    """Get the system font for the current platform."""
-    if sys.platform == "darwin":
-        return ".AppleSystemUIFont"
-    elif sys.platform == "win32":
-        return "Segoe UI"
-    return "DejaVu Sans"
+from typing import Optional
 
 from PyQt6.QtCore import QObject, QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor, QFont, QLinearGradient, QPainter, QPen
@@ -29,6 +20,15 @@ from PyQt6.QtWidgets import (
 )
 
 from glider.gui.node_graph.port_item import PortItem, PortType
+
+
+def _get_system_font() -> str:
+    """Get the system font for the current platform."""
+    if sys.platform == "darwin":
+        return ".AppleSystemUIFont"
+    elif sys.platform == "win32":
+        return "Segoe UI"
+    return "DejaVu Sans"
 
 
 class NodeSignals(QObject):
@@ -79,8 +79,8 @@ class NodeItem(QGraphicsRectItem):
         self.selected_changed = self.signals.selected_changed
 
         # Ports
-        self._input_ports: List[PortItem] = []
-        self._output_ports: List[PortItem] = []
+        self._input_ports: list[PortItem] = []
+        self._output_ports: list[PortItem] = []
 
         # Embedded widget
         self._widget_proxy: Optional[QGraphicsProxyWidget] = None
@@ -132,11 +132,11 @@ class NodeItem(QGraphicsRectItem):
         self._header_text.setPlainText(value)
 
     @property
-    def input_ports(self) -> List[PortItem]:
+    def input_ports(self) -> list[PortItem]:
         return self._input_ports
 
     @property
-    def output_ports(self) -> List[PortItem]:
+    def output_ports(self) -> list[PortItem]:
         return self._output_ports
 
     def add_input_port(self, name: str, port_type: PortType = PortType.DATA) -> PortItem:

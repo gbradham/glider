@@ -3,7 +3,7 @@ Display Nodes - Read-only display widgets for the dashboard.
 """
 
 from collections import deque
-from typing import Any, Dict, List
+from typing import Any
 
 from glider.nodes.base_node import (
     InterfaceNode,
@@ -56,12 +56,12 @@ class LabelNode(InterfaceNode):
 
         self.notify_widget(self._display_text)
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["label"] = self._label
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._label = state.get("label", "Value")
 
@@ -125,7 +125,7 @@ class GaugeNode(InterfaceNode):
             "label": self._label,
         })
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["label"] = self._label
         state["unit"] = self._unit
@@ -133,7 +133,7 @@ class GaugeNode(InterfaceNode):
         state["danger_threshold"] = self._danger_threshold
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._label = state.get("label", "Value")
         self._unit = state.get("unit", "")
@@ -181,7 +181,7 @@ class ChartNode(InterfaceNode):
         self._data = deque(list(self._data), maxlen=value)
 
     @property
-    def data(self) -> List[float]:
+    def data(self) -> list[float]:
         return list(self._data)
 
     def clear_data(self) -> None:
@@ -199,7 +199,7 @@ class ChartNode(InterfaceNode):
             "y_max": self._y_max,
         })
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["label"] = self._label
         state["max_points"] = self._max_points
@@ -207,7 +207,7 @@ class ChartNode(InterfaceNode):
         state["y_max"] = self._y_max
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._label = state.get("label", "Chart")
         self._max_points = state.get("max_points", 100)
@@ -269,14 +269,14 @@ class LEDIndicatorNode(InterfaceNode):
             "label": self._label,
         })
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         state = super().get_state()
         state["label"] = self._label
         state["on_color"] = self._on_color
         state["off_color"] = self._off_color
         return state
 
-    def set_state(self, state: Dict[str, Any]) -> None:
+    def set_state(self, state: dict[str, Any]) -> None:
         super().set_state(state)
         self._label = state.get("label", "LED")
         self._on_color = state.get("on_color", "#00ff00")

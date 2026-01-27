@@ -8,7 +8,7 @@ import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from glider.agent.actions import ActionBatch, AgentAction
 from glider.agent.config import AgentConfig
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 class AgentResponse:
     """A response from the agent."""
     content: str = ""
-    actions: List[AgentAction] = field(default_factory=list)
+    actions: list[AgentAction] = field(default_factory=list)
     is_complete: bool = False
     error: Optional[str] = None
 
@@ -36,7 +36,7 @@ class AgentResponse:
         return len(self.actions) > 0
 
     @property
-    def pending_actions(self) -> List[AgentAction]:
+    def pending_actions(self) -> list[AgentAction]:
         """Get actions requiring confirmation."""
         return [a for a in self.actions if a.requires_confirmation and a.is_pending]
 
@@ -64,14 +64,14 @@ class AgentController:
         self._config = config or AgentConfig.load()
         self._llm = LLMBackend(self._config)
         self._toolkit = AgentToolkit(core)
-        self._conversation: List[Message] = []
+        self._conversation: list[Message] = []
         self._pending_batch: Optional[ActionBatch] = None
         self._is_processing = False
-        self._recent_errors: List[str] = []
+        self._recent_errors: list[str] = []
 
         # Callbacks
-        self._on_response_callbacks: List[Callable[[AgentResponse], None]] = []
-        self._on_action_callbacks: List[Callable[[AgentAction], None]] = []
+        self._on_response_callbacks: list[Callable[[AgentResponse], None]] = []
+        self._on_action_callbacks: list[Callable[[AgentAction], None]] = []
 
     @property
     def config(self) -> AgentConfig:
@@ -95,7 +95,7 @@ class AgentController:
         return self._pending_batch
 
     @property
-    def conversation(self) -> List[Message]:
+    def conversation(self) -> list[Message]:
         """Get conversation history."""
         return self._conversation.copy()
 
@@ -111,7 +111,7 @@ class AgentController:
         """Check if LLM backend is reachable."""
         return await self._llm.check_connection()
 
-    async def list_models(self) -> List[str]:
+    async def list_models(self) -> list[str]:
         """List available models."""
         return await self._llm.list_models()
 
@@ -176,10 +176,10 @@ class AgentController:
     def _sanitize_input(self, text: str) -> str:
         """
         Sanitize user input to mitigate prompt injection.
-        
+
         Args:
             text: Raw user input
-            
+
         Returns:
             Sanitized input
         """
@@ -195,10 +195,10 @@ class AgentController:
         sanitized = "".join(char for char in text if char.isprintable() or char in "\n\r\t")
 
         # Limit length (e.g., 4000 characters)
-        MAX_INPUT_LENGTH = 4000
-        if len(sanitized) > MAX_INPUT_LENGTH:
-            logger.warning(f"Input truncated from {len(sanitized)} to {MAX_INPUT_LENGTH} chars")
-            sanitized = sanitized[:MAX_INPUT_LENGTH]
+        max_input_length = 4000
+        if len(sanitized) > max_input_length:
+            logger.warning(f"Input truncated from {len(sanitized)} to {max_input_length} chars")
+            sanitized = sanitized[:max_input_length]
 
         return sanitized.strip()
 
@@ -243,7 +243,7 @@ class AgentController:
 
             # Stream response from LLM
             accumulated_content = ""
-            tool_calls: List[ToolCall] = []
+            tool_calls: list[ToolCall] = []
 
             async for chunk in await self._llm.chat(messages, tools, stream=True):
                 if isinstance(chunk, ChatChunk):
@@ -318,7 +318,7 @@ class AgentController:
         finally:
             self._is_processing = False
 
-    def _parse_tool_calls(self, raw_calls: List[Dict[str, Any]]) -> List[ToolCall]:
+    def _parse_tool_calls(self, raw_calls: list[dict[str, Any]]) -> list[ToolCall]:
         """Parse raw tool calls from LLM response."""
         calls = []
 
@@ -343,7 +343,7 @@ class AgentController:
 
         return calls
 
-    async def confirm_actions(self, action_ids: Optional[List[str]] = None) -> AgentResponse:
+    async def confirm_actions(self, action_ids: Optional[list[str]] = None) -> AgentResponse:
         """
         Confirm and execute pending actions.
 
@@ -377,7 +377,7 @@ class AgentController:
             is_complete=True
         )
 
-    async def reject_actions(self, action_ids: Optional[List[str]] = None) -> AgentResponse:
+    async def reject_actions(self, action_ids: Optional[list[str]] = None) -> AgentResponse:
         """
         Reject pending actions.
 

@@ -630,7 +630,9 @@ class GliderCore:
         # (separate from video recording so tracking works even if video recording is disabled)
         if self._cv_processing_enabled and self._camera_manager.is_connected:
             try:
-                tracking_path = await self._tracking_logger.start(experiment_name)
+                tracking_path = await self._tracking_logger.start(
+                    experiment_name, session=self._session
+                )
                 logger.info(f"Tracking data to: {tracking_path}")
             except Exception as e:
                 logger.error(f"Failed to start tracking logger: {e}")

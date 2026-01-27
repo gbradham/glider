@@ -32,6 +32,68 @@ class SessionState(Enum):
 
 
 @dataclass
+class Subject:
+    """Subject/animal information for the experiment."""
+
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    subject_id: str = ""  # User-defined ID (e.g., "M001")
+    name: str = ""
+    group: str = ""  # Treatment group (e.g., "Control", "Drug A")
+
+    # Biological fields
+    age: str = ""
+    sex: str = ""  # "Male", "Female", "Unknown"
+    weight: str = ""  # With units (e.g., "25.5 g")
+    strain: str = ""  # Strain/genotype
+
+    # Solution/Drug fields
+    solution: str = ""  # Solution name
+    concentration: str = ""  # e.g., "10 mg/mL"
+    dose: str = ""  # e.g., "5 mg/kg"
+    route: str = ""  # e.g., "IP", "IV", "PO", "SC"
+
+    notes: str = ""
+    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "subject_id": self.subject_id,
+            "name": self.name,
+            "group": self.group,
+            "age": self.age,
+            "sex": self.sex,
+            "weight": self.weight,
+            "strain": self.strain,
+            "solution": self.solution,
+            "concentration": self.concentration,
+            "dose": self.dose,
+            "route": self.route,
+            "notes": self.notes,
+            "created_at": self.created_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Subject":
+        return cls(
+            id=data.get("id", str(uuid.uuid4())),
+            subject_id=data.get("subject_id", ""),
+            name=data.get("name", ""),
+            group=data.get("group", ""),
+            age=data.get("age", ""),
+            sex=data.get("sex", ""),
+            weight=data.get("weight", ""),
+            strain=data.get("strain", ""),
+            solution=data.get("solution", ""),
+            concentration=data.get("concentration", ""),
+            dose=data.get("dose", ""),
+            route=data.get("route", ""),
+            notes=data.get("notes", ""),
+            created_at=data.get("created_at", datetime.now().isoformat()),
+        )
+
+
+@dataclass
 class SessionMetadata:
     """Metadata about the experiment session."""
 
@@ -44,6 +106,18 @@ class SessionMetadata:
     modified_at: str = field(default_factory=lambda: datetime.now().isoformat())
     glider_version: str = "1.0.0"
 
+    # Experiment fields
+    protocol: str = ""
+    experiment_type: str = ""  # e.g., "Open Field", "Morris Water Maze"
+    experimenter: str = ""
+    lab: str = ""
+    project: str = ""
+    notes: str = ""
+
+    # Subject management
+    subjects: list[Subject] = field(default_factory=list)
+    active_subject_id: Optional[str] = None
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
@@ -54,10 +128,21 @@ class SessionMetadata:
             "created_at": self.created_at,
             "modified_at": self.modified_at,
             "glider_version": self.glider_version,
+            "protocol": self.protocol,
+            "experiment_type": self.experiment_type,
+            "experimenter": self.experimenter,
+            "lab": self.lab,
+            "project": self.project,
+            "notes": self.notes,
+            "subjects": [s.to_dict() for s in self.subjects],
+            "active_subject_id": self.active_subject_id,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "SessionMetadata":
+        subjects_data = data.get("subjects", [])
+        subjects = [Subject.from_dict(s) for s in subjects_data]
+
         return cls(
             id=data.get("id", str(uuid.uuid4())),
             name=data.get("name", "Untitled Experiment"),
@@ -67,7 +152,57 @@ class SessionMetadata:
             created_at=data.get("created_at", datetime.now().isoformat()),
             modified_at=data.get("modified_at", datetime.now().isoformat()),
             glider_version=data.get("glider_version", "1.0.0"),
+            protocol=data.get("protocol", ""),
+            experiment_type=data.get("experiment_type", ""),
+            experimenter=data.get("experimenter", ""),
+            lab=data.get("lab", ""),
+            project=data.get("project", ""),
+            notes=data.get("notes", ""),
+            subjects=subjects,
+            active_subject_id=data.get("active_subject_id"),
         )
+
+    def get_active_subject(self) -> Optional[Subject]:
+        """Get the currently active subject."""
+        if not self.active_subject_id:
+            return None
+        for subject in self.subjects:
+            if subject.id == self.active_subject_id:
+                return subject
+        return None
+
+    def add_subject(self, subject: Subject) -> None:
+        """Add a subject to the experiment."""
+        self.subjects.append(subject)
+        # If this is the first subject, make it active
+        if len(self.subjects) == 1:
+            self.active_subject_id = subject.id
+
+    def remove_subject(self, subject_id: str) -> bool:
+        """Remove a subject by ID. Returns True if removed."""
+        for i, subject in enumerate(self.subjects):
+            if subject.id == subject_id:
+                self.subjects.pop(i)
+                # Clear active if we removed the active subject
+                if self.active_subject_id == subject_id:
+                    self.active_subject_id = self.subjects[0].id if self.subjects else None
+                return True
+        return False
+
+    def get_subject(self, subject_id: str) -> Optional[Subject]:
+        """Get a subject by ID."""
+        for subject in self.subjects:
+            if subject.id == subject_id:
+                return subject
+        return None
+
+    def set_active_subject(self, subject_id: str) -> bool:
+        """Set the active subject. Returns True if successful."""
+        for subject in self.subjects:
+            if subject.id == subject_id:
+                self.active_subject_id = subject_id
+                return True
+        return False
 
 
 @dataclass

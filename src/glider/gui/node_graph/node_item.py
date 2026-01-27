@@ -33,6 +33,7 @@ def _get_system_font() -> str:
 
 class NodeSignals(QObject):
     """Signals for NodeItem (QGraphicsItem can't have signals directly)."""
+
     position_changed = pyqtSignal(str, float, float)
     selected_changed = pyqtSignal(str, bool)
 
@@ -51,11 +52,11 @@ class NodeItem(QGraphicsRectItem):
 
     # Category colors
     CATEGORY_COLORS = {
-        "hardware": QColor(45, 90, 45),      # Green
-        "logic": QColor(45, 74, 90),         # Blue
-        "interface": QColor(90, 74, 45),     # Orange
-        "script": QColor(74, 45, 90),        # Purple
-        "default": QColor(68, 68, 68),       # Gray
+        "hardware": QColor(45, 90, 45),  # Green
+        "logic": QColor(45, 74, 90),  # Blue
+        "interface": QColor(90, 74, 45),  # Orange
+        "script": QColor(74, 45, 90),  # Purple
+        "default": QColor(68, 68, 68),  # Gray
     }
 
     # Node dimensions
@@ -233,8 +234,9 @@ class NodeItem(QGraphicsRectItem):
         painter.setBrush(QBrush(gradient))
         painter.drawRoundedRect(header_rect, self.CORNER_RADIUS, self.CORNER_RADIUS)
         # Fill bottom corners
-        painter.drawRect(QRectF(0, self.HEADER_HEIGHT - self.CORNER_RADIUS,
-                                rect.width(), self.CORNER_RADIUS))
+        painter.drawRect(
+            QRectF(0, self.HEADER_HEIGHT - self.CORNER_RADIUS, rect.width(), self.CORNER_RADIUS)
+        )
 
         # Border
         if self.isSelected():
@@ -258,7 +260,9 @@ class NodeItem(QGraphicsRectItem):
         y = self.HEADER_HEIGHT + self.PORT_SPACING + 4
         for port in self._output_ports:
             text_width = painter.fontMetrics().horizontalAdvance(port.name)
-            painter.drawText(QPointF(rect.width() - text_width - 15, y + self.PORT_HEIGHT / 2), port.name)
+            painter.drawText(
+                QPointF(rect.width() - text_width - 15, y + self.PORT_HEIGHT / 2), port.name
+            )
             y += self.PORT_HEIGHT + self.PORT_SPACING
 
     def itemChange(self, change, value):

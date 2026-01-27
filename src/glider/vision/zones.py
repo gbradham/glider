@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class ZoneShape(Enum):
     """Supported zone shapes."""
+
     RECTANGLE = "rectangle"
     CIRCLE = "circle"
     POLYGON = "polygon"
@@ -36,6 +37,7 @@ class Zone:
     Zones are defined using normalized coordinates (0-1) for resolution
     independence.
     """
+
     id: str
     name: str
     shape: ZoneShape
@@ -86,8 +88,9 @@ class Zone:
             # Use cv2.pointPolygonTest with pixel coordinates
             # Scale to a reasonable size for the test
             scale = 10000
-            pts = np.array([(int(v[0] * scale), int(v[1] * scale))
-                           for v in self.vertices], dtype=np.int32)
+            pts = np.array(
+                [(int(v[0] * scale), int(v[1] * scale)) for v in self.vertices], dtype=np.int32
+            )
             test_pt = (int(x * scale), int(y * scale))
             result = cv2.pointPolygonTest(pts, test_pt, measureDist=False)
             return result >= 0
@@ -191,6 +194,7 @@ class Zone:
 @dataclass
 class ZoneState:
     """Current state of a zone during tracking."""
+
     zone_id: str
     zone_name: str
     occupied: bool = False
@@ -199,7 +203,7 @@ class ZoneState:
 
     # Event flags (reset each frame)
     entered: bool = False  # Object entered this frame
-    exited: bool = False   # Object exited this frame
+    exited: bool = False  # Object exited this frame
 
 
 @dataclass
@@ -209,6 +213,7 @@ class ZoneConfiguration:
 
     Stores zones and the resolution they were configured at.
     """
+
     zones: list[Zone] = field(default_factory=list)
     config_width: int = 0
     config_height: int = 0
@@ -261,8 +266,7 @@ class ZoneConfiguration:
         """
         return [zone.id for zone in self.zones if zone.contains_point(x, y)]
 
-    def point_in_zones_pixels(self, px: int, py: int,
-                               width: int, height: int) -> list[str]:
+    def point_in_zones_pixels(self, px: int, py: int, width: int, height: int) -> list[str]:
         """
         Get list of zone IDs containing a pixel point.
 
@@ -313,7 +317,7 @@ class ZoneConfiguration:
 
     def save(self, path: Path) -> None:
         """Save configuration to JSON file."""
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(self.to_dict(), f, indent=2)
         logger.info(f"Saved zone configuration to {path}")
 
@@ -356,14 +360,12 @@ class ZoneTracker:
 
         # Initialize state for each zone
         for zone in config.zones:
-            self._zone_states[zone.id] = ZoneState(
-                zone_id=zone.id,
-                zone_name=zone.name
-            )
+            self._zone_states[zone.id] = ZoneState(zone_id=zone.id, zone_name=zone.name)
             self._prev_zone_objects[zone.id] = set()
 
-    def update(self, tracked_objects: list[Any],
-               frame_width: int, frame_height: int) -> dict[str, ZoneState]:
+    def update(
+        self, tracked_objects: list[Any], frame_width: int, frame_height: int
+    ) -> dict[str, ZoneState]:
         """
         Update zone states based on tracked objects.
 
@@ -386,16 +388,16 @@ class ZoneTracker:
         # Check each tracked object against each zone
         for obj in tracked_objects:
             # Get object center
-            if hasattr(obj, 'centroid'):
+            if hasattr(obj, "centroid"):
                 cx, cy = obj.centroid
-            elif hasattr(obj, 'bbox'):
+            elif hasattr(obj, "bbox"):
                 x, y, w, h = obj.bbox
                 cx = x + w / 2
                 cy = y + h / 2
             else:
                 continue
 
-            track_id = getattr(obj, 'track_id', id(obj))
+            track_id = getattr(obj, "track_id", id(obj))
 
             # Check against each zone
             for zone in self._zone_config.zones:
@@ -447,13 +449,12 @@ class ZoneTracker:
             state.object_ids.clear()
             state.entered = False
             state.exited = False
-        self._prev_zone_objects = {
-            zone_id: set() for zone_id in self._prev_zone_objects
-        }
+        self._prev_zone_objects = {zone_id: set() for zone_id in self._prev_zone_objects}
 
 
-def draw_zones(frame: np.ndarray, zone_config: ZoneConfiguration,
-               alpha: float = 0.3, show_labels: bool = True) -> np.ndarray:
+def draw_zones(
+    frame: np.ndarray, zone_config: ZoneConfiguration, alpha: float = 0.3, show_labels: bool = True
+) -> np.ndarray:
     """
     Draw zones on a frame with semi-transparent fill.
 
@@ -514,20 +515,17 @@ def draw_zones(frame: np.ndarray, zone_config: ZoneConfiguration,
 
             # Draw label background
             label = zone.name
-            (label_w, label_h), baseline = cv2.getTextSize(
-                label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2
-            )
+            (label_w, label_h), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
             cv2.rectangle(
                 output,
                 (label_x - 2, label_y - label_h - 4),
                 (label_x + label_w + 2, label_y + baseline),
-                color, -1
+                color,
+                -1,
             )
             # Draw label text
             cv2.putText(
-                output, label,
-                (label_x, label_y),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2
+                output, label, (label_x, label_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2
             )
 
     # Blend overlay with output for semi-transparent fill

@@ -10,14 +10,17 @@ def test_flow_engine_init():
     assert not engine.is_running
     assert len(engine.nodes) == 0
 
+
 def test_node_registration():
     """Test that nodes can be registered."""
+
     class MockNode:
         pass
 
     FlowEngine.register_node("MockNode", MockNode)
     assert "MockNode" in FlowEngine.get_available_nodes()
     assert FlowEngine.get_node_class("MockNode") == MockNode
+
 
 @pytest.mark.asyncio
 async def test_flow_engine_start_stop():

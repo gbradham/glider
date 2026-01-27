@@ -51,7 +51,7 @@ class CameraSettingsDialog(QDialog):
         camera_settings: Optional[CameraSettings] = None,
         cv_settings: Optional[CVSettings] = None,
         parent=None,
-        view_manager: Optional["ViewManager"] = None
+        view_manager: Optional["ViewManager"] = None,
     ):
         super().__init__(parent)
         self._camera_settings = camera_settings or CameraSettings()
@@ -114,9 +114,9 @@ class CameraSettingsDialog(QDialog):
 
         # Dialog buttons - larger for touch
         button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok |
-            QDialogButtonBox.StandardButton.Cancel |
-            QDialogButtonBox.StandardButton.Apply
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+            | QDialogButtonBox.StandardButton.Apply
         )
 
         if self._is_touch_mode:
@@ -169,7 +169,9 @@ class CameraSettingsDialog(QDialog):
                 }
             """)
             # Enable kinetic scrolling
-            QScroller.grabGesture(scroll.viewport(), QScroller.ScrollerGestureType.LeftMouseButtonGesture)
+            QScroller.grabGesture(
+                scroll.viewport(), QScroller.ScrollerGestureType.LeftMouseButtonGesture
+            )
 
         return scroll
 
@@ -296,9 +298,7 @@ class CameraSettingsDialog(QDialog):
 
         self._exposure_label = QLabel("-5")
         self._exposure_label.setMinimumWidth(40 if self._is_touch_mode else 30)
-        self._exposure_slider.valueChanged.connect(
-            lambda v: self._exposure_label.setText(str(v))
-        )
+        self._exposure_slider.valueChanged.connect(lambda v: self._exposure_label.setText(str(v)))
         exposure_layout.addWidget(self._exposure_label)
 
         image_layout.addRow("Exposure:", exposure_layout)
@@ -334,9 +334,7 @@ class CameraSettingsDialog(QDialog):
 
         self._contrast_label = QLabel("128")
         self._contrast_label.setMinimumWidth(40 if self._is_touch_mode else 30)
-        self._contrast_slider.valueChanged.connect(
-            lambda v: self._contrast_label.setText(str(v))
-        )
+        self._contrast_slider.valueChanged.connect(lambda v: self._contrast_label.setText(str(v)))
         contrast_layout.addWidget(self._contrast_label)
 
         image_layout.addRow("Contrast:", contrast_layout)
@@ -442,9 +440,7 @@ class CameraSettingsDialog(QDialog):
         ewl_layout.addWidget(self._ewl_focus_slider)
         self._ewl_focus_label = QLabel("128")
         self._ewl_focus_label.setMinimumWidth(45 if self._is_touch_mode else 35)
-        self._ewl_focus_slider.valueChanged.connect(
-            lambda v: self._ewl_focus_label.setText(str(v))
-        )
+        self._ewl_focus_slider.valueChanged.connect(lambda v: self._ewl_focus_label.setText(str(v)))
         ewl_layout.addWidget(self._ewl_focus_label)
         miniscope_layout.addRow("EWL Focus:", ewl_layout)
 
@@ -851,10 +847,7 @@ class CameraSettingsDialog(QDialog):
     def _browse_model(self):
         """Browse for YOLO model file."""
         path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select YOLO Model",
-            "",
-            "PyTorch Models (*.pt);;All Files (*)"
+            self, "Select YOLO Model", "", "PyTorch Models (*.pt);;All Files (*)"
         )
         if path:
             self._model_path_edit.setText(path)

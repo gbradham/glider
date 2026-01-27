@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Message:
     """A chat message."""
+
     role: str  # "system", "user", "assistant", "tool"
     content: str
     tool_calls: Optional[list[dict[str, Any]]] = None
@@ -41,6 +42,7 @@ class Message:
 @dataclass
 class ToolDefinition:
     """Definition of a tool the LLM can call."""
+
     name: str
     description: str
     parameters: dict[str, Any]  # JSON Schema
@@ -53,7 +55,7 @@ class ToolDefinition:
                 "name": self.name,
                 "description": self.description,
                 "parameters": self.parameters,
-            }
+            },
         }
 
     def to_openai_format(self) -> dict[str, Any]:
@@ -64,13 +66,14 @@ class ToolDefinition:
                 "name": self.name,
                 "description": self.description,
                 "parameters": self.parameters,
-            }
+            },
         }
 
 
 @dataclass
 class ToolCall:
     """A tool call from the LLM."""
+
     id: str
     name: str
     arguments: dict[str, Any]
@@ -79,6 +82,7 @@ class ToolCall:
 @dataclass
 class ChatResponse:
     """Response from the LLM."""
+
     content: str
     tool_calls: list[ToolCall]
     finish_reason: str  # "stop", "tool_calls", "length"
@@ -88,6 +92,7 @@ class ChatResponse:
 @dataclass
 class ChatChunk:
     """A streaming chunk from the LLM."""
+
     content: str = ""
     tool_calls: Optional[list[dict[str, Any]]] = None
     is_final: bool = False
@@ -172,7 +177,7 @@ class LLMBackend:
             "options": {
                 "temperature": self._config.temperature,
                 "num_predict": self._config.max_tokens,
-            }
+            },
         }
 
         if tools:
@@ -206,7 +211,7 @@ class LLMBackend:
             "options": {
                 "temperature": self._config.temperature,
                 "num_predict": self._config.max_tokens,
-            }
+            },
         }
 
         if tools:
@@ -269,11 +274,13 @@ class LLMBackend:
         tool_calls = []
         for i, tc in enumerate(tool_calls_data):
             func = tc.get("function", {})
-            tool_calls.append(ToolCall(
-                id=f"call_{i}",
-                name=func.get("name", ""),
-                arguments=func.get("arguments", {}),
-            ))
+            tool_calls.append(
+                ToolCall(
+                    id=f"call_{i}",
+                    name=func.get("name", ""),
+                    arguments=func.get("arguments", {}),
+                )
+            )
 
         finish_reason = "tool_calls" if tool_calls else "stop"
 
@@ -284,7 +291,7 @@ class LLMBackend:
             usage={
                 "prompt_tokens": data.get("prompt_eval_count", 0),
                 "completion_tokens": data.get("eval_count", 0),
-            }
+            },
         )
 
     # =========================================================================
@@ -405,11 +412,13 @@ class LLMBackend:
                 except json.JSONDecodeError:
                     args = {}
 
-            tool_calls.append(ToolCall(
-                id=tc.get("id", ""),
-                name=func.get("name", ""),
-                arguments=args,
-            ))
+            tool_calls.append(
+                ToolCall(
+                    id=tc.get("id", ""),
+                    name=func.get("name", ""),
+                    arguments=args,
+                )
+            )
 
         usage = data.get("usage", {})
 
@@ -420,7 +429,7 @@ class LLMBackend:
             usage={
                 "prompt_tokens": usage.get("prompt_tokens", 0),
                 "completion_tokens": usage.get("completion_tokens", 0),
-            }
+            },
         )
 
     # =========================================================================
@@ -437,10 +446,7 @@ class LLMBackend:
             elif self._config.provider == LLMProvider.OPENAI:
                 client = await self._get_client()
                 headers = {"Authorization": f"Bearer {self._config.get_api_key()}"}
-                response = await client.get(
-                    "https://api.openai.com/v1/models",
-                    headers=headers
-                )
+                response = await client.get("https://api.openai.com/v1/models", headers=headers)
                 return response.status_code == 200
             return False
         except Exception as e:

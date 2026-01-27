@@ -21,18 +21,20 @@ logger = logging.getLogger(__name__)
 
 class SessionState(Enum):
     """Current state of the experiment session."""
-    IDLE = auto()          # Not running
+
+    IDLE = auto()  # Not running
     INITIALIZING = auto()  # Connecting to hardware
-    READY = auto()         # Hardware connected, ready to run
-    RUNNING = auto()       # Experiment in progress
-    PAUSED = auto()        # Experiment paused
-    STOPPING = auto()      # Shutting down
-    ERROR = auto()         # Error state
+    READY = auto()  # Hardware connected, ready to run
+    RUNNING = auto()  # Experiment in progress
+    PAUSED = auto()  # Experiment paused
+    STOPPING = auto()  # Shutting down
+    ERROR = auto()  # Error state
 
 
 @dataclass
 class SessionMetadata:
     """Metadata about the experiment session."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: str = "Untitled Experiment"
     description: str = ""
@@ -71,6 +73,7 @@ class SessionMetadata:
 @dataclass
 class BoardConfig:
     """Configuration for a hardware board."""
+
     id: str
     driver_type: str  # e.g., "arduino", "raspberry_pi"
     port: Optional[str] = None
@@ -103,6 +106,7 @@ class BoardConfig:
 @dataclass
 class DeviceConfig:
     """Configuration for a hardware device."""
+
     id: str
     device_type: str  # e.g., "DigitalOutput", "DHT22"
     name: str
@@ -135,6 +139,7 @@ class DeviceConfig:
 @dataclass
 class CameraConfig:
     """Configuration for camera and computer vision settings."""
+
     camera_index: int = 0
     resolution: tuple = (640, 480)
     fps: int = 30
@@ -185,6 +190,7 @@ class CameraConfig:
 @dataclass
 class HardwareConfig:
     """Complete hardware configuration."""
+
     boards: list[BoardConfig] = field(default_factory=list)
     devices: list[DeviceConfig] = field(default_factory=list)
 
@@ -205,6 +211,7 @@ class HardwareConfig:
 @dataclass
 class NodeConfig:
     """Configuration for a flow node."""
+
     id: str
     node_type: str
     position: tuple = (0, 0)
@@ -237,6 +244,7 @@ class NodeConfig:
 @dataclass
 class ConnectionConfig:
     """Configuration for a connection between nodes."""
+
     id: str
     from_node: str
     from_output: int
@@ -269,6 +277,7 @@ class ConnectionConfig:
 @dataclass
 class FlowConfig:
     """Configuration for the experiment flow graph."""
+
     nodes: list[NodeConfig] = field(default_factory=list)
     connections: list[ConnectionConfig] = field(default_factory=list)
 
@@ -289,6 +298,7 @@ class FlowConfig:
 @dataclass
 class DashboardConfig:
     """Configuration for the runner dashboard layout."""
+
     widgets: list[dict[str, Any]] = field(default_factory=list)
     layout: str = "vertical"  # "vertical", "horizontal", "grid"
     columns: int = 1  # For grid layout
@@ -312,6 +322,7 @@ class DashboardConfig:
 @dataclass
 class ZoneConfig:
     """Configuration for zones within the camera view."""
+
     zones: list[dict[str, Any]] = field(default_factory=list)  # Serialized Zone objects
     config_width: int = 0
     config_height: int = 0
@@ -479,8 +490,13 @@ class ExperimentSession:
                 return board
         return None
 
-    def update_board(self, board_id: str, port: Optional[str] = None,
-                     board_type: Optional[str] = None, settings: Optional[dict[str, Any]] = None) -> bool:
+    def update_board(
+        self,
+        board_id: str,
+        port: Optional[str] = None,
+        board_type: Optional[str] = None,
+        settings: Optional[dict[str, Any]] = None,
+    ) -> bool:
         """Update a board's configuration."""
         board = self.get_board(board_id)
         if board is None:
@@ -514,9 +530,13 @@ class ExperimentSession:
                 return device
         return None
 
-    def update_device(self, device_id: str, name: Optional[str] = None,
-                      pins: Optional[dict[str, int]] = None,
-                      settings: Optional[dict[str, Any]] = None) -> bool:
+    def update_device(
+        self,
+        device_id: str,
+        name: Optional[str] = None,
+        pins: Optional[dict[str, int]] = None,
+        settings: Optional[dict[str, Any]] = None,
+    ) -> bool:
         """Update a device's configuration."""
         device = self.get_device(device_id)
         if device is None:
@@ -540,8 +560,7 @@ class ExperimentSession:
         """Remove a node and its connections."""
         self._flow.nodes = [n for n in self._flow.nodes if n.id != node_id]
         self._flow.connections = [
-            c for c in self._flow.connections
-            if c.from_node != node_id and c.to_node != node_id
+            c for c in self._flow.connections if c.from_node != node_id and c.to_node != node_id
         ]
         self._mark_dirty()
 
@@ -678,7 +697,7 @@ class ExperimentSession:
                 raise ValueError("No file path specified")
             file_path = self._file_path
 
-        with open(file_path, 'w') as f:
+        with open(file_path, "w") as f:
             f.write(self.to_json())
 
         self._file_path = file_path

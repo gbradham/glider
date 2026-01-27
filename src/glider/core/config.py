@@ -100,8 +100,12 @@ class PathConfig:
 
     # Library paths
     library_dir: Path = field(default_factory=lambda: Path.home() / ".glider" / "library")
-    devices_dir: Path = field(default_factory=lambda: Path.home() / ".glider" / "library" / "devices")
-    functions_dir: Path = field(default_factory=lambda: Path.home() / ".glider" / "library" / "functions")
+    devices_dir: Path = field(
+        default_factory=lambda: Path.home() / ".glider" / "library" / "devices"
+    )
+    functions_dir: Path = field(
+        default_factory=lambda: Path.home() / ".glider" / "library" / "functions"
+    )
 
     # File extensions
     experiment_extension: str = ".glider"

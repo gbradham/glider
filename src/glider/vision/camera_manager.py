@@ -11,7 +11,7 @@ Includes FFmpeg fallback for cameras that OpenCV cannot handle
 import os
 
 # Suppress OpenCV warnings before importing cv2
-os.environ['OPENCV_LOG_LEVEL'] = 'ERROR'
+os.environ["OPENCV_LOG_LEVEL"] = "ERROR"
 
 import logging
 import shutil
@@ -71,15 +71,22 @@ class FFmpegCapture:
             # FFmpeg command to capture from DirectShow and output raw BGR frames
             cmd = [
                 ffmpeg_path,
-                "-f", "dshow",
-                "-video_size", f"{self._width}x{self._height}",
-                "-framerate", str(self._fps),
-                "-pixel_format", "gray",  # Request grayscale input (Y800)
-                "-i", f"video={self._device_name}",
-                "-f", "rawvideo",
-                "-pix_fmt", "bgr24",  # Output as BGR for OpenCV
+                "-f",
+                "dshow",
+                "-video_size",
+                f"{self._width}x{self._height}",
+                "-framerate",
+                str(self._fps),
+                "-pixel_format",
+                "gray",  # Request grayscale input (Y800)
+                "-i",
+                f"video={self._device_name}",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "bgr24",  # Output as BGR for OpenCV
                 "-an",  # No audio
-                "-"  # Output to stdout
+                "-",  # Output to stdout
             ]
 
             logger.info(f"Starting FFmpeg capture: {' '.join(cmd)}")
@@ -90,7 +97,7 @@ class FFmpegCapture:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 bufsize=self._frame_size * 4,  # Buffer a few frames
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
             )
 
             # Give FFmpeg time to start
@@ -145,7 +152,7 @@ class FFmpegCapture:
 
     def retrieve(self) -> tuple[bool, Optional[np.ndarray]]:
         """Retrieve the last grabbed frame."""
-        if hasattr(self, '_last_frame') and self._last_frame is not None:
+        if hasattr(self, "_last_frame") and self._last_frame is not None:
             return True, self._last_frame
         return False, None
 
@@ -205,8 +212,8 @@ def _get_windows_fallback_backends() -> list[int]:
     """Get list of backends to try on Windows in order of preference."""
     return [
         cv2.CAP_DSHOW,  # DirectShow - most compatible with USB cameras
-        cv2.CAP_FFMPEG, # FFmpeg - better format support including Y800
-        cv2.CAP_ANY,    # Auto-detect - fallback
+        cv2.CAP_FFMPEG,  # FFmpeg - better format support including Y800
+        cv2.CAP_ANY,  # Auto-detect - fallback
     ]
 
 
@@ -216,7 +223,7 @@ PIXEL_FORMATS_TO_TRY = [
     "Y800",  # 8-bit grayscale - ANYMAZE and scientific cameras
     "GREY",  # 8-bit grayscale (alternate name)
     "Y8  ",  # 8-bit grayscale (with padding)
-    None,    # Let camera choose default
+    None,  # Let camera choose default
     "MJPG",  # Motion JPEG - widely supported
     "YUY2",  # YUV 4:2:2 - common USB camera format
     "YUYV",  # Same as YUY2, different name
@@ -229,9 +236,9 @@ PIXEL_FORMATS_TO_TRY = [
 def _is_raspberry_pi() -> bool:
     """Check if running on a Raspberry Pi."""
     try:
-        with open('/proc/device-tree/model') as f:
+        with open("/proc/device-tree/model") as f:
             model = f.read().lower()
-            return 'raspberry pi' in model
+            return "raspberry pi" in model
     except (FileNotFoundError, PermissionError):
         return False
 
@@ -255,20 +262,22 @@ def _get_windows_camera_names() -> list[str]:
         # Try ffmpeg device listing (most reliable for DirectShow order)
         try:
             result = subprocess.run(
-                ['ffmpeg', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'],
+                ["ffmpeg", "-list_devices", "true", "-f", "dshow", "-i", "dummy"],
                 capture_output=True,
                 text=True,
                 timeout=5,
-                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+                creationflags=(
+                    subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+                ),
             )
             # Parse output - device names appear after "DirectShow video devices"
             output = result.stderr  # ffmpeg outputs to stderr
             in_video_section = False
-            for line in output.split('\n'):
-                if 'DirectShow video devices' in line:
+            for line in output.split("\n"):
+                if "DirectShow video devices" in line:
                     in_video_section = True
                     continue
-                if 'DirectShow audio devices' in line:
+                if "DirectShow audio devices" in line:
                     break
                 if in_video_section and ']  "' in line:
                     # Extract name between quotes
@@ -281,22 +290,24 @@ def _get_windows_camera_names() -> list[str]:
 
         # Fallback: Use PowerShell WMI query
         if not camera_names:
-            ps_command = '''
+            ps_command = """
             Get-CimInstance Win32_PnPEntity |
             Where-Object { $_.PNPClass -eq 'Camera' -or $_.PNPClass -eq 'Image' } |
             Select-Object -ExpandProperty Name
-            '''
+            """
 
             result = subprocess.run(
-                ['powershell', '-Command', ps_command],
+                ["powershell", "-Command", ps_command],
                 capture_output=True,
                 text=True,
                 timeout=5,
-                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+                creationflags=(
+                    subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+                ),
             )
 
             if result.returncode == 0 and result.stdout.strip():
-                camera_names = [n.strip() for n in result.stdout.strip().split('\n') if n.strip()]
+                camera_names = [n.strip() for n in result.stdout.strip().split("\n") if n.strip()]
 
     except Exception as e:
         logger.debug(f"Failed to get camera names: {e}")
@@ -319,28 +330,32 @@ def _wake_up_miniscope(device_index: int) -> bool:
     """
     import subprocess
 
-    device_path = f'/dev/video{device_index}'
+    device_path = f"/dev/video{device_index}"
 
     try:
         # Set exposure time
         subprocess.run(
-            ['v4l2-ctl', '-d', device_path, '--set-ctrl=exposure_time_absolute=100'],
-            capture_output=True, timeout=2
+            ["v4l2-ctl", "-d", device_path, "--set-ctrl=exposure_time_absolute=100"],
+            capture_output=True,
+            timeout=2,
         )
         # Reset saturation to kick the LED
         subprocess.run(
-            ['v4l2-ctl', '-d', device_path, '--set-ctrl=saturation=0'],
-            capture_output=True, timeout=2
+            ["v4l2-ctl", "-d", device_path, "--set-ctrl=saturation=0"],
+            capture_output=True,
+            timeout=2,
         )
         time.sleep(0.1)
         subprocess.run(
-            ['v4l2-ctl', '-d', device_path, '--set-ctrl=saturation=128'],
-            capture_output=True, timeout=2
+            ["v4l2-ctl", "-d", device_path, "--set-ctrl=saturation=128"],
+            capture_output=True,
+            timeout=2,
         )
         # Set brightness
         subprocess.run(
-            ['v4l2-ctl', '-d', device_path, '--set-ctrl=brightness=50'],
-            capture_output=True, timeout=2
+            ["v4l2-ctl", "-d", device_path, "--set-ctrl=brightness=50"],
+            capture_output=True,
+            timeout=2,
         )
         logger.info(f"Miniscope wake-up sequence completed for {device_path}")
         return True
@@ -368,28 +383,30 @@ def _apply_miniscope_controls(device_index: int, settings: "CameraSettings") -> 
     """
     import subprocess
 
-    device_path = f'/dev/video{device_index}'
+    device_path = f"/dev/video{device_index}"
 
     # Map settings to v4l2-ctl control names
     controls = {
-        'brightness': settings.brightness,
-        'contrast': settings.contrast,
-        'saturation': settings.saturation,
-        'hue': settings.hue,
-        'gamma': settings.gamma,
-        'gain': settings.gain,
-        'sharpness': settings.sharpness,
-        'exposure_time_absolute': settings.exposure_time,
-        'focus_absolute': settings.focus,
-        'zoom_absolute': settings.zoom,
-        'iris_absolute': settings.iris,
+        "brightness": settings.brightness,
+        "contrast": settings.contrast,
+        "saturation": settings.saturation,
+        "hue": settings.hue,
+        "gamma": settings.gamma,
+        "gain": settings.gain,
+        "sharpness": settings.sharpness,
+        "exposure_time_absolute": settings.exposure_time,
+        "focus_absolute": settings.focus,
+        "zoom_absolute": settings.zoom,
+        "iris_absolute": settings.iris,
     }
 
     try:
         for ctrl_name, ctrl_value in controls.items():
             result = subprocess.run(
-                ['v4l2-ctl', '-d', device_path, f'--set-ctrl={ctrl_name}={ctrl_value}'],
-                capture_output=True, timeout=2, text=True
+                ["v4l2-ctl", "-d", device_path, f"--set-ctrl={ctrl_name}={ctrl_value}"],
+                capture_output=True,
+                timeout=2,
+                text=True,
             )
             if result.returncode != 0 and result.stderr:
                 # Some controls may not be supported - log but don't fail
@@ -409,10 +426,7 @@ def _apply_miniscope_controls(device_index: int, settings: "CameraSettings") -> 
 
 
 def _send_miniscope_i2c_command(
-    device_index: int,
-    contrast: int,
-    gamma: int,
-    sharpness: int
+    device_index: int, contrast: int, gamma: int, sharpness: int
 ) -> bool:
     """
     Send an I2C command to Miniscope V4 via UVC control tunnel.
@@ -436,7 +450,7 @@ def _send_miniscope_i2c_command(
     """
     import subprocess
 
-    device_path = f'/dev/video{device_index}'
+    device_path = f"/dev/video{device_index}"
 
     # UVC controls are scaled by 100 for contrast and gamma
     contrast_scaled = contrast / 100.0
@@ -445,18 +459,21 @@ def _send_miniscope_i2c_command(
     try:
         # Set sharpness first (no scaling needed)
         subprocess.run(
-            ['v4l2-ctl', '-d', device_path, f'--set-ctrl=sharpness={sharpness}'],
-            capture_output=True, timeout=2
+            ["v4l2-ctl", "-d", device_path, f"--set-ctrl=sharpness={sharpness}"],
+            capture_output=True,
+            timeout=2,
         )
         # Set gamma (scaled)
         subprocess.run(
-            ['v4l2-ctl', '-d', device_path, f'--set-ctrl=gamma={gamma_scaled}'],
-            capture_output=True, timeout=2
+            ["v4l2-ctl", "-d", device_path, f"--set-ctrl=gamma={gamma_scaled}"],
+            capture_output=True,
+            timeout=2,
         )
         # Set contrast last (triggers the I2C transaction)
         subprocess.run(
-            ['v4l2-ctl', '-d', device_path, f'--set-ctrl=contrast={contrast_scaled}'],
-            capture_output=True, timeout=2
+            ["v4l2-ctl", "-d", device_path, f"--set-ctrl=contrast={contrast_scaled}"],
+            capture_output=True,
+            timeout=2,
         )
         return True
     except Exception as e:
@@ -591,6 +608,7 @@ _Picamera2 = None  # Will hold the class if available
 @dataclass
 class CameraInfo:
     """Information about an available camera."""
+
     index: int
     name: str
     resolutions: list[tuple[int, int]] = field(default_factory=list)
@@ -604,6 +622,7 @@ class CameraInfo:
 @dataclass
 class CameraSettings:
     """Camera configuration settings."""
+
     camera_index: int = 0
     resolution: tuple[int, int] = (640, 480)
     fps: int = 30
@@ -693,6 +712,7 @@ class CameraSettings:
 
 class CameraState(Enum):
     """State of the camera connection."""
+
     DISCONNECTED = auto()
     CONNECTING = auto()
     CONNECTED = auto()
@@ -785,12 +805,13 @@ class CameraManager:
         import io
         import os
         import sys
+
         old_stderr = sys.stderr
         sys.stderr = io.StringIO()
 
         # Also suppress OpenCV's internal logging
-        old_log_level = os.environ.get('OPENCV_LOG_LEVEL', '')
-        os.environ['OPENCV_LOG_LEVEL'] = 'SILENT'
+        old_log_level = os.environ.get("OPENCV_LOG_LEVEL", "")
+        os.environ["OPENCV_LOG_LEVEL"] = "SILENT"
 
         try:
             # Get camera names on Windows
@@ -827,13 +848,15 @@ class CameraManager:
                             h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or 480
                             max_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
 
-                            cameras.append(CameraInfo(
-                                index=i,
-                                name=name,
-                                resolutions=[(w, h)] + CameraManager.COMMON_RESOLUTIONS,
-                                max_fps=max_fps,
-                                is_available=True
-                            ))
+                            cameras.append(
+                                CameraInfo(
+                                    index=i,
+                                    name=name,
+                                    resolutions=[(w, h)] + CameraManager.COMMON_RESOLUTIONS,
+                                    max_fps=max_fps,
+                                    is_available=True,
+                                )
+                            )
                             found_indices.add(i)
                             cap.release()
                             break  # Found with this backend, move to next index
@@ -846,15 +869,16 @@ class CameraManager:
             # Restore stderr and log level
             sys.stderr = old_stderr
             if old_log_level:
-                os.environ['OPENCV_LOG_LEVEL'] = old_log_level
-            elif 'OPENCV_LOG_LEVEL' in os.environ:
-                del os.environ['OPENCV_LOG_LEVEL']
+                os.environ["OPENCV_LOG_LEVEL"] = old_log_level
+            elif "OPENCV_LOG_LEVEL" in os.environ:
+                del os.environ["OPENCV_LOG_LEVEL"]
 
         logger.info(f"Found {len(cameras)} camera(s)")
         return cameras
 
-    def _try_connect_with_backend(self, backend: int, pixel_format: Optional[str] = None,
-                                    quick_test: bool = False) -> bool:
+    def _try_connect_with_backend(
+        self, backend: int, pixel_format: Optional[str] = None, quick_test: bool = False
+    ) -> bool:
         """
         Try to connect to the camera with a specific backend and pixel format.
 
@@ -871,10 +895,7 @@ class CameraManager:
                 self._capture.release()
                 self._capture = None
 
-            self._capture = cv2.VideoCapture(
-                self._settings.camera_index,
-                backend
-            )
+            self._capture = cv2.VideoCapture(self._settings.camera_index, backend)
 
             if not self._capture.isOpened():
                 logger.debug(f"Failed to open camera with backend {backend}")
@@ -921,7 +942,9 @@ class CameraManager:
                             if success_count >= 2:  # Reduced from 3 to 2
                                 backend_name = self._get_backend_name(backend)
                                 format_desc = format_to_use or "default"
-                                logger.info(f"Camera working with backend {backend_name}, format {format_desc}")
+                                logger.info(
+                                    f"Camera working with backend {backend_name}, format {format_desc}"
+                                )
                                 return True
                 except Exception as e:
                     logger.debug(f"Frame grab error: {e}")
@@ -1053,13 +1076,12 @@ class CameraManager:
                 self._capture = None
 
             # Open the camera
-            self._capture = cv2.VideoCapture(
-                self._settings.camera_index,
-                backend
-            )
+            self._capture = cv2.VideoCapture(self._settings.camera_index, backend)
 
             if not self._capture.isOpened():
-                logger.info(f"Camera {self._settings.camera_index} failed to open with {backend_name}")
+                logger.info(
+                    f"Camera {self._settings.camera_index} failed to open with {backend_name}"
+                )
                 return False
 
             logger.info(f"Camera opened with {backend_name}, configuring...")
@@ -1102,7 +1124,9 @@ class CameraManager:
             actual_fps = self._capture.get(cv2.CAP_PROP_FPS)
             actual_fourcc = int(self._capture.get(cv2.CAP_PROP_FOURCC))
             fourcc_chars = "".join([chr((actual_fourcc >> 8 * i) & 0xFF) for i in range(4)])
-            logger.info(f"Camera reports: {actual_w}x{actual_h} @ {actual_fps}fps, format={fourcc_chars}")
+            logger.info(
+                f"Camera reports: {actual_w}x{actual_h} @ {actual_fps}fps, format={fourcc_chars}"
+            )
 
             # Try to read frames - try both read() and grab()/retrieve()
             logger.info("Reading test frames...")
@@ -1114,7 +1138,9 @@ class CameraManager:
                     ret, frame = self._capture.read()
                     if ret and frame is not None and frame.size > 0:
                         success_count += 1
-                        logger.info(f"Frame {success_count} via read(): shape={frame.shape}, dtype={frame.dtype}")
+                        logger.info(
+                            f"Frame {success_count} via read(): shape={frame.shape}, dtype={frame.dtype}"
+                        )
                         if success_count >= 2:
                             logger.info(
                                 f"Grayscale camera connected via {backend_name}: "
@@ -1137,7 +1163,9 @@ class CameraManager:
                             ret, frame = self._capture.retrieve()
                             if ret and frame is not None and frame.size > 0:
                                 success_count += 1
-                                logger.info(f"Frame {success_count} via grab/retrieve: shape={frame.shape}")
+                                logger.info(
+                                    f"Frame {success_count} via grab/retrieve: shape={frame.shape}"
+                                )
                                 if success_count >= 2:
                                     logger.info(
                                         f"Grayscale camera connected via {backend_name}: "
@@ -1148,7 +1176,9 @@ class CameraManager:
                         logger.debug(f"grab/retrieve error: {e}")
                     time.sleep(0.1)
 
-            logger.info(f"Failed to read frames with {backend_name} (got {success_count} successful reads)")
+            logger.info(
+                f"Failed to read frames with {backend_name} (got {success_count} successful reads)"
+            )
 
             # Last resort: try minimal configuration (just open and read)
             logger.info("Trying minimal configuration (no property changes)...")
@@ -1160,7 +1190,9 @@ class CameraManager:
                 for _attempt in range(10):
                     ret, frame = self._capture.read()
                     if ret and frame is not None and frame.size > 0:
-                        logger.info(f"Minimal config SUCCESS: frame shape={frame.shape}, dtype={frame.dtype}")
+                        logger.info(
+                            f"Minimal config SUCCESS: frame shape={frame.shape}, dtype={frame.dtype}"
+                        )
                         self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, self._settings.resolution[0])
                         self._capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self._settings.resolution[1])
                         return True
@@ -1180,7 +1212,9 @@ class CameraManager:
                 for _attempt in range(10):
                     ret, frame = self._capture.read()
                     if ret and frame is not None and frame.size > 0:
-                        logger.info(f"RGB conversion SUCCESS: frame shape={frame.shape}, dtype={frame.dtype}")
+                        logger.info(
+                            f"RGB conversion SUCCESS: frame shape={frame.shape}, dtype={frame.dtype}"
+                        )
                         return True
                     time.sleep(0.1)
                 logger.info("RGB conversion mode also failed")
@@ -1212,7 +1246,9 @@ class CameraManager:
                         for _attempt in range(5):
                             ret, frame = ffmpeg_cap.read()
                             if ret and frame is not None:
-                                logger.info(f"FFmpeg external capture SUCCESS: frame shape={frame.shape}")
+                                logger.info(
+                                    f"FFmpeg external capture SUCCESS: frame shape={frame.shape}"
+                                )
                                 self._capture = ffmpeg_cap  # Use FFmpegCapture as capture source
                                 self._using_ffmpeg = True
                                 return True
@@ -1220,7 +1256,9 @@ class CameraManager:
                         logger.info("External FFmpeg capture failed to read frames")
                         ffmpeg_cap.release()
                     else:
-                        logger.info("External FFmpeg capture failed to start (is FFmpeg installed?)")
+                        logger.info(
+                            "External FFmpeg capture failed to start (is FFmpeg installed?)"
+                        )
 
             if self._capture is not None:
                 try:
@@ -1257,10 +1295,7 @@ class CameraManager:
                 self._capture.release()
                 self._capture = None
 
-            self._capture = cv2.VideoCapture(
-                self._settings.camera_index,
-                backend
-            )
+            self._capture = cv2.VideoCapture(self._settings.camera_index, backend)
 
             if not self._capture.isOpened():
                 return False
@@ -1318,6 +1353,7 @@ class CameraManager:
         if _picamera2_available is None:
             try:
                 from picamera2 import Picamera2
+
                 _Picamera2 = Picamera2
                 _picamera2_available = True
                 logger.debug("picamera2 imported successfully")
@@ -1346,7 +1382,7 @@ class CameraManager:
             width, height = self._settings.resolution
             config = self._picamera2.create_video_configuration(
                 main={"size": (width, height), "format": "RGB888"},
-                controls={"FrameRate": self._settings.fps}
+                controls={"FrameRate": self._settings.fps},
             )
             self._picamera2.configure(config)
 
@@ -1470,7 +1506,9 @@ class CameraManager:
                         return True
                     logger.info("picamera2 failed, falling back to V4L2")
                 else:
-                    logger.info(f"Camera index {self._settings.camera_index} - using V4L2 (USB camera)")
+                    logger.info(
+                        f"Camera index {self._settings.camera_index} - using V4L2 (USB camera)"
+                    )
 
             # Try connecting with the preferred backend
             # On Windows, use fallback logic to try multiple backends/formats
@@ -1553,9 +1591,7 @@ class CameraManager:
 
         self._running = True
         self._capture_thread = threading.Thread(
-            target=self._capture_loop,
-            daemon=True,
-            name="CameraCapture"
+            target=self._capture_loop, daemon=True, name="CameraCapture"
         )
         self._capture_thread.start()
 
@@ -1651,9 +1687,7 @@ class CameraManager:
         actual_w = int(self._capture.get(cv2.CAP_PROP_FRAME_WIDTH))
         actual_h = int(self._capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
         if (actual_w, actual_h) != self._settings.resolution:
-            logger.debug(
-                f"Requested {self._settings.resolution}, got ({actual_w}, {actual_h})"
-            )
+            logger.debug(f"Requested {self._settings.resolution}, got ({actual_w}, {actual_h})")
             self._settings.resolution = (actual_w, actual_h)
 
     def _apply_camera_settings(self) -> None:
@@ -1673,7 +1707,7 @@ class CameraManager:
             # On Linux with V4L2, try MJPEG format for better compatibility
             # Some cameras don't support it, so we don't fail if it doesn't work
             try:
-                fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+                fourcc = cv2.VideoWriter_fourcc(*"MJPG")
                 self._capture.set(cv2.CAP_PROP_FOURCC, fourcc)
             except Exception:
                 pass  # Camera may not support MJPEG, that's okay
@@ -1707,12 +1741,12 @@ class CameraManager:
         actual_w = int(self._capture.get(cv2.CAP_PROP_FRAME_WIDTH))
         actual_h = int(self._capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
         if (actual_w, actual_h) != self._settings.resolution:
-            logger.warning(
-                f"Requested {self._settings.resolution}, got ({actual_w}, {actual_h})"
-            )
+            logger.warning(f"Requested {self._settings.resolution}, got ({actual_w}, {actual_h})")
             self._settings.resolution = (actual_w, actual_h)
 
-        logger.debug(f"Applied camera settings: {self._settings.resolution} @ {self._settings.fps}fps")
+        logger.debug(
+            f"Applied camera settings: {self._settings.resolution} @ {self._settings.fps}fps"
+        )
 
     def set_led_power(self, power_percent: int) -> bool:
         """
@@ -1772,7 +1806,10 @@ class CameraManager:
                         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                 except Exception as e:
                     consecutive_failures += 1
-                    if consecutive_failures == 1 or consecutive_failures % max_failures_before_log == 0:
+                    if (
+                        consecutive_failures == 1
+                        or consecutive_failures % max_failures_before_log == 0
+                    ):
                         logger.warning(f"picamera2 capture failed: {e}")
                     time.sleep(0.01)
                     continue
@@ -1781,7 +1818,10 @@ class CameraManager:
                 # Use grab() + retrieve() which works better with V4L2 on Linux
                 if not self._capture.grab():
                     consecutive_failures += 1
-                    if consecutive_failures == 1 or consecutive_failures % max_failures_before_log == 0:
+                    if (
+                        consecutive_failures == 1
+                        or consecutive_failures % max_failures_before_log == 0
+                    ):
                         logger.warning(f"Failed to grab frame (attempt {consecutive_failures})")
                     time.sleep(0.01)
                     continue
@@ -1789,7 +1829,10 @@ class CameraManager:
                 ret, frame = self._capture.retrieve()
                 if not ret or frame is None:
                     consecutive_failures += 1
-                    if consecutive_failures == 1 or consecutive_failures % max_failures_before_log == 0:
+                    if (
+                        consecutive_failures == 1
+                        or consecutive_failures % max_failures_before_log == 0
+                    ):
                         logger.warning(f"Failed to retrieve frame (attempt {consecutive_failures})")
                     time.sleep(0.01)
                     continue
@@ -1820,7 +1863,9 @@ class CameraManager:
                 if miniscope_frame_count % miniscope_check_interval == 0:
                     mean_brightness = np.mean(frame)
                     if mean_brightness < 1.0:
-                        logger.warning(f"Miniscope darkness detected ({mean_brightness:.2f}) - kicking LED")
+                        logger.warning(
+                            f"Miniscope darkness detected ({mean_brightness:.2f}) - kicking LED"
+                        )
                         _wake_up_miniscope(self._settings.camera_index)
 
             timestamp = time.time()

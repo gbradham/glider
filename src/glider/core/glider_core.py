@@ -156,6 +156,7 @@ class GliderCore:
         """
         if self._agent_controller is None:
             from glider.agent.agent_controller import AgentController
+
             self._agent_controller = AgentController(self)
         return self._agent_controller
 
@@ -343,24 +344,28 @@ class GliderCore:
         """Register built-in node types with the flow engine."""
         try:
             from glider.nodes.experiment_nodes import register_experiment_nodes
+
             register_experiment_nodes(self._flow_engine)
         except Exception as e:
             logger.error(f"Failed to register experiment nodes: {e}")
 
         try:
             from glider.nodes.control_nodes import register_control_nodes
+
             register_control_nodes(self._flow_engine)
         except Exception as e:
             logger.error(f"Failed to register control nodes: {e}")
 
         try:
             from glider.nodes.flow_function_nodes import register_flow_function_nodes
+
             register_flow_function_nodes(self._flow_engine)
         except Exception as e:
             logger.error(f"Failed to register flow function nodes: {e}")
 
         try:
             from glider.nodes.vision.zone_nodes import register_zone_nodes
+
             register_zone_nodes(self._flow_engine)
         except Exception as e:
             logger.error(f"Failed to register zone nodes: {e}")
@@ -369,6 +374,7 @@ class GliderCore:
         """Load plugins from the plugin directory."""
         try:
             from glider.plugins.plugin_manager import PluginManager
+
             self._plugin_manager = PluginManager()
             await self._plugin_manager.discover_plugins()
             await self._plugin_manager.load_plugins()
@@ -544,7 +550,7 @@ class GliderCore:
     async def _ensure_devices_initialized(self) -> None:
         """Ensure all devices are initialized before starting experiment."""
         for device_id, device in self._hardware_manager.devices.items():
-            if not getattr(device, '_initialized', False):
+            if not getattr(device, "_initialized", False):
                 logger.info(f"Initializing device: {device_id}")
                 try:
                     await device.initialize()
@@ -598,7 +604,9 @@ class GliderCore:
                 try:
                     # Record annotated video with tracking overlays if CV is enabled (primary only)
                     record_annotated = self._annotated_video_enabled and self._cv_processing_enabled
-                    video_paths = await self._multi_video_recorder.start(experiment_name, record_annotated=record_annotated)
+                    video_paths = await self._multi_video_recorder.start(
+                        experiment_name, record_annotated=record_annotated
+                    )
                     for cam_id, path in video_paths.items():
                         logger.info(f"Recording {cam_id} video to: {path}")
                     if record_annotated:
@@ -609,7 +617,9 @@ class GliderCore:
                 try:
                     # Single camera mode
                     record_annotated = self._annotated_video_enabled and self._cv_processing_enabled
-                    video_path = await self._video_recorder.start(experiment_name, record_annotated=record_annotated)
+                    video_path = await self._video_recorder.start(
+                        experiment_name, record_annotated=record_annotated
+                    )
                     logger.info(f"Recording video to: {video_path}")
                     if record_annotated:
                         logger.info("Also recording annotated video with tracking overlays")
@@ -677,7 +687,7 @@ class GliderCore:
         """Set all output devices to LOW/off state for safety."""
         for device_id, device in self._hardware_manager.devices.items():
             try:
-                if hasattr(device, 'shutdown'):
+                if hasattr(device, "shutdown"):
                     await device.shutdown()
                     logger.debug(f"Set device {device_id} to safe state")
             except Exception as e:
@@ -764,7 +774,7 @@ class GliderCore:
                     "name": driver_class.__name__,
                 }
                 # Add board subtypes if available
-                if hasattr(driver_class, 'BOARD_CONFIGS'):
+                if hasattr(driver_class, "BOARD_CONFIGS"):
                     info["subtypes"] = list(driver_class.BOARD_CONFIGS.keys())
                 board_types.append(info)
         return board_types
@@ -772,6 +782,7 @@ class GliderCore:
     def get_available_device_types(self) -> list[str]:
         """Get list of available device types."""
         from glider.hal.base_device import DEVICE_REGISTRY
+
         return list(DEVICE_REGISTRY.keys())
 
     def get_available_node_types(self) -> list[str]:

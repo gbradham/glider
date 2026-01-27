@@ -24,9 +24,8 @@ HARDWARE_TOOLS: list[ToolDefinition] = [
         parameters={
             "type": "object",
             "properties": {},
-        }
+        },
     ),
-
     ToolDefinition(
         name="add_board",
         description="Add a new hardware board (Arduino or Raspberry Pi)",
@@ -36,197 +35,149 @@ HARDWARE_TOOLS: list[ToolDefinition] = [
                 "board_type": {
                     "type": "string",
                     "description": "Type of board",
-                    "enum": ["arduino", "telemetrix", "raspberry_pi", "pigpio"]
+                    "enum": ["arduino", "telemetrix", "raspberry_pi", "pigpio"],
                 },
-                "name": {
-                    "type": "string",
-                    "description": "Friendly name for the board"
-                },
+                "name": {"type": "string", "description": "Friendly name for the board"},
                 "port": {
                     "type": "string",
-                    "description": "Serial port (e.g., 'COM3', '/dev/ttyUSB0') - required for Arduino"
-                }
+                    "description": "Serial port (e.g., 'COM3', '/dev/ttyUSB0') - required for Arduino",
+                },
             },
-            "required": ["board_type", "name"]
-        }
+            "required": ["board_type", "name"],
+        },
     ),
-
     ToolDefinition(
         name="remove_board",
         description="Remove a board and all its devices (DESTRUCTIVE)",
         parameters={
             "type": "object",
             "properties": {
-                "board_id": {
-                    "type": "string",
-                    "description": "ID of the board to remove"
-                }
+                "board_id": {"type": "string", "description": "ID of the board to remove"}
             },
-            "required": ["board_id"]
-        }
+            "required": ["board_id"],
+        },
     ),
-
     ToolDefinition(
         name="connect_board",
         description="Connect to a configured board",
         parameters={
             "type": "object",
             "properties": {
-                "board_id": {
-                    "type": "string",
-                    "description": "ID of the board to connect"
-                }
+                "board_id": {"type": "string", "description": "ID of the board to connect"}
             },
-            "required": ["board_id"]
-        }
+            "required": ["board_id"],
+        },
     ),
-
     ToolDefinition(
         name="disconnect_board",
         description="Disconnect from a board",
         parameters={
             "type": "object",
             "properties": {
-                "board_id": {
-                    "type": "string",
-                    "description": "ID of the board to disconnect"
-                }
+                "board_id": {"type": "string", "description": "ID of the board to disconnect"}
             },
-            "required": ["board_id"]
-        }
+            "required": ["board_id"],
+        },
     ),
-
     ToolDefinition(
         name="list_devices",
         description="List all configured devices",
         parameters={
             "type": "object",
             "properties": {
-                "board_id": {
-                    "type": "string",
-                    "description": "Filter by board ID (optional)"
-                }
+                "board_id": {"type": "string", "description": "Filter by board ID (optional)"}
             },
-        }
+        },
     ),
-
     ToolDefinition(
         name="add_device",
         description="Add a new device to a board",
         parameters={
             "type": "object",
             "properties": {
-                "board_id": {
-                    "type": "string",
-                    "description": "ID of the board to add device to"
-                },
+                "board_id": {"type": "string", "description": "ID of the board to add device to"},
                 "device_type": {
                     "type": "string",
                     "description": "Type of device",
-                    "enum": [
-                        "DigitalOutput", "DigitalInput",
-                        "AnalogInput", "PWMOutput", "Servo"
-                    ]
+                    "enum": ["DigitalOutput", "DigitalInput", "AnalogInput", "PWMOutput", "Servo"],
                 },
                 "name": {
                     "type": "string",
-                    "description": "Friendly name for the device (e.g., 'led', 'button')"
+                    "description": "Friendly name for the device (e.g., 'led', 'button')",
                 },
-                "pin": {
-                    "type": "integer",
-                    "description": "Pin number on the board"
-                },
+                "pin": {"type": "integer", "description": "Pin number on the board"},
                 "settings": {
                     "type": "object",
                     "description": "Device-specific settings",
-                    "additionalProperties": True
-                }
+                    "additionalProperties": True,
+                },
             },
-            "required": ["board_id", "device_type", "name", "pin"]
-        }
+            "required": ["board_id", "device_type", "name", "pin"],
+        },
     ),
-
     ToolDefinition(
         name="remove_device",
         description="Remove a device",
         parameters={
             "type": "object",
             "properties": {
-                "device_id": {
-                    "type": "string",
-                    "description": "ID of the device to remove"
-                }
+                "device_id": {"type": "string", "description": "ID of the device to remove"}
             },
-            "required": ["device_id"]
-        }
+            "required": ["device_id"],
+        },
     ),
-
     ToolDefinition(
         name="configure_device",
         description="Update device settings",
         parameters={
             "type": "object",
             "properties": {
-                "device_id": {
-                    "type": "string",
-                    "description": "ID of the device to configure"
-                },
+                "device_id": {"type": "string", "description": "ID of the device to configure"},
                 "settings": {
                     "type": "object",
                     "description": "Settings to update",
-                    "additionalProperties": True
-                }
+                    "additionalProperties": True,
+                },
             },
-            "required": ["device_id", "settings"]
-        }
+            "required": ["device_id", "settings"],
+        },
     ),
-
     ToolDefinition(
         name="scan_ports",
         description="Scan for available serial ports (for Arduino)",
         parameters={
             "type": "object",
             "properties": {},
-        }
+        },
     ),
-
     ToolDefinition(
         name="test_device",
         description="Test a device (e.g., blink LED, read sensor)",
         parameters={
             "type": "object",
             "properties": {
-                "device_id": {
-                    "type": "string",
-                    "description": "ID of the device to test"
-                },
+                "device_id": {"type": "string", "description": "ID of the device to test"},
                 "action": {
                     "type": "string",
                     "description": "Test action to perform",
-                    "enum": ["blink", "on", "off", "read", "toggle"]
+                    "enum": ["blink", "on", "off", "read", "toggle"],
                 },
                 "duration_ms": {
                     "type": "integer",
-                    "description": "Duration for blink test (default: 1000ms)"
-                }
+                    "description": "Duration for blink test (default: 1000ms)",
+                },
             },
-            "required": ["device_id"]
-        }
+            "required": ["device_id"],
+        },
     ),
-
     ToolDefinition(
         name="get_pin_capabilities",
         description="Get information about a board's pins and their capabilities",
         parameters={
             "type": "object",
-            "properties": {
-                "board_id": {
-                    "type": "string",
-                    "description": "ID of the board"
-                }
-            },
-            "required": ["board_id"]
-        }
+            "properties": {"board_id": {"type": "string", "description": "ID of the board"}},
+            "required": ["board_id"],
+        },
     ),
 ]
 
@@ -295,13 +246,15 @@ class HardwareToolExecutor:
 
         boards = []
         for board_id, board in hw_manager.boards.items():
-            boards.append({
-                "id": board_id,
-                "name": board.name,
-                "type": board.board_type,
-                "port": getattr(board, "port", None),
-                "connected": board.is_connected,
-            })
+            boards.append(
+                {
+                    "id": board_id,
+                    "name": board.name,
+                    "type": board.board_type,
+                    "port": getattr(board, "port", None),
+                    "connected": board.is_connected,
+                }
+            )
 
         return {"boards": boards, "count": len(boards)}
 
@@ -391,13 +344,15 @@ class HardwareToolExecutor:
             if board_filter and device.board_id != board_filter:
                 continue
 
-            devices.append({
-                "id": device_id,
-                "name": device.name,
-                "type": device.device_type,
-                "board": device.board_id,
-                "pin": device.pin,
-            })
+            devices.append(
+                {
+                    "id": device_id,
+                    "name": device.name,
+                    "type": device.device_type,
+                    "board": device.board_id,
+                    "pin": device.pin,
+                }
+            )
 
         return {"devices": devices, "count": len(devices)}
 
@@ -468,11 +423,13 @@ class HardwareToolExecutor:
 
         ports = []
         for port in serial.tools.list_ports.comports():
-            ports.append({
-                "port": port.device,
-                "description": port.description,
-                "hwid": port.hwid,
-            })
+            ports.append(
+                {
+                    "port": port.device,
+                    "description": port.description,
+                    "hwid": port.hwid,
+                }
+            )
 
         return {"ports": ports, "count": len(ports)}
 
@@ -504,6 +461,7 @@ class HardwareToolExecutor:
             result = {"action": "read", "value": value}
         elif action == "blink":
             import asyncio
+
             await device.execute_action("on")
             await asyncio.sleep(duration_ms / 1000)
             await device.execute_action("off")

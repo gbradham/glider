@@ -47,7 +47,7 @@ class MockBoard(BaseBoard):
                 pin=i,
                 supported_types={PinType.DIGITAL, PinType.ANALOG, PinType.PWM},
                 max_value=255,
-                description=f"Mock Pin {i}"
+                description=f"Mock Pin {i}",
             )
         return BoardCapabilities(
             name="Mock Board",
@@ -66,7 +66,9 @@ class MockBoard(BaseBoard):
         logger.info("MockBoard: Disconnected (simulated)")
         self._set_state(BoardConnectionState.DISCONNECTED)
 
-    async def set_pin_mode(self, pin: int, mode: PinMode, pin_type: PinType = PinType.DIGITAL) -> None:
+    async def set_pin_mode(
+        self, pin: int, mode: PinMode, pin_type: PinType = PinType.DIGITAL
+    ) -> None:
         logger.info(f"MockBoard: Set pin {pin} mode to {mode.name} ({pin_type.name})")
         self._pin_modes[pin] = mode
 

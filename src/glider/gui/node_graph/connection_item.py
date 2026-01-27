@@ -21,8 +21,8 @@ class ConnectionItem(QGraphicsPathItem):
     """
 
     # Connection colors
-    DATA_COLOR = QColor(100, 180, 255)    # Blue
-    EXEC_COLOR = QColor(255, 255, 255)    # White
+    DATA_COLOR = QColor(100, 180, 255)  # Blue
+    EXEC_COLOR = QColor(255, 255, 255)  # White
     ACTIVE_COLOR = QColor(100, 255, 100)  # Green (for active data flow)
 
     def __init__(
@@ -153,6 +153,7 @@ class ConnectionItem(QGraphicsPathItem):
         dy = end.y() - near_end.y()
 
         import math
+
         length = math.sqrt(dx * dx + dy * dy)
         if length < 0.01:
             return
@@ -176,6 +177,7 @@ class ConnectionItem(QGraphicsPathItem):
         )
 
         from PyQt6.QtGui import QBrush, QPolygonF
+
         arrow = QPolygonF([end, p1, p2])
         painter.setBrush(QBrush(color))
         painter.drawPolygon(arrow)

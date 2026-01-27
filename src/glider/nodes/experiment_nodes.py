@@ -49,7 +49,9 @@ class StartExperimentNode(GliderNode):
 
     def exec_output(self, index: int = 0) -> None:
         """Trigger execution output."""
-        logger.info(f"StartExperiment.exec_output({index}) called, callbacks: {len(self._update_callbacks)}")
+        logger.info(
+            f"StartExperiment.exec_output({index}) called, callbacks: {len(self._update_callbacks)}"
+        )
         for i, callback in enumerate(self._update_callbacks):
             logger.debug(f"  Calling callback {i}")
             callback("next", True)
@@ -120,7 +122,9 @@ class DelayNode(GliderNode):
 
     def exec_output(self, index: int = 0) -> None:
         """Trigger execution output."""
-        logger.info(f"DelayNode.exec_output({index}) called, callbacks: {len(self._update_callbacks)}")
+        logger.info(
+            f"DelayNode.exec_output({index}) called, callbacks: {len(self._update_callbacks)}"
+        )
         for callback in self._update_callbacks:
             callback("next", True)
 
@@ -167,9 +171,9 @@ class OutputNode(GliderNode):
         if self._device is not None:
             try:
                 logger.info(f"Output: setting device to {'HIGH' if value else 'LOW'}")
-                if hasattr(self._device, 'set_state'):
+                if hasattr(self._device, "set_state"):
                     await self._device.set_state(value)
-                elif hasattr(self._device, 'turn_on') and hasattr(self._device, 'turn_off'):
+                elif hasattr(self._device, "turn_on") and hasattr(self._device, "turn_off"):
                     if value:
                         await self._device.turn_on()
                     else:
@@ -184,7 +188,9 @@ class OutputNode(GliderNode):
 
     def exec_output(self, index: int = 0) -> None:
         """Trigger execution output."""
-        logger.info(f"OutputNode.exec_output({index}) called, callbacks: {len(self._update_callbacks)}")
+        logger.info(
+            f"OutputNode.exec_output({index}) called, callbacks: {len(self._update_callbacks)}"
+        )
         for callback in self._update_callbacks:
             callback("next", True)
 
@@ -215,9 +221,9 @@ class InputNode(GliderNode):
 
         if self._device is not None:
             try:
-                if hasattr(self._device, 'read'):
+                if hasattr(self._device, "read"):
                     value = await self._device.read()
-                elif hasattr(self._device, 'get_state'):
+                elif hasattr(self._device, "get_state"):
                     value = await self._device.get_state()
                 logger.info(f"Input: read value = {value}")
             except Exception as e:
@@ -274,15 +280,15 @@ class MotorGovernorNode(GliderNode):
             try:
                 if action == "up":
                     logger.info("MotorGovernor: moving up")
-                    if hasattr(self._device, 'move_up'):
+                    if hasattr(self._device, "move_up"):
                         await self._device.move_up()
                 elif action == "down":
                     logger.info("MotorGovernor: moving down")
-                    if hasattr(self._device, 'move_down'):
+                    if hasattr(self._device, "move_down"):
                         await self._device.move_down()
                 elif action == "stop":
                     logger.info("MotorGovernor: stopping")
-                    if hasattr(self._device, 'stop'):
+                    if hasattr(self._device, "stop"):
                         await self._device.stop()
                 else:
                     logger.warning(f"MotorGovernor: unknown action '{action}'")
@@ -357,6 +363,7 @@ class CustomDeviceNode(GliderNode):
                     logger.warning(f"CustomDeviceNode: pin '{pin_name}' not found")
                 else:
                     from glider.core.custom_device import PinType
+
                     if pin_def.pin_type in (PinType.DIGITAL_INPUT, PinType.ANALOG_INPUT):
                         # Read from input pin
                         read_value = await self._custom_device_runner.read_pin(pin_name)

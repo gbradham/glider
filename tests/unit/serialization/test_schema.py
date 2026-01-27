@@ -41,9 +41,7 @@ class TestMetadataSchema:
     def test_creation(self):
         """Test MetadataSchema creation."""
         metadata = MetadataSchema(
-            name="Test Experiment",
-            description="A test experiment",
-            author="Test Author"
+            name="Test Experiment", description="A test experiment", author="Test Author"
         )
 
         assert metadata.name == "Test Experiment"
@@ -61,11 +59,7 @@ class TestMetadataSchema:
 
     def test_to_dict(self):
         """Test MetadataSchema serialization."""
-        metadata = MetadataSchema(
-            name="Test",
-            description="Description",
-            author="Author"
-        )
+        metadata = MetadataSchema(name="Test", description="Description", author="Author")
 
         data = metadata.to_dict()
 
@@ -81,7 +75,7 @@ class TestMetadataSchema:
             "description": "Loaded desc",
             "author": "Loaded author",
             "created": "2024-01-01T00:00:00Z",
-            "modified": "2024-01-02T00:00:00Z"
+            "modified": "2024-01-02T00:00:00Z",
         }
 
         metadata = MetadataSchema.from_dict(data)
@@ -100,7 +94,7 @@ class TestNodeSchema:
             type="Delay",
             title="Delay Node",
             position={"x": 100, "y": 200},
-            properties={"duration": 1.0}
+            properties={"duration": 1.0},
         )
 
         assert node.id == "node_1"
@@ -116,7 +110,7 @@ class TestNodeSchema:
             type="Output",
             title="Output Node",
             position={"x": 50, "y": 75},
-            properties={"value": True}
+            properties={"value": True},
         )
 
         data = node.to_dict()
@@ -133,7 +127,7 @@ class TestNodeSchema:
             "type": "Loop",
             "title": "Loop Node",
             "position": {"x": 200, "y": 300},
-            "properties": {"iterations": 10}
+            "properties": {"iterations": 10},
         }
 
         node = NodeSchema.from_dict(data)
@@ -146,20 +140,12 @@ class TestNodeSchema:
     def test_validation_missing_id(self):
         """Test that validation fails for missing ID."""
         with pytest.raises(SchemaValidationError):
-            NodeSchema.from_dict({
-                "type": "Delay",
-                "title": "Test",
-                "position": {"x": 0, "y": 0}
-            })
+            NodeSchema.from_dict({"type": "Delay", "title": "Test", "position": {"x": 0, "y": 0}})
 
     def test_validation_missing_type(self):
         """Test that validation fails for missing type."""
         with pytest.raises(SchemaValidationError):
-            NodeSchema.from_dict({
-                "id": "n1",
-                "title": "Test",
-                "position": {"x": 0, "y": 0}
-            })
+            NodeSchema.from_dict({"id": "n1", "title": "Test", "position": {"x": 0, "y": 0}})
 
 
 class TestConnectionSchema:
@@ -168,11 +154,7 @@ class TestConnectionSchema:
     def test_creation(self):
         """Test ConnectionSchema creation."""
         connection = ConnectionSchema(
-            id="conn_1",
-            from_node="node_1",
-            from_port=0,
-            to_node="node_2",
-            to_port=0
+            id="conn_1", from_node="node_1", from_port=0, to_node="node_2", to_port=0
         )
 
         assert connection.id == "conn_1"
@@ -183,13 +165,7 @@ class TestConnectionSchema:
 
     def test_to_dict(self):
         """Test ConnectionSchema serialization."""
-        connection = ConnectionSchema(
-            id="c1",
-            from_node="n1",
-            from_port=0,
-            to_node="n2",
-            to_port=1
-        )
+        connection = ConnectionSchema(id="c1", from_node="n1", from_port=0, to_node="n2", to_port=1)
 
         data = connection.to_dict()
 
@@ -201,13 +177,7 @@ class TestConnectionSchema:
 
     def test_from_dict(self):
         """Test ConnectionSchema deserialization."""
-        data = {
-            "id": "c1",
-            "from_node": "a",
-            "from_port": 0,
-            "to_node": "b",
-            "to_port": 1
-        }
+        data = {"id": "c1", "from_node": "a", "from_port": 0, "to_node": "b", "to_port": 1}
 
         connection = ConnectionSchema.from_dict(data)
 
@@ -220,11 +190,7 @@ class TestBoardConfigSchema:
 
     def test_creation(self):
         """Test BoardConfigSchema creation."""
-        board = BoardConfigSchema(
-            id="board_1",
-            type="telemetrix",
-            port="/dev/ttyUSB0"
-        )
+        board = BoardConfigSchema(id="board_1", type="telemetrix", port="/dev/ttyUSB0")
 
         assert board.id == "board_1"
         assert board.type == "telemetrix"
@@ -232,11 +198,7 @@ class TestBoardConfigSchema:
 
     def test_to_dict(self):
         """Test BoardConfigSchema serialization."""
-        board = BoardConfigSchema(
-            id="b1",
-            type="pigpio",
-            settings={"gpio_mode": "BCM"}
-        )
+        board = BoardConfigSchema(id="b1", type="pigpio", settings={"gpio_mode": "BCM"})
 
         data = board.to_dict()
 
@@ -246,12 +208,7 @@ class TestBoardConfigSchema:
 
     def test_from_dict(self):
         """Test BoardConfigSchema deserialization."""
-        data = {
-            "id": "b1",
-            "type": "telemetrix",
-            "port": "COM3",
-            "settings": {}
-        }
+        data = {"id": "b1", "type": "telemetrix", "port": "COM3", "settings": {}}
 
         board = BoardConfigSchema.from_dict(data)
 
@@ -265,11 +222,7 @@ class TestDeviceConfigSchema:
     def test_creation(self):
         """Test DeviceConfigSchema creation."""
         device = DeviceConfigSchema(
-            id="led_1",
-            type="digital_output",
-            board_id="board_1",
-            pin=13,
-            name="Status LED"
+            id="led_1", type="digital_output", board_id="board_1", pin=13, name="Status LED"
         )
 
         assert device.id == "led_1"
@@ -285,7 +238,7 @@ class TestDeviceConfigSchema:
             board_id="b1",
             pin=0,
             name="Sensor",
-            settings={"smoothing": True}
+            settings={"smoothing": True},
         )
 
         data = device.to_dict()
@@ -301,7 +254,7 @@ class TestDeviceConfigSchema:
             "type": "servo",
             "board_id": "b1",
             "pin": 9,
-            "settings": {"frequency": 1000}
+            "settings": {"frequency": 1000},
         }
 
         device = DeviceConfigSchema.from_dict(data)
@@ -317,17 +270,12 @@ class TestFlowConfigSchema:
         """Test FlowConfigSchema creation."""
         flow = FlowConfigSchema(
             nodes=[
-                NodeSchema(id="n1", type="Start", title="Start",
-                          position={"x": 0, "y": 0}),
-                NodeSchema(id="n2", type="End", title="End",
-                          position={"x": 100, "y": 0}),
+                NodeSchema(id="n1", type="Start", title="Start", position={"x": 0, "y": 0}),
+                NodeSchema(id="n2", type="End", title="End", position={"x": 100, "y": 0}),
             ],
             connections=[
-                ConnectionSchema(
-                    id="c1", from_node="n1", from_port=0,
-                    to_node="n2", to_port=0
-                )
-            ]
+                ConnectionSchema(id="c1", from_node="n1", from_port=0, to_node="n2", to_port=0)
+            ],
         )
 
         assert len(flow.nodes) == 2
@@ -336,9 +284,8 @@ class TestFlowConfigSchema:
     def test_to_dict(self):
         """Test FlowConfigSchema serialization."""
         flow = FlowConfigSchema(
-            nodes=[NodeSchema(id="n1", type="Delay", title="Delay",
-                             position={"x": 0, "y": 0})],
-            connections=[]
+            nodes=[NodeSchema(id="n1", type="Delay", title="Delay", position={"x": 0, "y": 0})],
+            connections=[],
         )
 
         data = flow.to_dict()
@@ -351,10 +298,15 @@ class TestFlowConfigSchema:
         """Test FlowConfigSchema deserialization."""
         data = {
             "nodes": [
-                {"id": "n1", "type": "Start", "title": "Start",
-                 "position": {"x": 0, "y": 0}, "properties": {}}
+                {
+                    "id": "n1",
+                    "type": "Start",
+                    "title": "Start",
+                    "position": {"x": 0, "y": 0},
+                    "properties": {},
+                }
             ],
-            "connections": []
+            "connections": [],
         }
 
         flow = FlowConfigSchema.from_dict(data)
@@ -369,15 +321,8 @@ class TestHardwareConfigSchema:
     def test_creation(self):
         """Test HardwareConfigSchema creation."""
         hardware = HardwareConfigSchema(
-            boards=[
-                BoardConfigSchema(id="b1", type="telemetrix")
-            ],
-            devices=[
-                DeviceConfigSchema(
-                    id="d1", type="digital_output",
-                    board_id="b1", pin=13
-                )
-            ]
+            boards=[BoardConfigSchema(id="b1", type="telemetrix")],
+            devices=[DeviceConfigSchema(id="d1", type="digital_output", board_id="b1", pin=13)],
         )
 
         assert len(hardware.boards) == 1
@@ -403,7 +348,7 @@ class TestExperimentSchema:
             metadata=MetadataSchema(name="Test"),
             hardware=HardwareConfigSchema(boards=[], devices=[]),
             flow=FlowConfigSchema(nodes=[], connections=[]),
-            dashboard=DashboardConfigSchema()
+            dashboard=DashboardConfigSchema(),
         )
 
         assert schema.schema_version == SCHEMA_VERSION
@@ -422,15 +367,13 @@ class TestExperimentSchema:
             schema_version=SCHEMA_VERSION,
             metadata=MetadataSchema(name="Full Test"),
             hardware=HardwareConfigSchema(
-                boards=[BoardConfigSchema(id="b1", type="telemetrix")],
-                devices=[]
+                boards=[BoardConfigSchema(id="b1", type="telemetrix")], devices=[]
             ),
             flow=FlowConfigSchema(
-                nodes=[NodeSchema(id="n1", type="Start", title="Start",
-                                 position={"x": 0, "y": 0})],
-                connections=[]
+                nodes=[NodeSchema(id="n1", type="Start", title="Start", position={"x": 0, "y": 0})],
+                connections=[],
             ),
-            dashboard=DashboardConfigSchema()
+            dashboard=DashboardConfigSchema(),
         )
 
         data = schema.to_dict()
@@ -444,22 +387,10 @@ class TestExperimentSchema:
         """Test ExperimentSchema deserialization."""
         data = {
             "schema_version": SCHEMA_VERSION,
-            "metadata": {
-                "name": "Loaded Experiment",
-                "description": "Test"
-            },
-            "hardware": {
-                "boards": [],
-                "devices": []
-            },
-            "flow": {
-                "nodes": [],
-                "connections": []
-            },
-            "dashboard": {
-                "widgets": [],
-                "layout_mode": "vertical"
-            }
+            "metadata": {"name": "Loaded Experiment", "description": "Test"},
+            "hardware": {"boards": [], "devices": []},
+            "flow": {"nodes": [], "connections": []},
+            "dashboard": {"widgets": [], "layout_mode": "vertical"},
         }
 
         schema = ExperimentSchema.from_dict(data)
@@ -472,49 +403,46 @@ class TestExperimentSchema:
         original = ExperimentSchema(
             schema_version=SCHEMA_VERSION,
             metadata=MetadataSchema(
-                name="Roundtrip Test",
-                description="Testing roundtrip serialization"
+                name="Roundtrip Test", description="Testing roundtrip serialization"
             ),
             hardware=HardwareConfigSchema(
-                boards=[
-                    BoardConfigSchema(
-                        id="arduino_1",
-                        type="telemetrix",
-                        port="/dev/ttyUSB0"
-                    )
-                ],
+                boards=[BoardConfigSchema(id="arduino_1", type="telemetrix", port="/dev/ttyUSB0")],
                 devices=[
                     DeviceConfigSchema(
                         id="led_1",
                         type="digital_output",
                         board_id="arduino_1",
                         pin=13,
-                        name="Status LED"
+                        name="Status LED",
                     )
-                ]
+                ],
             ),
             flow=FlowConfigSchema(
                 nodes=[
-                    NodeSchema(id="start", type="StartExperiment",
-                              title="Start", position={"x": 0, "y": 0}),
-                    NodeSchema(id="delay", type="Delay", title="Delay",
-                              position={"x": 100, "y": 0},
-                              properties={"duration": 1.0}),
-                    NodeSchema(id="end", type="EndExperiment",
-                              title="End", position={"x": 200, "y": 0}),
+                    NodeSchema(
+                        id="start", type="StartExperiment", title="Start", position={"x": 0, "y": 0}
+                    ),
+                    NodeSchema(
+                        id="delay",
+                        type="Delay",
+                        title="Delay",
+                        position={"x": 100, "y": 0},
+                        properties={"duration": 1.0},
+                    ),
+                    NodeSchema(
+                        id="end", type="EndExperiment", title="End", position={"x": 200, "y": 0}
+                    ),
                 ],
                 connections=[
                     ConnectionSchema(
-                        id="c1", from_node="start", from_port=0,
-                        to_node="delay", to_port=0
+                        id="c1", from_node="start", from_port=0, to_node="delay", to_port=0
                     ),
                     ConnectionSchema(
-                        id="c2", from_node="delay", from_port=0,
-                        to_node="end", to_port=0
+                        id="c2", from_node="delay", from_port=0, to_node="end", to_port=0
                     ),
-                ]
+                ],
             ),
-            dashboard=DashboardConfigSchema()
+            dashboard=DashboardConfigSchema(),
         )
 
         data = original.to_dict()
@@ -538,9 +466,6 @@ class TestSchemaValidationError:
 
     def test_error_with_path(self):
         """Test SchemaValidationError with path context."""
-        error = SchemaValidationError(
-            "Missing required field",
-            path="hardware.boards[0].type"
-        )
+        error = SchemaValidationError("Missing required field", path="hardware.boards[0].type")
 
         assert "hardware.boards[0].type" in str(error)

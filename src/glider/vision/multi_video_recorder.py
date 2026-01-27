@@ -112,10 +112,7 @@ class MultiVideoRecorder:
             Formatted filename
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_name = "".join(
-            c if c.isalnum() or c in "._- " else "_"
-            for c in base_name
-        )
+        safe_name = "".join(c if c.isalnum() or c in "._- " else "_" for c in base_name)
         safe_name = safe_name.strip().replace(" ", "_") or "experiment"
 
         primary_id = self._multi_cam.primary_camera_id
@@ -131,7 +128,9 @@ class MultiVideoRecorder:
             cam_num = camera_id.replace("cam_", "")
             return f"{safe_name}_{timestamp}_cam{cam_num}{self._video_format.extension}"
 
-    async def start(self, experiment_name: str = "experiment", record_annotated: bool = False) -> dict[str, Path]:
+    async def start(
+        self, experiment_name: str = "experiment", record_annotated: bool = False
+    ) -> dict[str, Path]:
         """
         Start recording video from all connected cameras.
 
@@ -171,12 +170,7 @@ class MultiVideoRecorder:
                 file_path = self._output_dir / filename
 
                 # Create writer
-                writer = cv2.VideoWriter(
-                    str(file_path),
-                    fourcc,
-                    recording_fps,
-                    settings.resolution
-                )
+                writer = cv2.VideoWriter(str(file_path), fourcc, recording_fps, settings.resolution)
 
                 if not writer.isOpened():
                     logger.error(f"Failed to create video writer for {camera_id}: {file_path}")
@@ -198,7 +192,9 @@ class MultiVideoRecorder:
             if record_annotated and primary_id and primary_id in self._multi_cam.cameras:
                 primary_settings = self._multi_cam.get_camera_settings(primary_id)
                 if primary_settings:
-                    annotated_filename = self._generate_filename(experiment_name, primary_id, is_annotated=True)
+                    annotated_filename = self._generate_filename(
+                        experiment_name, primary_id, is_annotated=True
+                    )
                     self._annotated_file_path = self._output_dir / annotated_filename
 
                     recording_fps = self._recording_fps.get(primary_id, primary_settings.fps)
@@ -206,7 +202,7 @@ class MultiVideoRecorder:
                         str(self._annotated_file_path),
                         fourcc,
                         recording_fps,
-                        primary_settings.resolution
+                        primary_settings.resolution,
                     )
 
                     if self._annotated_writer.isOpened():
@@ -336,7 +332,9 @@ class MultiVideoRecorder:
             "state": self._state.name,
             "cameras": list(self._file_paths.keys()),
             "file_paths": {k: str(v) for k, v in self._file_paths.items()},
-            "annotated_file_path": str(self._annotated_file_path) if self._annotated_file_path else None,
+            "annotated_file_path": (
+                str(self._annotated_file_path) if self._annotated_file_path else None
+            ),
             "frame_counts": self._frame_counts.copy(),
             "annotated_frame_count": self._annotated_frame_count,
             "record_annotated": self._record_annotated,

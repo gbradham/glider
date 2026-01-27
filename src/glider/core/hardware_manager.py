@@ -21,16 +21,19 @@ logger = logging.getLogger(__name__)
 
 class HardwareError(Exception):
     """Base exception for hardware errors."""
+
     pass
 
 
 class BoardNotFoundError(HardwareError):
     """Raised when a referenced board is not found."""
+
     pass
 
 
 class DeviceNotFoundError(HardwareError):
     """Raised when a referenced device is not found."""
+
     pass
 
 
@@ -148,16 +151,20 @@ class HardwareManager:
         board._id = config.id
 
         # Apply board type if applicable
-        if hasattr(board, '_board_type') and config.board_type:
+        if hasattr(board, "_board_type") and config.board_type:
             board._board_type = config.board_type
-            if hasattr(board, 'BOARD_CONFIGS'):
-                board._board_config = board.BOARD_CONFIGS.get(config.board_type, board._board_config)
+            if hasattr(board, "BOARD_CONFIGS"):
+                board._board_config = board.BOARD_CONFIGS.get(
+                    config.board_type, board._board_config
+                )
 
         # Register error callback
         board.register_error_callback(lambda e: self._notify_error(config.id, e))
 
         # Register state change callback to propagate to listeners
-        board.register_state_callback(lambda state, bid=config.id: self._notify_connection_change(bid, state))
+        board.register_state_callback(
+            lambda state, bid=config.id: self._notify_connection_change(bid, state)
+        )
 
         # Store board and create pin manager
         self._boards[config.id] = board
@@ -200,10 +207,7 @@ class HardwareManager:
         logger.info(f"Disconnecting board: {board_id}")
 
         # Shutdown all devices on this board first
-        devices_to_shutdown = [
-            d for d in self._devices.values()
-            if d.board.id == board_id
-        ]
+        devices_to_shutdown = [d for d in self._devices.values() if d.board.id == board_id]
         for device in devices_to_shutdown:
             try:
                 await device.shutdown()
@@ -223,10 +227,7 @@ class HardwareManager:
         await self.disconnect_board(board_id)
 
         # Remove all devices on this board
-        device_ids_to_remove = [
-            d.id for d in self._devices.values()
-            if d.board.id == board_id
-        ]
+        device_ids_to_remove = [d.id for d in self._devices.values() if d.board.id == board_id]
         for device_id in device_ids_to_remove:
             del self._devices[device_id]
 
@@ -345,7 +346,9 @@ class HardwareManager:
         del self._devices[device_id]
         logger.info(f"Removed device: {device_id}")
 
-    def add_board(self, board_id: str, driver_type: str, port: Optional[str] = None, **kwargs) -> None:
+    def add_board(
+        self, board_id: str, driver_type: str, port: Optional[str] = None, **kwargs
+    ) -> None:
         """
         Add a board to the manager (simplified API).
 
@@ -362,7 +365,9 @@ class HardwareManager:
             driver_class = self._driver_registry.get(alt_names.get(driver_type, ""))
 
         if driver_class is None:
-            raise HardwareError(f"Unknown driver type: {driver_type}. Available: {list(self._driver_registry.keys())}")
+            raise HardwareError(
+                f"Unknown driver type: {driver_type}. Available: {list(self._driver_registry.keys())}"
+            )
 
         # Create board instance
         board = driver_class(port=port, **kwargs)
@@ -385,7 +390,7 @@ class HardwareManager:
         pin: int,
         name: Optional[str] = None,
         pin_name: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         """
         Add a device to the manager (simplified API).
@@ -450,7 +455,7 @@ class HardwareManager:
         board_id: str,
         pins: dict[str, int],
         name: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         """
         Add a device with multiple pins to the manager.
@@ -579,12 +584,14 @@ def _register_builtin_drivers():
     """Register the built-in board drivers."""
     try:
         from glider.hal.boards.telemetrix_board import TelemetrixBoard
+
         HardwareManager.register_driver("arduino", TelemetrixBoard)
     except ImportError:
         logger.warning("TelemetrixBoard driver not available")
 
     try:
         from glider.hal.boards.pi_gpio_board import PiGPIOBoard
+
         HardwareManager.register_driver("raspberry_pi", PiGPIOBoard)
     except ImportError:
         logger.warning("PiGPIOBoard driver not available")

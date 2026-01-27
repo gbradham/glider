@@ -102,7 +102,7 @@ class ToggleSwitchNode(InterfaceNode):
         self._state = not self._state
         self.set_output(0, self._state)
         # Trigger changed exec output
-        for callback in getattr(self, '_exec_callbacks', []):
+        for callback in getattr(self, "_exec_callbacks", []):
             callback(1)
 
     def set_state_value(self, value: bool) -> None:
@@ -269,7 +269,7 @@ class NumericInputNode(InterfaceNode):
         """Called when value is submitted (e.g., Enter key)."""
         self.set_output(0, self._value)
         # Trigger submitted exec output
-        for callback in getattr(self, '_exec_callbacks', []):
+        for callback in getattr(self, "_exec_callbacks", []):
             callback(1)
 
     def update_event(self) -> None:

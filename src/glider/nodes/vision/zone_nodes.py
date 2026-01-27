@@ -36,14 +36,24 @@ class ZoneInputNode(InterfaceNode):
         description="Monitors zone occupancy and triggers events on enter/exit",
         inputs=[],
         outputs=[
-            PortDefinition(name="Occupied", data_type=bool,
-                          description="True when any object is in the zone"),
-            PortDefinition(name="Object Count", data_type=int,
-                          description="Number of objects currently in the zone"),
-            PortDefinition(name="On Enter", port_type=PortType.EXEC,
-                          description="Triggered when an object enters the zone"),
-            PortDefinition(name="On Exit", port_type=PortType.EXEC,
-                          description="Triggered when an object exits the zone"),
+            PortDefinition(
+                name="Occupied", data_type=bool, description="True when any object is in the zone"
+            ),
+            PortDefinition(
+                name="Object Count",
+                data_type=int,
+                description="Number of objects currently in the zone",
+            ),
+            PortDefinition(
+                name="On Enter",
+                port_type=PortType.EXEC,
+                description="Triggered when an object enters the zone",
+            ),
+            PortDefinition(
+                name="On Exit",
+                port_type=PortType.EXEC,
+                description="Triggered when an object exits the zone",
+            ),
         ],
         color="#5a4a2d",  # Orange - interface color
     )
@@ -99,8 +109,9 @@ class ZoneInputNode(InterfaceNode):
             except Exception as e:
                 logger.error(f"Exec callback error: {e}")
 
-    def update_zone_state(self, occupied: bool, object_count: int,
-                          entered: bool, exited: bool) -> None:
+    def update_zone_state(
+        self, occupied: bool, object_count: int, entered: bool, exited: bool
+    ) -> None:
         """
         Update the zone state from CV processor.
 
@@ -117,7 +128,7 @@ class ZoneInputNode(InterfaceNode):
         self._object_count = object_count
 
         # Update data outputs
-        self.set_output(0, occupied)      # Occupied
+        self.set_output(0, occupied)  # Occupied
         self.set_output(1, object_count)  # Object Count
 
         # Trigger exec outputs on events

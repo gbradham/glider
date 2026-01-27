@@ -40,12 +40,13 @@ class ActionType(Enum):
 
 class ActionStatus(Enum):
     """Status of an agent action."""
-    PENDING = auto()      # Awaiting confirmation
-    CONFIRMED = auto()    # User confirmed
-    REJECTED = auto()     # User rejected
-    EXECUTING = auto()    # Currently running
-    COMPLETED = auto()    # Successfully completed
-    FAILED = auto()       # Execution failed
+
+    PENDING = auto()  # Awaiting confirmation
+    CONFIRMED = auto()  # User confirmed
+    REJECTED = auto()  # User rejected
+    EXECUTING = auto()  # Currently running
+    COMPLETED = auto()  # Successfully completed
+    FAILED = auto()  # Execution failed
 
 
 # Actions that don't require confirmation

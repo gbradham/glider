@@ -34,10 +34,7 @@ class TestTimingConfig:
 
     def test_custom_values(self):
         """Test TimingConfig with custom values."""
-        config = TimingConfig(
-            device_refresh_interval_ms=500,
-            board_ready_timeout=30.0
-        )
+        config = TimingConfig(device_refresh_interval_ms=500, board_ready_timeout=30.0)
 
         assert config.device_refresh_interval_ms == 500
         assert config.board_ready_timeout == 30.0
@@ -60,10 +57,7 @@ class TestUIConfig:
 
     def test_custom_values(self):
         """Test UIConfig with custom values."""
-        config = UIConfig(
-            min_window_width=800,
-            min_window_height=600
-        )
+        config = UIConfig(min_window_width=800, min_window_height=600)
 
         assert config.min_window_width == 800
         assert config.min_window_height == 600
@@ -86,10 +80,7 @@ class TestHardwareConfig:
 
     def test_custom_values(self):
         """Test HardwareConfig with custom values."""
-        config = HardwareConfig(
-            adc_resolution=4095,
-            adc_reference_voltage=3.3
-        )
+        config = HardwareConfig(adc_resolution=4095, adc_reference_voltage=3.3)
 
         assert config.adc_resolution == 4095
         assert config.adc_reference_voltage == 3.3
@@ -144,16 +135,9 @@ class TestGliderConfig:
     def test_from_dict(self):
         """Test GliderConfig deserialization."""
         data = {
-            "timing": {
-                "device_refresh_interval_ms": 500,
-                "board_ready_timeout": 20.0
-            },
-            "ui": {
-                "min_window_width": 800
-            },
-            "hardware": {
-                "adc_resolution": 4095
-            }
+            "timing": {"device_refresh_interval_ms": 500, "board_ready_timeout": 20.0},
+            "ui": {"min_window_width": 800},
+            "hardware": {"adc_resolution": 4095},
         }
 
         config = GliderConfig.from_dict(data)

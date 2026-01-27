@@ -155,7 +155,9 @@ class WaitForInputNode(GliderNode):
         outputs=[
             PortDefinition("triggered", PortType.EXEC, description="Executes when triggered"),
             PortDefinition("timeout", PortType.EXEC, description="Executes on timeout"),
-            PortDefinition("value", PortType.DATA, data_type=int, description="Read value when triggered"),
+            PortDefinition(
+                "value", PortType.DATA, data_type=int, description="Read value when triggered"
+            ),
         ],
     )
 
@@ -216,6 +218,7 @@ class WaitForInputNode(GliderNode):
     async def _poll_device(self, timeout: float) -> None:
         """Poll the bound device until condition is met or timeout."""
         import time
+
         start_time = time.time()
         poll_count = 0
         error_count = 0
@@ -232,9 +235,9 @@ class WaitForInputNode(GliderNode):
             # Read from device
             try:
                 value = None
-                if hasattr(self._device, 'read'):
+                if hasattr(self._device, "read"):
                     value = await self._device.read()
-                elif hasattr(self._device, 'get_state'):
+                elif hasattr(self._device, "get_state"):
                     value = await self._device.get_state()
 
                 # Reset error count on successful read
@@ -259,11 +262,15 @@ class WaitForInputNode(GliderNode):
                     if isinstance(value, (int, float)):
                         if self._threshold_direction == "above":
                             if value > self._threshold:
-                                logger.info(f"  TRIGGERED! Value {value} > threshold {self._threshold}")
+                                logger.info(
+                                    f"  TRIGGERED! Value {value} > threshold {self._threshold}"
+                                )
                                 triggered = True
                         else:  # below
                             if value < self._threshold:
-                                logger.info(f"  TRIGGERED! Value {value} < threshold {self._threshold}")
+                                logger.info(
+                                    f"  TRIGGERED! Value {value} < threshold {self._threshold}"
+                                )
                                 triggered = True
 
                 if triggered:

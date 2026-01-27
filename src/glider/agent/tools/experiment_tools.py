@@ -28,143 +28,113 @@ EXPERIMENT_TOOLS: list[ToolDefinition] = [
                     "type": "string",
                     "description": "Type of node to create",
                     "enum": [
-                        "StartExperiment", "EndExperiment", "Delay", "Loop",
-                        "WaitForInput", "DigitalWrite", "DigitalRead",
-                        "AnalogRead", "PWMWrite", "ServoWrite",
-                        "Branch", "Compare", "MathOp"
-                    ]
+                        "StartExperiment",
+                        "EndExperiment",
+                        "Delay",
+                        "Loop",
+                        "WaitForInput",
+                        "DigitalWrite",
+                        "DigitalRead",
+                        "AnalogRead",
+                        "PWMWrite",
+                        "ServoWrite",
+                        "Branch",
+                        "Compare",
+                        "MathOp",
+                    ],
                 },
-                "name": {
-                    "type": "string",
-                    "description": "Display name for the node (optional)"
-                },
+                "name": {"type": "string", "description": "Display name for the node (optional)"},
                 "x": {
                     "type": "number",
-                    "description": "X position on canvas (default: auto-layout)"
+                    "description": "X position on canvas (default: auto-layout)",
                 },
                 "y": {
                     "type": "number",
-                    "description": "Y position on canvas (default: auto-layout)"
+                    "description": "Y position on canvas (default: auto-layout)",
                 },
                 "properties": {
                     "type": "object",
                     "description": "Node-specific properties (e.g., delay_ms, device_id)",
-                    "additionalProperties": True
-                }
+                    "additionalProperties": True,
+                },
             },
-            "required": ["node_type"]
-        }
+            "required": ["node_type"],
+        },
     ),
-
     ToolDefinition(
         name="delete_node",
         description="Delete a node from the flow graph",
         parameters={
             "type": "object",
             "properties": {
-                "node_id": {
-                    "type": "string",
-                    "description": "ID of the node to delete"
-                }
+                "node_id": {"type": "string", "description": "ID of the node to delete"}
             },
-            "required": ["node_id"]
-        }
+            "required": ["node_id"],
+        },
     ),
-
     ToolDefinition(
         name="connect_nodes",
         description="Create a connection between two node ports",
         parameters={
             "type": "object",
             "properties": {
-                "from_node": {
-                    "type": "string",
-                    "description": "ID or name of the source node"
-                },
+                "from_node": {"type": "string", "description": "ID or name of the source node"},
                 "from_port": {
                     "type": "string",
-                    "description": "Name of the output port (e.g., 'exec', 'value', 'next')"
+                    "description": "Name of the output port (e.g., 'exec', 'value', 'next')",
                 },
-                "to_node": {
-                    "type": "string",
-                    "description": "ID or name of the target node"
-                },
+                "to_node": {"type": "string", "description": "ID or name of the target node"},
                 "to_port": {
                     "type": "string",
-                    "description": "Name of the input port (e.g., 'exec', 'value', 'body')"
-                }
+                    "description": "Name of the input port (e.g., 'exec', 'value', 'body')",
+                },
             },
-            "required": ["from_node", "from_port", "to_node", "to_port"]
-        }
+            "required": ["from_node", "from_port", "to_node", "to_port"],
+        },
     ),
-
     ToolDefinition(
         name="disconnect_nodes",
         description="Remove a connection between nodes",
         parameters={
             "type": "object",
             "properties": {
-                "from_node": {
-                    "type": "string",
-                    "description": "ID or name of the source node"
-                },
-                "from_port": {
-                    "type": "string",
-                    "description": "Name of the output port"
-                },
-                "to_node": {
-                    "type": "string",
-                    "description": "ID or name of the target node"
-                },
-                "to_port": {
-                    "type": "string",
-                    "description": "Name of the input port"
-                }
+                "from_node": {"type": "string", "description": "ID or name of the source node"},
+                "from_port": {"type": "string", "description": "Name of the output port"},
+                "to_node": {"type": "string", "description": "ID or name of the target node"},
+                "to_port": {"type": "string", "description": "Name of the input port"},
             },
-            "required": ["from_node", "from_port", "to_node", "to_port"]
-        }
+            "required": ["from_node", "from_port", "to_node", "to_port"],
+        },
     ),
-
     ToolDefinition(
         name="set_node_property",
         description="Set a property on a node",
         parameters={
             "type": "object",
             "properties": {
-                "node_id": {
-                    "type": "string",
-                    "description": "ID or name of the node"
-                },
-                "property_name": {
-                    "type": "string",
-                    "description": "Name of the property to set"
-                },
-                "value": {
-                    "description": "Value to set (type depends on property)"
-                }
+                "node_id": {"type": "string", "description": "ID or name of the node"},
+                "property_name": {"type": "string", "description": "Name of the property to set"},
+                "value": {"description": "Value to set (type depends on property)"},
             },
-            "required": ["node_id", "property_name", "value"]
-        }
+            "required": ["node_id", "property_name", "value"],
+        },
     ),
-
     ToolDefinition(
         name="get_flow_state",
         description="Get the current state of the flow graph (nodes and connections)",
         parameters={
             "type": "object",
             "properties": {},
-        }
+        },
     ),
-
     ToolDefinition(
         name="validate_flow",
         description="Validate the flow graph for errors",
         parameters={
             "type": "object",
             "properties": {},
-        }
+        },
     ),
-
     ToolDefinition(
         name="clear_flow",
         description="Remove all nodes and connections from the flow graph (DESTRUCTIVE)",
@@ -173,11 +143,11 @@ EXPERIMENT_TOOLS: list[ToolDefinition] = [
             "properties": {
                 "confirm": {
                     "type": "boolean",
-                    "description": "Must be true to confirm this destructive action"
+                    "description": "Must be true to confirm this destructive action",
                 }
             },
-            "required": ["confirm"]
-        }
+            "required": ["confirm"],
+        },
     ),
 ]
 
@@ -331,9 +301,7 @@ class ExperimentToolExecutor:
         to_port = args["to_port"]
 
         flow_engine = self._core.flow_engine
-        connection_id = flow_engine.connect_nodes(
-            from_node, from_port, to_node, to_port
-        )
+        connection_id = flow_engine.connect_nodes(from_node, from_port, to_node, to_port)
 
         logger.info(f"Connected: {from_node}.{from_port} → {to_node}.{to_port}")
 
@@ -351,9 +319,7 @@ class ExperimentToolExecutor:
         to_port = args["to_port"]
 
         flow_engine = self._core.flow_engine
-        success = flow_engine.disconnect_nodes(
-            from_node, from_port, to_node, to_port
-        )
+        success = flow_engine.disconnect_nodes(from_node, from_port, to_node, to_port)
 
         if success:
             logger.info(f"Disconnected: {from_node}.{from_port} → {to_node}.{to_port}")

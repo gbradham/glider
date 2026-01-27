@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class FlowState(Enum):
     """State of the flow engine."""
+
     STOPPED = auto()
     RUNNING = auto()
     PAUSED = auto()
@@ -61,6 +62,7 @@ class FlowEngine:
         self._ryvencore_available = False
         try:
             import ryvencore
+
             self._ryvencore_available = True
             self._ryvencore = ryvencore
         except ImportError:
@@ -170,8 +172,10 @@ class FlowEngine:
         for node_type, node_class in self._node_registry.items():
             # Only register classes that are actual ryvencore Node subclasses
             # GliderNode classes work in standalone mode and don't need ryvencore registration
-            if not hasattr(node_class, '_build_identifier'):
-                logger.debug(f"Skipping ryvencore registration for {node_type} (standalone GliderNode)")
+            if not hasattr(node_class, "_build_identifier"):
+                logger.debug(
+                    f"Skipping ryvencore registration for {node_type} (standalone GliderNode)"
+                )
                 continue
             try:
                 self._session.register_node_type(node_class)
@@ -217,18 +221,19 @@ class FlowEngine:
             logger.warning("No board available for custom device - using mock mode")
             # Create a mock board for testing without hardware
             from glider.hal.mock_board import MockBoard
+
             board = MockBoard()
 
         # Create the runner
         runner = CustomDeviceRunner(definition, board)
 
         # Store runner for later initialization
-        if not hasattr(self, '_custom_device_runners'):
+        if not hasattr(self, "_custom_device_runners"):
             self._custom_device_runners = {}
         self._custom_device_runners[definition_id] = runner
 
         # Bind to the node
-        if hasattr(node, 'set_custom_device_context'):
+        if hasattr(node, "set_custom_device_context"):
             node.set_custom_device_context(runner, definition_id)
             logger.info(f"Bound CustomDeviceRunner for '{definition.name}' to node")
         else:
@@ -248,7 +253,7 @@ class FlowEngine:
         runner = FlowFunctionRunner(start_node_id, self)
 
         # Bind to the node
-        if hasattr(node, 'set_function_context'):
+        if hasattr(node, "set_function_context"):
             node.set_function_context(start_node_id, runner)
             logger.info(f"Bound FlowFunctionRunner for StartFunction '{start_node_id}' to node")
         else:
@@ -287,7 +292,9 @@ class FlowEngine:
             node = self._flow.create_node(node_class)
             if node is None:
                 # Node not registered with ryvencore - fall back to standalone
-                logger.warning(f"Node class {node_class} not found in ryvencore session, using standalone mode")
+                logger.warning(
+                    f"Node class {node_class} not found in ryvencore session, using standalone mode"
+                )
                 node = node_class()
             node._glider_id = node_id
         else:
@@ -297,9 +304,9 @@ class FlowEngine:
 
         # Apply initial state
         if state:
-            if hasattr(node, 'set_state'):
+            if hasattr(node, "set_state"):
                 node.set_state(state)
-            elif hasattr(node, '_state'):
+            elif hasattr(node, "_state"):
                 node._state = state
             logger.info(f"Applied state to node {node_id}: {state}")
 
@@ -314,7 +321,9 @@ class FlowEngine:
                 else:
                     logger.warning("CustomDevice node has no definition_id in state")
             else:
-                logger.warning(f"CustomDevice node missing state ({state}) or session ({session is not None})")
+                logger.warning(
+                    f"CustomDevice node missing state ({state}) or session ({session is not None})"
+                )
 
         # Handle FunctionCall nodes - bind the runner
         if node_type == "FunctionCall":
@@ -330,14 +339,16 @@ class FlowEngine:
         # Bind to device if specified
         if device_id and self._hardware_manager:
             device = self._hardware_manager.get_device(device_id)
-            if device and hasattr(node, 'bind_device'):
+            if device and hasattr(node, "bind_device"):
                 node.bind_device(device)
                 logger.info(f"Bound device '{device_id}' to node {node_id}")
             else:
-                logger.warning(f"Could not bind device '{device_id}' to node {node_id} (device={device})")
+                logger.warning(
+                    f"Could not bind device '{device_id}' to node {node_id} (device={device})"
+                )
 
         # Register update callback
-        if hasattr(node, 'on_output_update'):
+        if hasattr(node, "on_output_update"):
             node.on_output_update(
                 lambda output, value, n=node: self._notify_node_update(n._glider_id, output, value)
             )
@@ -389,26 +400,37 @@ class FlowEngine:
             raise ValueError(f"Target node not found: {to_node_id}")
 
         # Store connection for standalone execution
-        self._connections.append({
-            "id": connection_id,
-            "from_node": from_node_id,
-            "from_output": from_output,
-            "to_node": to_node_id,
-            "to_input": to_input,
-            "type": connection_type,
-        })
+        self._connections.append(
+            {
+                "id": connection_id,
+                "from_node": from_node_id,
+                "from_output": from_output,
+                "to_node": to_node_id,
+                "to_input": to_input,
+                "type": connection_type,
+            }
+        )
 
         # Wire up the execution flow callback on the source node
         # Map output index to expected output name for filtering
         from_node_obj = self._nodes.get(from_node_id)
         expected_output_name = None
-        if hasattr(from_node_obj, 'definition') and hasattr(from_node_obj.definition, 'outputs'):
+        if hasattr(from_node_obj, "definition") and hasattr(from_node_obj.definition, "outputs"):
             outputs = from_node_obj.definition.outputs
             if from_output < len(outputs):
                 expected_output_name = outputs[from_output].name
-                logger.debug(f"Connection {from_node_id}:{from_output} expects output name: '{expected_output_name}'")
+                logger.debug(
+                    f"Connection {from_node_id}:{from_output} expects output name: '{expected_output_name}'"
+                )
 
-        def on_exec_output(output_name, value, fn=from_node_id, fo=from_output, tn=to_node_id, expected=expected_output_name):
+        def on_exec_output(
+            output_name,
+            value,
+            fn=from_node_id,
+            fo=from_output,
+            tn=to_node_id,
+            expected=expected_output_name,
+        ):
             # Only propagate if this is the correct output for this connection
             if expected is not None and output_name != expected:
                 logger.debug(f"Skipping callback - output '{output_name}' != expected '{expected}'")
@@ -422,9 +444,11 @@ class FlowEngine:
                 logger.warning(f"Skipping propagation - flow not running (state: {self._state})")
                 return None
 
-        if hasattr(from_node, '_update_callbacks'):
+        if hasattr(from_node, "_update_callbacks"):
             from_node._update_callbacks.append(on_exec_output)
-            logger.debug(f"Registered exec callback on {from_node_id}, total callbacks: {len(from_node._update_callbacks)}")
+            logger.debug(
+                f"Registered exec callback on {from_node_id}, total callbacks: {len(from_node._update_callbacks)}"
+            )
 
         if self._ryvencore_available and self._flow:
             try:
@@ -437,7 +461,9 @@ class FlowEngine:
 
         logger.debug(f"Created connection: {from_node_id}:{from_output} -> {to_node_id}:{to_input}")
 
-    async def _propagate_execution(self, from_node_id: str, from_output: int, to_node_id: str) -> None:
+    async def _propagate_execution(
+        self, from_node_id: str, from_output: int, to_node_id: str
+    ) -> None:
         """Propagate execution to the target node."""
         logger.info(f"_propagate_execution called: {from_node_id}:{from_output} -> {to_node_id}")
         to_node = self._nodes.get(to_node_id)
@@ -446,7 +472,7 @@ class FlowEngine:
             return
 
         try:
-            if hasattr(to_node, 'execute') and callable(to_node.execute):
+            if hasattr(to_node, "execute") and callable(to_node.execute):
                 logger.info(f"Executing node: {to_node_id} (type: {type(to_node).__name__})")
                 try:
                     if asyncio.iscoroutinefunction(to_node.execute):
@@ -456,20 +482,24 @@ class FlowEngine:
                     logger.info(f"Node {to_node_id} execution complete")
                 except Exception as e:
                     # User-facing error handling for node execution failures
-                    error_msg = f"Error executing node '{to_node_id}' ({type(to_node).__name__}): {str(e)}"
+                    error_msg = (
+                        f"Error executing node '{to_node_id}' ({type(to_node).__name__}): {str(e)}"
+                    )
                     logger.error(error_msg, exc_info=True)
                     self._notify_error(to_node_id, e)
                     # Don't propagate execution further on error
                     return
 
                 # Check if this was EndExperiment - signal flow completion
-                if hasattr(to_node, 'definition') and to_node.definition.name == "EndExperiment":
+                if hasattr(to_node, "definition") and to_node.definition.name == "EndExperiment":
                     self._notify_complete()
             else:
                 logger.warning(f"Node {to_node_id} has no execute method")
         except Exception as e:
             # Catch-all for unexpected framework errors
-            logger.critical(f"Critical framework error during execution propagation: {e}", exc_info=True)
+            logger.critical(
+                f"Critical framework error during execution propagation: {e}", exc_info=True
+            )
             self._notify_error("Framework", e)
 
     def remove_connection(self, connection_id: str) -> None:
@@ -487,9 +517,9 @@ class FlowEngine:
         if node is None:
             return None
 
-        if hasattr(node, 'outputs') and output_index < len(node.outputs):
+        if hasattr(node, "outputs") and output_index < len(node.outputs):
             return node.outputs[output_index].val
-        elif hasattr(node, 'get_output'):
+        elif hasattr(node, "get_output"):
             return node.get_output(output_index)
 
         return None
@@ -500,9 +530,9 @@ class FlowEngine:
         if node is None:
             return
 
-        if hasattr(node, 'inputs') and input_index < len(node.inputs):
+        if hasattr(node, "inputs") and input_index < len(node.inputs):
             node.inputs[input_index].update(value)
-        elif hasattr(node, 'set_input'):
+        elif hasattr(node, "set_input"):
             node.set_input(input_index, value)
 
     async def start(self) -> None:
@@ -513,7 +543,7 @@ class FlowEngine:
         logger.info("Starting flow execution")
 
         # Initialize custom device runners
-        if hasattr(self, '_custom_device_runners'):
+        if hasattr(self, "_custom_device_runners"):
             for def_id, runner in self._custom_device_runners.items():
                 try:
                     if not runner.is_initialized:
@@ -526,7 +556,7 @@ class FlowEngine:
 
         # Start any continuous nodes (timers, sensors, etc.)
         for node_id, node in self._nodes.items():
-            if hasattr(node, 'start') and callable(node.start):
+            if hasattr(node, "start") and callable(node.start):
                 try:
                     task = asyncio.create_task(self._run_node_start(node_id, node))
                     self._running_tasks.add(task)
@@ -564,7 +594,7 @@ class FlowEngine:
 
         # Stop all nodes
         for node_id, node in self._nodes.items():
-            if hasattr(node, 'stop') and callable(node.stop):
+            if hasattr(node, "stop") and callable(node.stop):
                 try:
                     if asyncio.iscoroutinefunction(node.stop):
                         await node.stop()
@@ -585,7 +615,7 @@ class FlowEngine:
 
         # Pause all nodes
         for node_id, node in self._nodes.items():
-            if hasattr(node, 'pause') and callable(node.pause):
+            if hasattr(node, "pause") and callable(node.pause):
                 try:
                     if asyncio.iscoroutinefunction(node.pause):
                         await node.pause()
@@ -604,7 +634,7 @@ class FlowEngine:
 
         # Resume all nodes
         for node_id, node in self._nodes.items():
-            if hasattr(node, 'resume') and callable(node.resume):
+            if hasattr(node, "resume") and callable(node.resume):
                 try:
                     if asyncio.iscoroutinefunction(node.resume):
                         await node.resume()
@@ -625,7 +655,7 @@ class FlowEngine:
         if node is None:
             return
 
-        if hasattr(node, 'exec_output'):
+        if hasattr(node, "exec_output"):
             try:
                 node.exec_output(exec_output)
             except Exception as e:
@@ -637,7 +667,7 @@ class FlowEngine:
         self._nodes.clear()
         self._connections.clear()
         self._running_tasks.clear()
-        if hasattr(self, '_custom_device_runners'):
+        if hasattr(self, "_custom_device_runners"):
             self._custom_device_runners.clear()
         self.state = FlowState.STOPPED
 
@@ -665,7 +695,7 @@ class FlowEngine:
                 "id": node_id,
                 "node_type": type(node).__name__,
             }
-            if hasattr(node, 'get_state'):
+            if hasattr(node, "get_state"):
                 node_data["state"] = node.get_state()
             nodes.append(node_data)
 
@@ -701,7 +731,8 @@ class FlowEngine:
             self.remove_node(node_id)
             # Also remove related connections
             self._connections = [
-                c for c in self._connections
+                c
+                for c in self._connections
                 if c["from_node"] != node_id and c["to_node"] != node_id
             ]
             return True
@@ -746,6 +777,7 @@ class FlowEngine:
 
         # Generate connection ID
         import uuid
+
         conn_id = f"conn_{uuid.uuid4().hex[:8]}"
 
         # Determine connection type
@@ -774,10 +806,12 @@ class FlowEngine:
 
         # Find and remove connection
         for i, conn in enumerate(self._connections):
-            if (conn["from_node"] == from_id and
-                conn["from_output"] == from_idx and
-                conn["to_node"] == to_id and
-                conn["to_input"] == to_idx):
+            if (
+                conn["from_node"] == from_id
+                and conn["from_output"] == from_idx
+                and conn["to_node"] == to_id
+                and conn["to_input"] == to_idx
+            ):
                 self._connections.pop(i)
                 return True
 
@@ -812,15 +846,12 @@ class FlowEngine:
 
         def get_node_type_name(node) -> str:
             """Get node type name from definition or class name."""
-            if hasattr(node, 'definition') and hasattr(node.definition, 'name'):
+            if hasattr(node, "definition") and hasattr(node.definition, "name"):
                 return node.definition.name
             return type(node).__name__.replace("Node", "")
 
         # Check for StartExperiment node
-        has_start = any(
-            get_node_type_name(n) == "StartExperiment"
-            for n in self._nodes.values()
-        )
+        has_start = any(get_node_type_name(n) == "StartExperiment" for n in self._nodes.values())
         if not has_start:
             errors.append("Missing StartExperiment node")
 
@@ -913,7 +944,9 @@ class FlowEngine:
         logger.info(f"Loading {len(session.flow.connections)} connections...")
         for conn_config in session.flow.connections:
             try:
-                logger.debug(f"Creating connection: {conn_config.from_node}:{conn_config.from_output} -> {conn_config.to_node}:{conn_config.to_input}")
+                logger.debug(
+                    f"Creating connection: {conn_config.from_node}:{conn_config.from_output} -> {conn_config.to_node}:{conn_config.to_input}"
+                )
                 self.create_connection(
                     connection_id=conn_config.id,
                     from_node_id=conn_config.from_node,
@@ -925,4 +958,6 @@ class FlowEngine:
             except Exception as e:
                 logger.error(f"Error creating connection {conn_config.id}: {e}")
 
-        logger.info(f"Loaded flow with {len(self._nodes)} nodes and {len(self._connections)} connections")
+        logger.info(
+            f"Loaded flow with {len(self._nodes)} nodes and {len(self._connections)} connections"
+        )

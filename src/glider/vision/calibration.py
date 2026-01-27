@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class LengthUnit(Enum):
     """Supported length units."""
+
     MILLIMETERS = "mm"
     CENTIMETERS = "cm"
     METERS = "m"
@@ -72,7 +73,7 @@ class CalibrationLine:
             int(self.start_x * width),
             int(self.start_y * height),
             int(self.end_x * width),
-            int(self.end_y * height)
+            int(self.end_y * height),
         )
 
     def to_dict(self) -> dict:
@@ -136,9 +137,7 @@ class CameraCalibration:
         total_ratio = 0.0
         for line in self.lines:
             # Get pixel length at calibration resolution
-            x1, y1, x2, y2 = line.get_pixel_coords(
-                self.calibration_width, self.calibration_height
-            )
+            x1, y1, x2, y2 = line.get_pixel_coords(self.calibration_width, self.calibration_height)
             pixel_dist = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
             mm_dist = line.length_mm
 
@@ -154,7 +153,7 @@ class CameraCalibration:
         length: float,
         unit: LengthUnit = LengthUnit.MILLIMETERS,
         name: str = "",
-        resolution: tuple[int, int] = None
+        resolution: tuple[int, int] = None,
     ) -> CalibrationLine:
         """
         Add a calibration line.
@@ -211,10 +210,7 @@ class CameraCalibration:
         logger.info("Cleared camera calibration")
 
     def pixels_to_mm(
-        self,
-        pixels: float,
-        current_width: int = None,
-        current_height: int = None
+        self, pixels: float, current_width: int = None, current_height: int = None
     ) -> float:
         """
         Convert pixel distance to millimeters.
@@ -238,11 +234,7 @@ class CameraCalibration:
 
         return pixels / ppm
 
-    def mm_to_pixels(
-        self,
-        mm: float,
-        current_width: int = None
-    ) -> float:
+    def mm_to_pixels(self, mm: float, current_width: int = None) -> float:
         """
         Convert millimeters to pixel distance.
 
@@ -263,11 +255,7 @@ class CameraCalibration:
 
         return mm * ppm
 
-    def pixel_distance(
-        self,
-        p1: tuple[int, int],
-        p2: tuple[int, int]
-    ) -> float:
+    def pixel_distance(self, p1: tuple[int, int], p2: tuple[int, int]) -> float:
         """Calculate pixel distance between two points."""
         dx = p2[0] - p1[0]
         dy = p2[1] - p1[1]
@@ -278,7 +266,7 @@ class CameraCalibration:
         p1: tuple[int, int],
         p2: tuple[int, int],
         current_width: int = None,
-        current_height: int = None
+        current_height: int = None,
     ) -> float:
         """
         Calculate real-world distance between two pixel points.
@@ -308,7 +296,7 @@ class CameraCalibration:
             "lines": [line.to_dict() for line in self.lines],
         }
 
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(data, f, indent=2)
 
         logger.info(f"Saved calibration to {path}")
@@ -330,8 +318,7 @@ class CameraCalibration:
             self.calibration_width = data.get("calibration_width", 0)
             self.calibration_height = data.get("calibration_height", 0)
             self.lines = [
-                CalibrationLine.from_dict(line_data)
-                for line_data in data.get("lines", [])
+                CalibrationLine.from_dict(line_data) for line_data in data.get("lines", [])
             ]
 
             logger.info(f"Loaded calibration from {path}: {len(self.lines)} lines")
@@ -355,10 +342,7 @@ class CameraCalibration:
         cal = cls()
         cal.calibration_width = data.get("calibration_width", 0)
         cal.calibration_height = data.get("calibration_height", 0)
-        cal.lines = [
-            CalibrationLine.from_dict(line_data)
-            for line_data in data.get("lines", [])
-        ]
+        cal.lines = [CalibrationLine.from_dict(line_data) for line_data in data.get("lines", [])]
         return cal
 
     def get_info(self) -> dict:

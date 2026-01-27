@@ -61,10 +61,7 @@ class CalibrationPreviewWidget(QLabel):
             }
         """)
         self.setMouseTracking(True)
-        self.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Expanding
-        )
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         self._frame: Optional[np.ndarray] = None
         self._calibration: Optional[CameraCalibration] = None
@@ -121,7 +118,9 @@ class CalibrationPreviewWidget(QLabel):
 
                 # Draw endpoints - larger and highlighted when in drawing mode
                 endpoint_radius = 12 if self._drawing_mode else 8
-                endpoint_color = (0, 255, 255) if self._drawing_mode else color  # Yellow when drawing
+                endpoint_color = (
+                    (0, 255, 255) if self._drawing_mode else color
+                )  # Yellow when drawing
                 cv2.circle(display_frame, (x1, y1), endpoint_radius, endpoint_color, -1)
                 cv2.circle(display_frame, (x2, y2), endpoint_radius, endpoint_color, -1)
                 # Add outline for better visibility
@@ -133,9 +132,13 @@ class CalibrationPreviewWidget(QLabel):
                 mid_y = (y1 + y2) // 2
                 label = f"{line.name}: {line.length:.1f} {line.unit.value}"
                 cv2.putText(
-                    display_frame, label,
+                    display_frame,
+                    label,
                     (mid_x + 5, mid_y - 5),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    color,
+                    1,
                 )
 
         # Convert to QImage - must copy data to avoid dangling reference
@@ -143,8 +146,7 @@ class CalibrationPreviewWidget(QLabel):
         rgb_frame = np.ascontiguousarray(rgb_frame)
         bytes_per_line = 3 * w
         q_image = QImage(
-            rgb_frame.data, w, h, bytes_per_line,
-            QImage.Format.Format_RGB888
+            rgb_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888
         ).copy()  # Copy to own the data
 
         # Scale to fit widget
@@ -152,7 +154,7 @@ class CalibrationPreviewWidget(QLabel):
         scaled = pixmap.scaled(
             self.size(),
             Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
+            Qt.TransformationMode.SmoothTransformation,
         )
 
         # Calculate image rect for mouse coordinate mapping
@@ -200,7 +202,7 @@ class CalibrationPreviewWidget(QLabel):
             return None
 
         h, w = self._frame.shape[:2]
-        min_dist = float('inf')
+        min_dist = float("inf")
         nearest = None
 
         for line in self._calibration.lines:
@@ -255,8 +257,7 @@ class CalibrationPreviewWidget(QLabel):
             end_point = QPoint(coords[0], coords[1])
             logger.info(f"Second point set: {coords}, emitting line_defined signal")
             self.line_defined.emit(
-                (self._start_point.x(), self._start_point.y()),
-                (end_point.x(), end_point.y())
+                (self._start_point.x(), self._start_point.y()), (end_point.x(), end_point.y())
             )
             self._start_point = None
             self._current_point = None
@@ -315,15 +316,12 @@ class CalibrationPreviewWidget(QLabel):
         rgb_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
         rgb_frame = np.ascontiguousarray(rgb_frame)
         bytes_per_line = 3 * w
-        q_image = QImage(
-            rgb_frame.data, w, h, bytes_per_line,
-            QImage.Format.Format_RGB888
-        ).copy()
+        q_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888).copy()
         pixmap = QPixmap.fromImage(q_image)
         scaled = pixmap.scaled(
             self.size(),
             Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
+            Qt.TransformationMode.SmoothTransformation,
         )
         self.clear()
         self.setPixmap(scaled)
@@ -341,10 +339,7 @@ class CalibrationDialog(QDialog):
     """
 
     def __init__(
-        self,
-        camera_manager: "CameraManager",
-        calibration: CameraCalibration,
-        parent=None
+        self, camera_manager: "CameraManager", calibration: CameraCalibration, parent=None
     ):
         super().__init__(parent)
         self._camera = camera_manager
@@ -522,6 +517,7 @@ class CalibrationDialog(QDialog):
 
         # Calculate pixel length for reference
         import math
+
         dx = end[0] - start[0]
         dy = end[1] - start[1]
         pixel_length = math.sqrt(dx * dx + dy * dy)
@@ -568,8 +564,7 @@ class CalibrationDialog(QDialog):
         """Capture a new frame from camera."""
         if not self._camera.is_connected:
             QMessageBox.warning(
-                self, "No Camera",
-                "Camera is not connected. Start camera preview first."
+                self, "No Camera", "Camera is not connected. Start camera preview first."
             )
             return
 
@@ -594,7 +589,9 @@ class CalibrationDialog(QDialog):
 
             # Length
             length_item = QTableWidgetItem(f"{line.length:.2f}")
-            length_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            length_item.setTextAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            )
             self._table.setItem(i, 1, length_item)
 
             # Unit
@@ -636,27 +633,18 @@ class CalibrationDialog(QDialog):
         from pathlib import Path
 
         path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save Calibration",
-            "",
-            "JSON Files (*.json);;All Files (*)"
+            self, "Save Calibration", "", "JSON Files (*.json);;All Files (*)"
         )
         if path:
             self._calibration.save(Path(path))
-            QMessageBox.information(
-                self, "Saved",
-                f"Calibration saved to {path}"
-            )
+            QMessageBox.information(self, "Saved", f"Calibration saved to {path}")
 
     def _load_calibration(self) -> None:
         """Load calibration from file."""
         from pathlib import Path
 
         path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Load Calibration",
-            "",
-            "JSON Files (*.json);;All Files (*)"
+            self, "Load Calibration", "", "JSON Files (*.json);;All Files (*)"
         )
         if path:
             if self._calibration.load(Path(path)):
@@ -664,14 +652,10 @@ class CalibrationDialog(QDialog):
                 self._preview.set_calibration(self._calibration)
                 self._preview._update_display()
                 QMessageBox.information(
-                    self, "Loaded",
-                    f"Loaded {len(self._calibration.lines)} calibration lines"
+                    self, "Loaded", f"Loaded {len(self._calibration.lines)} calibration lines"
                 )
             else:
-                QMessageBox.warning(
-                    self, "Error",
-                    "Failed to load calibration file"
-                )
+                QMessageBox.warning(self, "Error", "Failed to load calibration file")
 
     def _clear_calibration(self) -> None:
         """Clear all calibration lines."""
@@ -679,9 +663,10 @@ class CalibrationDialog(QDialog):
             return
 
         reply = QMessageBox.question(
-            self, "Clear Calibration",
+            self,
+            "Clear Calibration",
             "Remove all calibration lines?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
             self._calibration.clear()

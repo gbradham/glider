@@ -35,7 +35,7 @@ class TestZone:
             name="Test Zone",
             shape=ZoneShape.RECTANGLE,
             vertices=[(0.1, 0.1), (0.9, 0.9)],
-            color=(255, 0, 0)
+            color=(255, 0, 0),
         )
 
         assert zone.id == "zone_1"
@@ -50,7 +50,7 @@ class TestZone:
             name="Circle Zone",
             shape=ZoneShape.CIRCLE,
             vertices=[(0.5, 0.5), (0.75, 0.5)],  # center and radius point
-            color=(0, 255, 0)
+            color=(0, 255, 0),
         )
 
         assert zone.shape == ZoneShape.CIRCLE
@@ -63,7 +63,7 @@ class TestZone:
             name="Polygon Zone",
             shape=ZoneShape.POLYGON,
             vertices=[(0.2, 0.2), (0.8, 0.2), (0.5, 0.8)],  # triangle
-            color=(0, 0, 255)
+            color=(0, 0, 255),
         )
 
         assert zone.shape == ZoneShape.POLYGON
@@ -76,7 +76,7 @@ class TestZone:
             name="Test Zone",
             shape=ZoneShape.RECTANGLE,
             vertices=[(0.2, 0.2), (0.8, 0.8)],
-            color=(255, 0, 0)
+            color=(255, 0, 0),
         )
 
         # Point inside
@@ -96,7 +96,7 @@ class TestZone:
             name="Circle Zone",
             shape=ZoneShape.CIRCLE,
             vertices=[(0.5, 0.5), (0.7, 0.5)],  # center at 0.5,0.5, radius 0.2
-            color=(255, 0, 0)
+            color=(255, 0, 0),
         )
 
         # Point inside (center)
@@ -117,7 +117,7 @@ class TestZone:
             name="Triangle Zone",
             shape=ZoneShape.POLYGON,
             vertices=[(0.5, 0.2), (0.8, 0.8), (0.2, 0.8)],
-            color=(255, 0, 0)
+            color=(255, 0, 0),
         )
 
         # Point inside (center of triangle)
@@ -174,11 +174,7 @@ class TestZone:
     def test_empty_vertices(self):
         """Test zone with empty vertices."""
         zone = Zone(
-            id="empty",
-            name="Empty",
-            shape=ZoneShape.RECTANGLE,
-            vertices=[],
-            color=(0, 0, 0)
+            id="empty", name="Empty", shape=ZoneShape.RECTANGLE, vertices=[], color=(0, 0, 0)
         )
 
         # Should return False for any point
@@ -191,7 +187,7 @@ class TestZone:
             name="Test",
             shape=ZoneShape.RECTANGLE,
             vertices=[(0.1, 0.2), (0.9, 0.8)],
-            color=(255, 0, 0)
+            color=(255, 0, 0),
         )
 
         pixel_verts = zone.get_pixel_vertices(640, 480)
@@ -206,7 +202,7 @@ class TestZone:
             name="Test",
             shape=ZoneShape.RECTANGLE,
             vertices=[(0.2, 0.3), (0.8, 0.7)],
-            color=(255, 0, 0)
+            color=(255, 0, 0),
         )
 
         x, y, w, h = zone.get_bounding_rect()
@@ -223,7 +219,7 @@ class TestZone:
             name="Test",
             shape=ZoneShape.RECTANGLE,
             vertices=[(0.2, 0.2), (0.8, 0.8)],
-            color=(255, 0, 0)
+            color=(255, 0, 0),
         )
 
         cx, cy = zone.get_center()
@@ -251,7 +247,7 @@ class TestZoneConfiguration:
             name="Test",
             shape=ZoneShape.RECTANGLE,
             vertices=[(0, 0), (1, 1)],
-            color=(255, 0, 0)
+            color=(255, 0, 0),
         )
 
         config.add_zone(zone)
@@ -267,7 +263,7 @@ class TestZoneConfiguration:
             name="Test",
             shape=ZoneShape.RECTANGLE,
             vertices=[(0, 0), (1, 1)],
-            color=(255, 0, 0)
+            color=(255, 0, 0),
         )
         config.add_zone(zone)
 
@@ -278,10 +274,20 @@ class TestZoneConfiguration:
     def test_get_zone(self):
         """Test getting a zone by ID."""
         config = ZoneConfiguration()
-        zone1 = Zone(id="z1", name="Zone 1", shape=ZoneShape.RECTANGLE,
-                     vertices=[(0, 0), (0.5, 0.5)], color=(255, 0, 0))
-        zone2 = Zone(id="z2", name="Zone 2", shape=ZoneShape.RECTANGLE,
-                     vertices=[(0.5, 0.5), (1, 1)], color=(0, 255, 0))
+        zone1 = Zone(
+            id="z1",
+            name="Zone 1",
+            shape=ZoneShape.RECTANGLE,
+            vertices=[(0, 0), (0.5, 0.5)],
+            color=(255, 0, 0),
+        )
+        zone2 = Zone(
+            id="z2",
+            name="Zone 2",
+            shape=ZoneShape.RECTANGLE,
+            vertices=[(0.5, 0.5), (1, 1)],
+            color=(0, 255, 0),
+        )
 
         config.add_zone(zone1)
         config.add_zone(zone2)
@@ -295,12 +301,20 @@ class TestZoneConfiguration:
         config = ZoneConfiguration()
 
         # Overlapping zones
-        zone1 = Zone(id="z1", name="Zone 1", shape=ZoneShape.RECTANGLE,
-                     vertices=[(0.0, 0.0), (0.6, 0.6)],
-                     color=(255, 0, 0))
-        zone2 = Zone(id="z2", name="Zone 2", shape=ZoneShape.RECTANGLE,
-                     vertices=[(0.4, 0.4), (1.0, 1.0)],
-                     color=(0, 255, 0))
+        zone1 = Zone(
+            id="z1",
+            name="Zone 1",
+            shape=ZoneShape.RECTANGLE,
+            vertices=[(0.0, 0.0), (0.6, 0.6)],
+            color=(255, 0, 0),
+        )
+        zone2 = Zone(
+            id="z2",
+            name="Zone 2",
+            shape=ZoneShape.RECTANGLE,
+            vertices=[(0.4, 0.4), (1.0, 1.0)],
+            color=(0, 255, 0),
+        )
 
         config.add_zone(zone1)
         config.add_zone(zone2)
@@ -326,8 +340,15 @@ class TestZoneConfiguration:
     def test_to_dict(self):
         """Test ZoneConfiguration serialization."""
         config = ZoneConfiguration()
-        config.add_zone(Zone(id="z1", name="Zone 1", shape=ZoneShape.RECTANGLE,
-                             vertices=[(0, 0), (1, 1)], color=(255, 0, 0)))
+        config.add_zone(
+            Zone(
+                id="z1",
+                name="Zone 1",
+                shape=ZoneShape.RECTANGLE,
+                vertices=[(0, 0), (1, 1)],
+                color=(255, 0, 0),
+            )
+        )
         config.config_width = 640
         config.config_height = 480
 
@@ -350,7 +371,7 @@ class TestZoneConfiguration:
                 }
             ],
             "config_width": 640,
-            "config_height": 480
+            "config_height": 480,
         }
 
         config = ZoneConfiguration.from_dict(data)
@@ -362,10 +383,24 @@ class TestZoneConfiguration:
     def test_clear(self):
         """Test clearing all zones."""
         config = ZoneConfiguration()
-        config.add_zone(Zone(id="z1", name="Z1", shape=ZoneShape.RECTANGLE,
-                             vertices=[(0, 0), (1, 1)], color=(255, 0, 0)))
-        config.add_zone(Zone(id="z2", name="Z2", shape=ZoneShape.CIRCLE,
-                             vertices=[(0.5, 0.5), (0.7, 0.5)], color=(0, 255, 0)))
+        config.add_zone(
+            Zone(
+                id="z1",
+                name="Z1",
+                shape=ZoneShape.RECTANGLE,
+                vertices=[(0, 0), (1, 1)],
+                color=(255, 0, 0),
+            )
+        )
+        config.add_zone(
+            Zone(
+                id="z2",
+                name="Z2",
+                shape=ZoneShape.CIRCLE,
+                vertices=[(0.5, 0.5), (0.7, 0.5)],
+                color=(0, 255, 0),
+            )
+        )
         config.config_width = 640
 
         config.clear()
@@ -379,10 +414,7 @@ class TestZoneState:
 
     def test_creation(self):
         """Test ZoneState creation."""
-        state = ZoneState(
-            zone_id="z1",
-            zone_name="Zone 1"
-        )
+        state = ZoneState(zone_id="z1", zone_name="Zone 1")
 
         assert state.zone_id == "z1"
         assert state.zone_name == "Zone 1"
@@ -392,11 +424,7 @@ class TestZoneState:
     def test_with_objects(self):
         """Test ZoneState with objects."""
         state = ZoneState(
-            zone_id="z1",
-            zone_name="Zone 1",
-            occupied=True,
-            object_count=3,
-            object_ids={1, 2, 3}
+            zone_id="z1", zone_name="Zone 1", occupied=True, object_count=3, object_ids={1, 2, 3}
         )
 
         assert state.occupied is True
@@ -405,12 +433,7 @@ class TestZoneState:
 
     def test_event_flags(self):
         """Test entered and exited event flags."""
-        state = ZoneState(
-            zone_id="z1",
-            zone_name="Zone 1",
-            entered=True,
-            exited=False
-        )
+        state = ZoneState(zone_id="z1", zone_name="Zone 1", entered=True, exited=False)
 
         assert state.entered is True
         assert state.exited is False
@@ -423,18 +446,24 @@ class TestZoneTracker:
     def tracker_with_zones(self):
         """Create a ZoneTracker with test zones."""
         config = ZoneConfiguration()
-        config.add_zone(Zone(
-            id="z1", name="Zone 1",
-            shape=ZoneShape.RECTANGLE,
-            vertices=[(0.0, 0.0), (0.5, 0.5)],
-            color=(255, 0, 0)
-        ))
-        config.add_zone(Zone(
-            id="z2", name="Zone 2",
-            shape=ZoneShape.RECTANGLE,
-            vertices=[(0.5, 0.5), (1.0, 1.0)],
-            color=(0, 255, 0)
-        ))
+        config.add_zone(
+            Zone(
+                id="z1",
+                name="Zone 1",
+                shape=ZoneShape.RECTANGLE,
+                vertices=[(0.0, 0.0), (0.5, 0.5)],
+                color=(255, 0, 0),
+            )
+        )
+        config.add_zone(
+            Zone(
+                id="z2",
+                name="Zone 2",
+                shape=ZoneShape.RECTANGLE,
+                vertices=[(0.5, 0.5), (1.0, 1.0)],
+                color=(0, 255, 0),
+            )
+        )
 
         tracker = ZoneTracker()
         tracker.set_zone_configuration(config)
@@ -504,7 +533,7 @@ class TestZoneRoundtrip:
             name="Test Zone",
             shape=ZoneShape.POLYGON,
             vertices=[(0.1, 0.1), (0.9, 0.1), (0.5, 0.9)],
-            color=(100, 150, 200)
+            color=(100, 150, 200),
         )
 
         restored = Zone.from_dict(original.to_dict())
@@ -517,18 +546,24 @@ class TestZoneRoundtrip:
     def test_configuration_roundtrip(self):
         """Test ZoneConfiguration serialization roundtrip."""
         original = ZoneConfiguration()
-        original.add_zone(Zone(
-            id="z1", name="Zone 1",
-            shape=ZoneShape.RECTANGLE,
-            vertices=[(0, 0), (0.5, 0.5)],
-            color=(255, 0, 0)
-        ))
-        original.add_zone(Zone(
-            id="z2", name="Zone 2",
-            shape=ZoneShape.CIRCLE,
-            vertices=[(0.75, 0.75), (0.9, 0.75)],
-            color=(0, 255, 0)
-        ))
+        original.add_zone(
+            Zone(
+                id="z1",
+                name="Zone 1",
+                shape=ZoneShape.RECTANGLE,
+                vertices=[(0, 0), (0.5, 0.5)],
+                color=(255, 0, 0),
+            )
+        )
+        original.add_zone(
+            Zone(
+                id="z2",
+                name="Zone 2",
+                shape=ZoneShape.CIRCLE,
+                vertices=[(0.75, 0.75), (0.9, 0.75)],
+                color=(0, 255, 0),
+            )
+        )
         original.config_width = 1920
         original.config_height = 1080
 

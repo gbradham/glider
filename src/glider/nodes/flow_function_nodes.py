@@ -58,7 +58,9 @@ class FlowFunctionRunner:
 
             node = self._flow_engine.get_node(current_id)
             if node is not None:
-                node_name = getattr(getattr(node, 'definition', None), 'name', None) or type(node).__name__
+                node_name = (
+                    getattr(getattr(node, "definition", None), "name", None) or type(node).__name__
+                )
                 if node_name in ("EndFunction", "EndFunctionNode"):
                     self._end_node_ids.append(current_id)
 
@@ -89,7 +91,7 @@ class FlowFunctionRunner:
         # Register completion callback on EndFunction nodes
         for end_node_id in self._end_node_ids:
             end_node = self._flow_engine.get_node(end_node_id)
-            if end_node and hasattr(end_node, 'set_completion_callback'):
+            if end_node and hasattr(end_node, "set_completion_callback"):
                 end_node.set_completion_callback(self._on_function_complete)
 
         # Trigger the StartFunction node
@@ -99,7 +101,7 @@ class FlowFunctionRunner:
             return
 
         logger.info(f"FlowFunctionRunner: executing StartFunction {self._start_node_id}")
-        if hasattr(start_node, 'execute'):
+        if hasattr(start_node, "execute"):
             if asyncio.iscoroutinefunction(start_node.execute):
                 await start_node.execute()
             else:
@@ -115,7 +117,7 @@ class FlowFunctionRunner:
             # Clear completion callbacks
             for end_node_id in self._end_node_ids:
                 end_node = self._flow_engine.get_node(end_node_id)
-                if end_node and hasattr(end_node, 'set_completion_callback'):
+                if end_node and hasattr(end_node, "set_completion_callback"):
                     end_node.set_completion_callback(None)
 
 

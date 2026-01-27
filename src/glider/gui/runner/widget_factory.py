@@ -56,14 +56,14 @@ class WidgetFactory:
             widget.bind_node(node)
 
             # Special handling for nodes with get_display_value
-            if hasattr(node, 'get_display_value'):
+            if hasattr(node, "get_display_value"):
                 # Create update callback to use get_display_value
                 def update_from_node(*args):
                     display_val = node.get_display_value()
                     widget.set_value(display_val)
 
                 # Register callback with node
-                if hasattr(node, 'register_update_callback'):
+                if hasattr(node, "register_update_callback"):
                     node.register_update_callback(update_from_node)
 
             return widget

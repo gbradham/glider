@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 class RecordingState(Enum):
     """State of the video recording."""
+
     IDLE = auto()
     RECORDING = auto()
     PAUSED = auto()
@@ -33,6 +34,7 @@ class RecordingState(Enum):
 @dataclass
 class VideoFormat:
     """Video output format configuration."""
+
     codec: str = "mp4v"  # OpenCV fourcc code
     extension: str = ".mp4"
     quality: int = 95  # For JPEG-based codecs
@@ -168,14 +170,13 @@ class VideoRecorder:
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         # Sanitize name
-        safe_name = "".join(
-            c if c.isalnum() or c in "._- " else "_"
-            for c in experiment_name
-        )
+        safe_name = "".join(c if c.isalnum() or c in "._- " else "_" for c in experiment_name)
         safe_name = safe_name.strip().replace(" ", "_") or "experiment"
         return f"{safe_name}_{timestamp}{self._video_format.extension}"
 
-    async def start(self, experiment_name: str = "experiment", record_annotated: bool = False) -> Path:
+    async def start(
+        self, experiment_name: str = "experiment", record_annotated: bool = False
+    ) -> Path:
         """
         Start recording video.
 
@@ -208,15 +209,14 @@ class VideoRecorder:
         actual_fps = self._camera.current_fps
         recording_fps = actual_fps if actual_fps > 1.0 else settings.fps
         self._recording_fps = recording_fps
-        logger.debug(f"Recording at {recording_fps:.1f} fps (measured: {actual_fps:.1f}, configured: {settings.fps})")
+        logger.debug(
+            f"Recording at {recording_fps:.1f} fps (measured: {actual_fps:.1f}, configured: {settings.fps})"
+        )
 
         with self._lock:
             # Create raw video writer
             self._writer = cv2.VideoWriter(
-                str(self._file_path),
-                fourcc,
-                recording_fps,
-                settings.resolution
+                str(self._file_path), fourcc, recording_fps, settings.resolution
             )
 
             if not self._writer.isOpened():
@@ -229,13 +229,12 @@ class VideoRecorder:
                 annotated_filename = self._generate_filename(f"{experiment_name}_annotated")
                 self._annotated_file_path = self._output_dir / annotated_filename
                 self._annotated_writer = cv2.VideoWriter(
-                    str(self._annotated_file_path),
-                    fourcc,
-                    recording_fps,
-                    settings.resolution
+                    str(self._annotated_file_path), fourcc, recording_fps, settings.resolution
                 )
                 if not self._annotated_writer.isOpened():
-                    logger.warning(f"Failed to create annotated video writer: {self._annotated_file_path}")
+                    logger.warning(
+                        f"Failed to create annotated video writer: {self._annotated_file_path}"
+                    )
                     self._annotated_writer = None
                 else:
                     logger.info(f"Recording annotated video to {self._annotated_file_path}")
@@ -356,7 +355,7 @@ class VideoRecorder:
             True if successful
         """
         try:
-            temp_path = video_path.with_suffix('.temp.mp4')
+            temp_path = video_path.with_suffix(".temp.mp4")
 
             # Read original video
             cap = cv2.VideoCapture(str(video_path))
@@ -388,6 +387,7 @@ class VideoRecorder:
 
             # Replace original with fixed version
             import os
+
             os.replace(str(temp_path), str(video_path))
             logger.info(f"Fixed video FPS to {correct_fps:.1f}")
             return True
@@ -440,7 +440,9 @@ class VideoRecorder:
         return {
             "state": self._state.name,
             "file_path": str(self._file_path) if self._file_path else None,
-            "annotated_file_path": str(self._annotated_file_path) if self._annotated_file_path else None,
+            "annotated_file_path": (
+                str(self._annotated_file_path) if self._annotated_file_path else None
+            ),
             "frame_count": self._frame_count,
             "annotated_frame_count": self._annotated_frame_count,
             "record_annotated": self._record_annotated,

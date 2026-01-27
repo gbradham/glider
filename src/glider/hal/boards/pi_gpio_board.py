@@ -37,14 +37,22 @@ RPI_GPIO_PINS = {
     9: PinCapability(9, {PinType.DIGITAL, PinType.SPI}, description="GPIO9 (MISO)"),
     10: PinCapability(10, {PinType.DIGITAL, PinType.SPI}, description="GPIO10 (MOSI)"),
     11: PinCapability(11, {PinType.DIGITAL, PinType.SPI}, description="GPIO11 (SCLK)"),
-    12: PinCapability(12, {PinType.DIGITAL, PinType.PWM}, max_value=100, description="GPIO12 (PWM0)"),
-    13: PinCapability(13, {PinType.DIGITAL, PinType.PWM}, max_value=100, description="GPIO13 (PWM1)"),
+    12: PinCapability(
+        12, {PinType.DIGITAL, PinType.PWM}, max_value=100, description="GPIO12 (PWM0)"
+    ),
+    13: PinCapability(
+        13, {PinType.DIGITAL, PinType.PWM}, max_value=100, description="GPIO13 (PWM1)"
+    ),
     14: PinCapability(14, {PinType.DIGITAL}, description="GPIO14 (TXD)"),
     15: PinCapability(15, {PinType.DIGITAL}, description="GPIO15 (RXD)"),
     16: PinCapability(16, {PinType.DIGITAL}, description="GPIO16"),
     17: PinCapability(17, {PinType.DIGITAL}, description="GPIO17"),
-    18: PinCapability(18, {PinType.DIGITAL, PinType.PWM}, max_value=100, description="GPIO18 (PWM0)"),
-    19: PinCapability(19, {PinType.DIGITAL, PinType.PWM}, max_value=100, description="GPIO19 (PWM1)"),
+    18: PinCapability(
+        18, {PinType.DIGITAL, PinType.PWM}, max_value=100, description="GPIO18 (PWM0)"
+    ),
+    19: PinCapability(
+        19, {PinType.DIGITAL, PinType.PWM}, max_value=100, description="GPIO19 (PWM1)"
+    ),
     20: PinCapability(20, {PinType.DIGITAL}, description="GPIO20"),
     21: PinCapability(21, {PinType.DIGITAL}, description="GPIO21"),
     22: PinCapability(22, {PinType.DIGITAL}, description="GPIO22"),
@@ -119,6 +127,7 @@ class PiGPIOBoard(BaseBoard):
             # Try to import gpiozero
             try:
                 import gpiozero
+
                 self._gpiozero_available = True
                 logger.info("Using gpiozero for GPIO control")
             except ImportError:
@@ -128,6 +137,7 @@ class PiGPIOBoard(BaseBoard):
             if not self._gpiozero_available:
                 try:
                     import lgpio
+
                     self._lgpio_available = True
                     logger.info("Using lgpio for GPIO control")
                 except ImportError:
@@ -155,7 +165,7 @@ class PiGPIOBoard(BaseBoard):
         # Close all gpiozero devices
         for pin, device in self._devices.items():
             try:
-                if hasattr(device, 'close'):
+                if hasattr(device, "close"):
                     await asyncio.to_thread(device.close)
             except Exception as e:
                 logger.warning(f"Error closing device on pin {pin}: {e}")
@@ -166,7 +176,9 @@ class PiGPIOBoard(BaseBoard):
         self._set_state(BoardConnectionState.DISCONNECTED)
         logger.info("Raspberry Pi GPIO disconnected")
 
-    async def set_pin_mode(self, pin: int, mode: PinMode, pin_type: PinType = PinType.DIGITAL) -> None:
+    async def set_pin_mode(
+        self, pin: int, mode: PinMode, pin_type: PinType = PinType.DIGITAL
+    ) -> None:
         """Configure a pin's mode."""
         if not self.is_connected:
             raise RuntimeError("Board not connected")
@@ -186,15 +198,21 @@ class PiGPIOBoard(BaseBoard):
                     device = await asyncio.to_thread(lambda: gpiozero.DigitalOutputDevice(pin))
                     self._devices[pin] = device
                 elif mode == PinMode.INPUT:
-                    device = await asyncio.to_thread(lambda: gpiozero.DigitalInputDevice(pin, pull_up=False))
+                    device = await asyncio.to_thread(
+                        lambda: gpiozero.DigitalInputDevice(pin, pull_up=False)
+                    )
                     self._devices[pin] = device
                     self._setup_input_callback(pin, device)
                 elif mode == PinMode.INPUT_PULLUP:
-                    device = await asyncio.to_thread(lambda: gpiozero.DigitalInputDevice(pin, pull_up=True))
+                    device = await asyncio.to_thread(
+                        lambda: gpiozero.DigitalInputDevice(pin, pull_up=True)
+                    )
                     self._devices[pin] = device
                     self._setup_input_callback(pin, device)
                 elif mode == PinMode.INPUT_PULLDOWN:
-                    device = await asyncio.to_thread(lambda: gpiozero.DigitalInputDevice(pin, pull_up=False))
+                    device = await asyncio.to_thread(
+                        lambda: gpiozero.DigitalInputDevice(pin, pull_up=False)
+                    )
                     self._devices[pin] = device
                     self._setup_input_callback(pin, device)
 
@@ -216,14 +234,13 @@ class PiGPIOBoard(BaseBoard):
 
     def _setup_input_callback(self, pin: int, device: Any) -> None:
         """Set up callbacks for input devices."""
+
         def on_change():
             value = device.value
             self._pin_values[pin] = value
             # Use call_soon_threadsafe to marshal back to main event loop
             if self._event_loop is not None:
-                self._event_loop.call_soon_threadsafe(
-                    lambda: self._notify_callbacks(pin, value)
-                )
+                self._event_loop.call_soon_threadsafe(lambda: self._notify_callbacks(pin, value))
 
         device.when_activated = on_change
         device.when_deactivated = on_change
@@ -267,14 +284,13 @@ class PiGPIOBoard(BaseBoard):
 
         # Convert 0-255 to 0-1
         pwm_value = max(0.0, min(1.0, value / 255.0))
-        await asyncio.to_thread(lambda: setattr(device, 'value', pwm_value))
+        await asyncio.to_thread(lambda: setattr(device, "value", pwm_value))
         self._pin_values[pin] = value
 
     async def read_analog(self, pin: int) -> int:
         """Read analog value - not supported on Pi without external ADC."""
         raise NotImplementedError(
-            "Raspberry Pi does not have built-in ADC. "
-            "Use an external ADC like MCP3008."
+            "Raspberry Pi does not have built-in ADC. " "Use an external ADC like MCP3008."
         )
 
     async def write_servo(self, pin: int, angle: int) -> None:
@@ -289,17 +305,17 @@ class PiGPIOBoard(BaseBoard):
         # Map 0-180 to -1 to 1 for gpiozero Servo
         servo_value = (angle / 90.0) - 1.0
         servo_value = max(-1.0, min(1.0, servo_value))
-        await asyncio.to_thread(lambda: setattr(device, 'value', servo_value))
+        await asyncio.to_thread(lambda: setattr(device, "value", servo_value))
         self._pin_values[pin] = angle
 
     async def emergency_stop(self) -> None:
         """Set all outputs to safe state."""
         for pin, device in self._devices.items():
             try:
-                if hasattr(device, 'off'):
+                if hasattr(device, "off"):
                     await asyncio.to_thread(device.off)
-                elif hasattr(device, 'value'):
-                    await asyncio.to_thread(lambda d=device: setattr(d, 'value', 0))
+                elif hasattr(device, "value"):
+                    await asyncio.to_thread(lambda d=device: setattr(d, "value", 0))
             except Exception as e:
                 logger.error(f"Error during emergency stop on pin {pin}: {e}")
 

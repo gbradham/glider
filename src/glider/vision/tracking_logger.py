@@ -114,8 +114,7 @@ class TrackingDataLogger:
             return ""
 
         zone_names = self._zone_config.get_zone_names_for_point(
-            center_x / self._frame_width,
-            center_y / self._frame_height
+            center_x / self._frame_width, center_y / self._frame_height
         )
         return ",".join(zone_names)
 
@@ -142,10 +141,7 @@ class TrackingDataLogger:
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         # Sanitize name
-        safe_name = "".join(
-            c if c.isalnum() or c in "._- " else "_"
-            for c in experiment_name
-        )
+        safe_name = "".join(c if c.isalnum() or c in "._- " else "_" for c in experiment_name)
         safe_name = safe_name.strip().replace(" ", "_") or "experiment"
         return f"{safe_name}_{timestamp}_tracking.csv"
 
@@ -175,7 +171,7 @@ class TrackingDataLogger:
         self._cumulative_distances.clear()
 
         # Open file and create writer
-        self._file = open(self._file_path, 'w', newline='', encoding='utf-8')
+        self._file = open(self._file_path, "w", newline="", encoding="utf-8")
         self._writer = csv.writer(self._file)
 
         # Write metadata header
@@ -186,32 +182,38 @@ class TrackingDataLogger:
         # Write calibration info if available
         if self._calibration and self._calibration.is_calibrated:
             self._writer.writerow(["# Pixels/mm", f"{self._calibration.pixels_per_mm:.4f}"])
-            self._writer.writerow(["# Calibration Resolution",
-                                   f"{self._calibration.calibration_width}x{self._calibration.calibration_height}"])
+            self._writer.writerow(
+                [
+                    "# Calibration Resolution",
+                    f"{self._calibration.calibration_width}x{self._calibration.calibration_height}",
+                ]
+            )
         else:
             self._writer.writerow(["# Calibration", "Not calibrated (distances in pixels)"])
 
         self._writer.writerow([])
 
         # Write column headers
-        self._writer.writerow([
-            "frame",
-            "timestamp",
-            "elapsed_ms",
-            "object_id",
-            "class",
-            "x",
-            "y",
-            "w",
-            "h",
-            "confidence",
-            "center_x",
-            "center_y",
-            "distance_px",
-            "distance_mm",
-            "cumulative_mm",
-            "zone_ids"
-        ])
+        self._writer.writerow(
+            [
+                "frame",
+                "timestamp",
+                "elapsed_ms",
+                "object_id",
+                "class",
+                "x",
+                "y",
+                "w",
+                "h",
+                "confidence",
+                "center_x",
+                "center_y",
+                "distance_px",
+                "distance_mm",
+                "cumulative_mm",
+                "zone_ids",
+            ]
+        )
         self._file.flush()
 
         self._recording = True
@@ -223,7 +225,7 @@ class TrackingDataLogger:
         timestamp: float,
         tracked_objects: list["TrackedObject"],
         motion_detected: bool = False,
-        motion_area: float = 0.0
+        motion_area: float = 0.0,
     ) -> None:
         """
         Log tracking data for a single frame.
@@ -247,7 +249,7 @@ class TrackingDataLogger:
                     f"objects={len(tracked_objects)}, motion={motion_detected}"
                 )
         elapsed_ms = (timestamp - self._start_timestamp) * 1000
-        iso_timestamp = datetime.fromtimestamp(timestamp).isoformat(timespec='milliseconds')
+        iso_timestamp = datetime.fromtimestamp(timestamp).isoformat(timespec="milliseconds")
 
         # Log each tracked object
         for obj in tracked_objects:
@@ -291,55 +293,75 @@ class TrackingDataLogger:
             # Get zone IDs for this object's position
             zone_ids = self._get_zones_for_point(center_x, center_y)
 
-            self._writer.writerow([
-                self._frame_count,
-                iso_timestamp,
-                f"{elapsed_ms:.1f}",
-                obj.track_id,
-                obj.class_name,
-                x,
-                y,
-                w,
-                h,
-                f"{obj.confidence:.3f}",
-                f"{center_x:.1f}",
-                f"{center_y:.1f}",
-                f"{distance_px:.2f}",
-                f"{distance_mm:.2f}",
-                f"{cumulative_mm:.2f}",
-                zone_ids
-            ])
+            self._writer.writerow(
+                [
+                    self._frame_count,
+                    iso_timestamp,
+                    f"{elapsed_ms:.1f}",
+                    obj.track_id,
+                    obj.class_name,
+                    x,
+                    y,
+                    w,
+                    h,
+                    f"{obj.confidence:.3f}",
+                    f"{center_x:.1f}",
+                    f"{center_y:.1f}",
+                    f"{distance_px:.2f}",
+                    f"{distance_mm:.2f}",
+                    f"{cumulative_mm:.2f}",
+                    zone_ids,
+                ]
+            )
 
         # Log motion event if no objects but motion detected
         if not tracked_objects and motion_detected:
-            self._writer.writerow([
-                self._frame_count,
-                iso_timestamp,
-                f"{elapsed_ms:.1f}",
-                -1,  # No object ID for motion-only
-                "motion",
-                0, 0, 0, 0,  # No bbox
-                f"{motion_area:.3f}",
-                "", "", "", "", "",  # Empty distance fields
-                ""  # Empty zone_ids
-            ])
+            self._writer.writerow(
+                [
+                    self._frame_count,
+                    iso_timestamp,
+                    f"{elapsed_ms:.1f}",
+                    -1,  # No object ID for motion-only
+                    "motion",
+                    0,
+                    0,
+                    0,
+                    0,  # No bbox
+                    f"{motion_area:.3f}",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",  # Empty distance fields
+                    "",  # Empty zone_ids
+                ]
+            )
 
         # Log periodic heartbeat frames when no activity (every 30 seconds)
         # This helps confirm tracking is running even with no detections
         if not tracked_objects and not motion_detected:
             # Log a heartbeat every ~900 frames (30 seconds at 30fps)
             if self._frame_count == 1 or self._frame_count % 900 == 0:
-                self._writer.writerow([
-                    self._frame_count,
-                    iso_timestamp,
-                    f"{elapsed_ms:.1f}",
-                    -1,
-                    "heartbeat",
-                    0, 0, 0, 0,
-                    "0.000",
-                    "", "", "", "", "",  # Empty distance fields
-                    ""  # Empty zone_ids
-                ])
+                self._writer.writerow(
+                    [
+                        self._frame_count,
+                        iso_timestamp,
+                        f"{elapsed_ms:.1f}",
+                        -1,
+                        "heartbeat",
+                        0,
+                        0,
+                        0,
+                        0,
+                        "0.000",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",  # Empty distance fields
+                        "",  # Empty zone_ids
+                    ]
+                )
 
         self._file.flush()
 
@@ -356,17 +378,22 @@ class TrackingDataLogger:
 
         timestamp = datetime.now()
         elapsed_ms = (timestamp.timestamp() - self._start_timestamp) * 1000
-        iso_timestamp = timestamp.isoformat(timespec='milliseconds')
+        iso_timestamp = timestamp.isoformat(timespec="milliseconds")
 
-        self._writer.writerow([
-            f"# EVENT: {event_name}",
-            iso_timestamp,
-            f"{elapsed_ms:.1f}",
-            "",
-            details,
-            "", "", "", "",
-            ""
-        ])
+        self._writer.writerow(
+            [
+                f"# EVENT: {event_name}",
+                iso_timestamp,
+                f"{elapsed_ms:.1f}",
+                "",
+                details,
+                "",
+                "",
+                "",
+                "",
+                "",
+            ]
+        )
         self._file.flush()
 
     async def stop(self) -> Optional[Path]:

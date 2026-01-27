@@ -41,12 +41,7 @@ class HardwareTreeController(QWidget):
     hardware_changed = pyqtSignal()
     device_selected = pyqtSignal(str)
 
-    def __init__(
-        self,
-        core: "GliderCore",
-        run_async: Callable,
-        parent: Optional[QWidget] = None
-    ):
+    def __init__(self, core: "GliderCore", run_async: Callable, parent: Optional[QWidget] = None):
         """
         Initialize the hardware tree controller.
 
@@ -103,23 +98,31 @@ class HardwareTreeController(QWidget):
 
         # Add boards
         for board_id, board in self._core.hardware_manager.boards.items():
-            board_item = QTreeWidgetItem([
-                board_id,
-                getattr(board, 'name', type(board).__name__),
-                board.state.name if hasattr(board, 'state') else "Unknown"
-            ])
+            board_item = QTreeWidgetItem(
+                [
+                    board_id,
+                    getattr(board, "name", type(board).__name__),
+                    board.state.name if hasattr(board, "state") else "Unknown",
+                ]
+            )
             board_item.setData(0, Qt.ItemDataRole.UserRole, ("board", board_id))
 
             # Add devices under this board
             for device_id, device in self._core.hardware_manager.devices.items():
-                if hasattr(device, 'board') and device.board is board:
-                    pins = getattr(device, '_pins', [])
+                if hasattr(device, "board") and device.board is board:
+                    pins = getattr(device, "_pins", [])
                     pin_str = f"Pin {pins[0]}" if pins else ""
-                    device_item = QTreeWidgetItem([
-                        getattr(device, 'name', device_id),
-                        f"{getattr(device, 'device_type', 'unknown')} ({pin_str})",
-                        "Ready" if getattr(device, '_initialized', False) else "Not initialized"
-                    ])
+                    device_item = QTreeWidgetItem(
+                        [
+                            getattr(device, "name", device_id),
+                            f"{getattr(device, 'device_type', 'unknown')} ({pin_str})",
+                            (
+                                "Ready"
+                                if getattr(device, "_initialized", False)
+                                else "Not initialized"
+                            ),
+                        ]
+                    )
                     device_item.setData(0, Qt.ItemDataRole.UserRole, ("device", device_id))
                     board_item.addChild(device_item)
 
@@ -179,63 +182,75 @@ class HardwareTreeController(QWidget):
 
     def _connect_board(self, board_id: str) -> None:
         """Connect to a specific board and initialize its devices."""
+
         async def connect():
             try:
                 success = await self._core.hardware_manager.connect_board(board_id)
                 if success:
                     # Initialize devices for this board
                     for device_id, device in self._core.hardware_manager.devices.items():
-                        if hasattr(device, 'board') and device.board is not None:
+                        if hasattr(device, "board") and device.board is not None:
                             if device.board.id == board_id:
                                 try:
                                     await self._core.hardware_manager.initialize_device(device_id)
                                 except Exception as e:
                                     logger.warning(f"Failed to initialize device {device_id}: {e}")
                 else:
-                    QMessageBox.warning(self, "Connection Failed", f"Could not connect to {board_id}")
+                    QMessageBox.warning(
+                        self, "Connection Failed", f"Could not connect to {board_id}"
+                    )
                 self.refresh()
             except Exception as e:
                 QMessageBox.critical(self, "Connection Error", str(e))
+
         self._run_async(connect())
 
     def _disconnect_board(self, board_id: str) -> None:
         """Disconnect from a specific board."""
+
         async def disconnect():
             try:
                 await self._core.hardware_manager.disconnect_board(board_id)
                 self.refresh()
             except Exception as e:
                 QMessageBox.critical(self, "Disconnect Error", str(e))
+
         self._run_async(disconnect())
 
     def _remove_board(self, board_id: str) -> None:
         """Remove a board."""
         reply = QMessageBox.question(
-            self, "Remove Board",
+            self,
+            "Remove Board",
             f"Remove board '{board_id}' and all its devices?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
+
             async def remove():
                 await self._core.hardware_manager.remove_board(board_id)
                 if self._core.session:
                     self._core.session.remove_board(board_id)
                 self.refresh()
+
             self._run_async(remove())
 
     def _remove_device(self, device_id: str) -> None:
         """Remove a device."""
         reply = QMessageBox.question(
-            self, "Remove Device",
+            self,
+            "Remove Device",
             f"Remove device '{device_id}'?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
+
             async def remove():
                 await self._core.hardware_manager.remove_device(device_id)
                 if self._core.session:
                     self._core.session.remove_device(device_id)
                 self.refresh()
+
             self._run_async(remove())
 
     def _on_add_board(self) -> None:
@@ -243,18 +258,19 @@ class HardwareTreeController(QWidget):
         # This will be connected to MainWindow's add board dialog
         # For now, emit a signal or call parent method
         parent = self.parent()
-        if hasattr(parent, '_on_add_board'):
+        if hasattr(parent, "_on_add_board"):
             parent._on_add_board()
 
     def _on_add_device(self) -> None:
         """Handle add device button click."""
         # This will be connected to MainWindow's add device dialog
         parent = self.parent()
-        if hasattr(parent, '_on_add_device'):
+        if hasattr(parent, "_on_add_device"):
             parent._on_add_device()
 
     def connect_all(self) -> None:
         """Connect to all hardware."""
+
         async def connect():
             try:
                 await self._core.setup_hardware()
@@ -263,11 +279,11 @@ class HardwareTreeController(QWidget):
                 failed = [k for k, v in results.items() if not v]
                 if failed:
                     QMessageBox.warning(
-                        self, "Connection Warning",
-                        f"Failed to connect: {', '.join(failed)}"
+                        self, "Connection Warning", f"Failed to connect: {', '.join(failed)}"
                     )
             except Exception as e:
                 QMessageBox.critical(self, "Connection Error", str(e))
+
         self._run_async(connect())
 
     def disconnect_all(self) -> None:

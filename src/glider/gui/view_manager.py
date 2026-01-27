@@ -19,9 +19,10 @@ logger = logging.getLogger(__name__)
 
 class ViewMode(Enum):
     """Application view modes."""
-    DESKTOP = auto()   # Full IDE mode
-    RUNNER = auto()    # Touch-optimized dashboard mode
-    AUTO = auto()      # Auto-detect based on screen size
+
+    DESKTOP = auto()  # Full IDE mode
+    RUNNER = auto()  # Touch-optimized dashboard mode
+    AUTO = auto()  # Auto-detect based on screen size
 
 
 class ViewManager:
@@ -78,11 +79,13 @@ class ViewManager:
         """Get the primary screen size."""
         if self._screen_size is None:
             from PyQt6.QtWidgets import QApplication
+
             screen = QApplication.primaryScreen()
             if screen:
                 self._screen_size = screen.size()
             else:
                 from PyQt6.QtCore import QSize
+
                 self._screen_size = QSize(1920, 1080)
         return self._screen_size
 

@@ -2,7 +2,6 @@
 Math Nodes - Mathematical operations.
 """
 
-
 from glider.nodes.base_node import (
     LogicNode,
     NodeCategory,

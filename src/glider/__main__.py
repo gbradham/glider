@@ -291,7 +291,7 @@ def main() -> int:
             loop.run_forever()
 
         # Cleanup
-        if hasattr(app, '_glider_core'):
+        if hasattr(app, "_glider_core"):
             # Run cleanup synchronously since loop is closing
             pass
 

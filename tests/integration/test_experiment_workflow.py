@@ -24,27 +24,27 @@ class TestExperimentSessionWorkflow:
         session.name = "Integration Test"
 
         # 2. Configure hardware
-        session.add_board(BoardConfig(
-            id="arduino_1",
-            driver_type="arduino",
-            port="/dev/ttyUSB0"
-        ))
+        session.add_board(BoardConfig(id="arduino_1", driver_type="arduino", port="/dev/ttyUSB0"))
 
-        session.add_device(DeviceConfig(
-            id="led_1",
-            board_id="arduino_1",
-            device_type="DigitalOutput",
-            name="Status LED",
-            pins={"signal": 13}
-        ))
+        session.add_device(
+            DeviceConfig(
+                id="led_1",
+                board_id="arduino_1",
+                device_type="DigitalOutput",
+                name="Status LED",
+                pins={"signal": 13},
+            )
+        )
 
-        session.add_device(DeviceConfig(
-            id="sensor_1",
-            board_id="arduino_1",
-            device_type="AnalogInput",
-            name="Temperature Sensor",
-            pins={"analog": 0}
-        ))
+        session.add_device(
+            DeviceConfig(
+                id="sensor_1",
+                board_id="arduino_1",
+                device_type="AnalogInput",
+                name="Temperature Sensor",
+                pins={"analog": 0},
+            )
+        )
 
         # 3. Save session
         file_path = temp_dir / "test_session.json"
@@ -71,9 +71,7 @@ class TestExperimentSessionWorkflow:
         assert session.is_dirty is False
 
         # Add board should mark dirty
-        session.add_board(BoardConfig(
-            id="b1", driver_type="arduino"
-        ))
+        session.add_board(BoardConfig(id="b1", driver_type="arduino"))
         assert session.is_dirty is True
 
         # Mark clean
@@ -81,11 +79,15 @@ class TestExperimentSessionWorkflow:
         assert session.is_dirty is False
 
         # Add device should mark dirty
-        session.add_device(DeviceConfig(
-            id="d1", board_id="b1",
-            device_type="DigitalOutput", name="Device",
-            pins={"signal": 13}
-        ))
+        session.add_device(
+            DeviceConfig(
+                id="d1",
+                board_id="b1",
+                device_type="DigitalOutput",
+                name="Device",
+                pins={"signal": 13},
+            )
+        )
         assert session.is_dirty is True
 
         # Mark clean
@@ -126,10 +128,15 @@ class TestExperimentSessionWorkflow:
 
         # Add some content
         session.add_board(BoardConfig(id="b1", driver_type="arduino"))
-        session.add_device(DeviceConfig(
-            id="d1", board_id="b1", device_type="DigitalOutput",
-            name="Device", pins={"signal": 13}
-        ))
+        session.add_device(
+            DeviceConfig(
+                id="d1",
+                board_id="b1",
+                device_type="DigitalOutput",
+                name="Device",
+                pins={"signal": 13},
+            )
+        )
 
         assert len(session.hardware.boards) == 1
         assert len(session.hardware.devices) == 1
@@ -142,10 +149,11 @@ class TestExperimentSessionWorkflow:
 
         # Rebuild
         session.add_board(BoardConfig(id="b2", driver_type="raspberry_pi"))
-        session.add_device(DeviceConfig(
-            id="d2", board_id="b2", device_type="PWMOutput",
-            name="Motor", pins={"pwm": 12}
-        ))
+        session.add_device(
+            DeviceConfig(
+                id="d2", board_id="b2", device_type="PWMOutput", name="Motor", pins={"pwm": 12}
+            )
+        )
 
         assert len(session.hardware.boards) == 1
         assert len(session.hardware.devices) == 1
@@ -175,72 +183,102 @@ class TestSchemaIntegration:
             metadata=MetadataSchema(
                 name="Complex Experiment",
                 description="A complex experiment with multiple components",
-                author="Integration Test"
+                author="Integration Test",
             ),
             hardware=HardwareConfigSchema(
                 boards=[
-                    BoardConfigSchema(
-                        id="arduino_1", type="telemetrix",
-                        port="/dev/ttyUSB0"
-                    ),
-                    BoardConfigSchema(
-                        id="pi_1", type="pigpio"
-                    ),
+                    BoardConfigSchema(id="arduino_1", type="telemetrix", port="/dev/ttyUSB0"),
+                    BoardConfigSchema(id="pi_1", type="pigpio"),
                 ],
                 devices=[
                     DeviceConfigSchema(
-                        id="led_status", type="digital_output",
-                        board_id="arduino_1", pin=13, name="Status LED"
+                        id="led_status",
+                        type="digital_output",
+                        board_id="arduino_1",
+                        pin=13,
+                        name="Status LED",
                     ),
                     DeviceConfigSchema(
-                        id="led_error", type="digital_output",
-                        board_id="arduino_1", pin=12, name="Error LED"
+                        id="led_error",
+                        type="digital_output",
+                        board_id="arduino_1",
+                        pin=12,
+                        name="Error LED",
                     ),
                     DeviceConfigSchema(
-                        id="motor_1", type="pwm",
-                        board_id="arduino_1", pin=9, name="Motor"
+                        id="motor_1", type="pwm", board_id="arduino_1", pin=9, name="Motor"
                     ),
                     DeviceConfigSchema(
-                        id="temp_sensor", type="analog_input",
-                        board_id="pi_1", pin=0, name="Temperature"
+                        id="temp_sensor",
+                        type="analog_input",
+                        board_id="pi_1",
+                        pin=0,
+                        name="Temperature",
                     ),
-                ]
+                ],
             ),
             flow=FlowConfigSchema(
                 nodes=[
-                    NodeSchema(id="start", type="StartExperiment",
-                               title="Start", position={"x": 0, "y": 100}),
-                    NodeSchema(id="init_led", type="Output",
-                               title="Init LED", position={"x": 150, "y": 100},
-                               properties={"device_id": "led_status"}),
-                    NodeSchema(id="loop", type="Loop",
-                               title="Loop", position={"x": 300, "y": 100},
-                               properties={"iterations": 10}),
-                    NodeSchema(id="read_temp", type="Input",
-                               title="Read Temp", position={"x": 450, "y": 100},
-                               properties={"device_id": "temp_sensor"}),
-                    NodeSchema(id="delay", type="Delay",
-                               title="Delay", position={"x": 600, "y": 100},
-                               properties={"duration": 1.0}),
-                    NodeSchema(id="end", type="EndExperiment",
-                               title="End", position={"x": 750, "y": 100}),
+                    NodeSchema(
+                        id="start",
+                        type="StartExperiment",
+                        title="Start",
+                        position={"x": 0, "y": 100},
+                    ),
+                    NodeSchema(
+                        id="init_led",
+                        type="Output",
+                        title="Init LED",
+                        position={"x": 150, "y": 100},
+                        properties={"device_id": "led_status"},
+                    ),
+                    NodeSchema(
+                        id="loop",
+                        type="Loop",
+                        title="Loop",
+                        position={"x": 300, "y": 100},
+                        properties={"iterations": 10},
+                    ),
+                    NodeSchema(
+                        id="read_temp",
+                        type="Input",
+                        title="Read Temp",
+                        position={"x": 450, "y": 100},
+                        properties={"device_id": "temp_sensor"},
+                    ),
+                    NodeSchema(
+                        id="delay",
+                        type="Delay",
+                        title="Delay",
+                        position={"x": 600, "y": 100},
+                        properties={"duration": 1.0},
+                    ),
+                    NodeSchema(
+                        id="end", type="EndExperiment", title="End", position={"x": 750, "y": 100}
+                    ),
                 ],
                 connections=[
-                    ConnectionSchema(id="c1", from_node="start", from_port=0,
-                                    to_node="init_led", to_port=0),
-                    ConnectionSchema(id="c2", from_node="init_led", from_port=0,
-                                    to_node="loop", to_port=0),
-                    ConnectionSchema(id="c3", from_node="loop", from_port=1,
-                                    to_node="read_temp", to_port=0),
-                    ConnectionSchema(id="c4", from_node="read_temp", from_port=0,
-                                    to_node="delay", to_port=0),
-                    ConnectionSchema(id="c5", from_node="delay", from_port=0,
-                                    to_node="loop", to_port=1),
-                    ConnectionSchema(id="c6", from_node="loop", from_port=0,
-                                    to_node="end", to_port=0),
-                ]
+                    ConnectionSchema(
+                        id="c1", from_node="start", from_port=0, to_node="init_led", to_port=0
+                    ),
+                    ConnectionSchema(
+                        id="c2", from_node="init_led", from_port=0, to_node="loop", to_port=0
+                    ),
+                    ConnectionSchema(
+                        id="c3", from_node="loop", from_port=1, to_node="read_temp", to_port=0
+                    ),
+                    ConnectionSchema(
+                        id="c4", from_node="read_temp", from_port=0, to_node="delay", to_port=0
+                    ),
+                    ConnectionSchema(
+                        id="c5", from_node="delay", from_port=0, to_node="loop", to_port=1
+                    ),
+                    ConnectionSchema(
+                        id="c6", from_node="loop", from_port=0, to_node="end", to_port=0
+                    ),
+                ],
             ),
-            dashboard=DashboardConfigSchema()
+            dashboard=DashboardConfigSchema(),
         )
 
         # Serialize
@@ -290,24 +328,33 @@ class TestZoneTrackingIntegration:
         config = ZoneConfiguration()
 
         # Add zones
-        config.add_zone(Zone(
-            id="start_zone", name="Start",
-            shape=ZoneShape.RECTANGLE,
-            vertices=[(0.0, 0.0), (0.3, 1.0)],
-            color=(0, 255, 0)
-        ))
-        config.add_zone(Zone(
-            id="middle_zone", name="Middle",
-            shape=ZoneShape.RECTANGLE,
-            vertices=[(0.35, 0.0), (0.65, 1.0)],
-            color=(255, 255, 0)
-        ))
-        config.add_zone(Zone(
-            id="end_zone", name="End",
-            shape=ZoneShape.RECTANGLE,
-            vertices=[(0.7, 0.0), (1.0, 1.0)],
-            color=(255, 0, 0)
-        ))
+        config.add_zone(
+            Zone(
+                id="start_zone",
+                name="Start",
+                shape=ZoneShape.RECTANGLE,
+                vertices=[(0.0, 0.0), (0.3, 1.0)],
+                color=(0, 255, 0),
+            )
+        )
+        config.add_zone(
+            Zone(
+                id="middle_zone",
+                name="Middle",
+                shape=ZoneShape.RECTANGLE,
+                vertices=[(0.35, 0.0), (0.65, 1.0)],
+                color=(255, 255, 0),
+            )
+        )
+        config.add_zone(
+            Zone(
+                id="end_zone",
+                name="End",
+                shape=ZoneShape.RECTANGLE,
+                vertices=[(0.7, 0.0), (1.0, 1.0)],
+                color=(255, 0, 0),
+            )
+        )
         config.config_width = 1920
         config.config_height = 1080
 
@@ -335,18 +382,24 @@ class TestZoneTrackingIntegration:
 
         # Create configuration
         config = ZoneConfiguration()
-        config.add_zone(Zone(
-            id="zone_1", name="Zone 1",
-            shape=ZoneShape.RECTANGLE,
-            vertices=[(0.0, 0.0), (0.5, 0.5)],
-            color=(0, 255, 0)
-        ))
-        config.add_zone(Zone(
-            id="zone_2", name="Zone 2",
-            shape=ZoneShape.RECTANGLE,
-            vertices=[(0.5, 0.5), (1.0, 1.0)],
-            color=(255, 0, 0)
-        ))
+        config.add_zone(
+            Zone(
+                id="zone_1",
+                name="Zone 1",
+                shape=ZoneShape.RECTANGLE,
+                vertices=[(0.0, 0.0), (0.5, 0.5)],
+                color=(0, 255, 0),
+            )
+        )
+        config.add_zone(
+            Zone(
+                id="zone_2",
+                name="Zone 2",
+                shape=ZoneShape.RECTANGLE,
+                vertices=[(0.5, 0.5), (1.0, 1.0)],
+                color=(255, 0, 0),
+            )
+        )
 
         # Create tracker
         tracker = ZoneTracker()
@@ -370,9 +423,11 @@ class TestCalibrationIntegration:
         # Create and configure calibration
         original = CameraCalibration()
         original.add_line(
-            start=(0, 240), end=(640, 240),
-            length=200.0, unit=LengthUnit.CENTIMETERS,
-            resolution=(640, 480)
+            start=(0, 240),
+            end=(640, 240),
+            length=200.0,
+            unit=LengthUnit.CENTIMETERS,
+            resolution=(640, 480),
         )
 
         # Save

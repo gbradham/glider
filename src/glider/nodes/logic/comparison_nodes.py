@@ -2,7 +2,6 @@
 Comparison Nodes - Threshold checks.
 """
 
-
 from glider.nodes.base_node import (
     LogicNode,
     NodeCategory,

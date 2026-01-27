@@ -54,7 +54,7 @@ class TouchWidgetBase(QWidget):
     def bind_node(self, node: "GliderNode") -> None:
         """Bind this widget to a node for data synchronization."""
         self._node = node
-        self._label_text = getattr(node, 'label', node.title)
+        self._label_text = getattr(node, "label", node.title)
         self._on_node_bound()
 
     def _on_node_bound(self) -> None:
@@ -313,8 +313,8 @@ class TouchSlider(TouchWidgetBase):
         self._title.setText(self._label_text)
 
         if self._node:
-            self._min_value = getattr(self._node, 'min_value', 0)
-            self._max_value = getattr(self._node, 'max_value', 100)
+            self._min_value = getattr(self._node, "min_value", 0)
+            self._max_value = getattr(self._node, "max_value", 100)
             self._slider.setRange(int(self._min_value), int(self._max_value))
             self._min_label.setText(str(self._min_value))
             self._max_label.setText(str(self._max_value))
@@ -375,9 +375,9 @@ class TouchGauge(TouchWidgetBase):
         self._title.setText(self._label_text)
 
         if self._node:
-            self._min_value = getattr(self._node, 'min_value', 0.0)
-            self._max_value = getattr(self._node, 'max_value', 100.0)
-            self._unit = getattr(self._node, 'unit', '')
+            self._min_value = getattr(self._node, "min_value", 0.0)
+            self._max_value = getattr(self._node, "max_value", 100.0)
+            self._unit = getattr(self._node, "unit", "")
             self._gauge.set_range(self._min_value, self._max_value)
             self._gauge.set_unit(self._unit)
 
@@ -441,7 +441,9 @@ class GaugeCanvas(QWidget):
         if self._max > self._min:
             ratio = (self._value - self._min) / (self._max - self._min)
             angle = int(-180 * ratio * 16)
-            painter.setPen(QPen(QColor("#3498db"), 8, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+            painter.setPen(
+                QPen(QColor("#3498db"), 8, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+            )
             painter.drawArc(rect, 180 * 16, angle)
 
         # Value text
@@ -450,8 +452,9 @@ class GaugeCanvas(QWidget):
         painter.setFont(font)
 
         value_text = f"{self._value:.1f}{self._unit}"
-        painter.drawText(QRectF(0, cy - radius // 2, w, 30),
-                        Qt.AlignmentFlag.AlignCenter, value_text)
+        painter.drawText(
+            QRectF(0, cy - radius // 2, w, 30), Qt.AlignmentFlag.AlignCenter, value_text
+        )
 
 
 class TouchChart(TouchWidgetBase):
@@ -491,9 +494,9 @@ class TouchChart(TouchWidgetBase):
         self._title.setText(self._label_text)
 
         if self._node:
-            self._buffer_size = getattr(self._node, 'buffer_size', 100)
-            self._min_value = getattr(self._node, 'min_value', 0.0)
-            self._max_value = getattr(self._node, 'max_value', 100.0)
+            self._buffer_size = getattr(self._node, "buffer_size", 100)
+            self._min_value = getattr(self._node, "min_value", 0.0)
+            self._max_value = getattr(self._node, "max_value", 100.0)
             self._data = deque(maxlen=self._buffer_size)
             self._chart.set_range(self._min_value, self._max_value)
 
@@ -608,8 +611,8 @@ class TouchLED(TouchWidgetBase):
         self._title.setText(self._label_text)
 
         if self._node:
-            on_color = getattr(self._node, 'on_color', '#2ecc71')
-            off_color = getattr(self._node, 'off_color', '#7f8c8d')
+            on_color = getattr(self._node, "on_color", "#2ecc71")
+            off_color = getattr(self._node, "off_color", "#7f8c8d")
             self._on_color = QColor(on_color)
             self._off_color = QColor(off_color)
             self._led.set_colors(self._on_color, self._off_color)
@@ -661,22 +664,23 @@ class LEDCanvas(QWidget):
             glow.setAlpha(100)
             painter.setBrush(QBrush(glow))
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawEllipse(w // 2 - radius - 4, h // 2 - radius - 4,
-                               (radius + 4) * 2, (radius + 4) * 2)
+            painter.drawEllipse(
+                w // 2 - radius - 4, h // 2 - radius - 4, (radius + 4) * 2, (radius + 4) * 2
+            )
 
         # Main LED
         painter.setBrush(QBrush(color))
         painter.setPen(QPen(color.darker(150), 2))
-        painter.drawEllipse(w // 2 - radius, h // 2 - radius,
-                           radius * 2, radius * 2)
+        painter.drawEllipse(w // 2 - radius, h // 2 - radius, radius * 2, radius * 2)
 
         # Highlight
         highlight = QColor(255, 255, 255, 80)
         painter.setBrush(QBrush(highlight))
         painter.setPen(Qt.PenStyle.NoPen)
         highlight_radius = radius // 3
-        painter.drawEllipse(w // 2 - radius // 2, h // 2 - radius // 2,
-                           highlight_radius, highlight_radius)
+        painter.drawEllipse(
+            w // 2 - radius // 2, h // 2 - radius // 2, highlight_radius, highlight_radius
+        )
 
 
 class TouchNumericInput(TouchWidgetBase):
@@ -769,10 +773,10 @@ class TouchNumericInput(TouchWidgetBase):
         self._title.setText(self._label_text)
 
         if self._node:
-            self._min_value = getattr(self._node, 'min_value', 0.0)
-            self._max_value = getattr(self._node, 'max_value', 100.0)
-            self._step = getattr(self._node, 'step', 1.0)
-            self._decimals = getattr(self._node, 'decimals', 0)
+            self._min_value = getattr(self._node, "min_value", 0.0)
+            self._max_value = getattr(self._node, "max_value", 100.0)
+            self._step = getattr(self._node, "step", 1.0)
+            self._decimals = getattr(self._node, "decimals", 0)
             self._update_display()
 
     def _increment(self) -> None:

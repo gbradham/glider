@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 @dataclass
 class DeviceConfig:
     """Configuration for a device including pin assignments."""
+
     pins: dict[str, int] = field(default_factory=dict)
     settings: dict[str, Any] = field(default_factory=dict)
 
@@ -235,6 +236,7 @@ class DigitalOutputDevice(BaseDevice):
 
     async def initialize(self) -> None:
         from glider.hal.base_board import PinMode, PinType
+
         pin = self._config.pins["output"]
         await self._board.set_pin_mode(pin, PinMode.OUTPUT, PinType.DIGITAL)
         await self._board.write_digital(pin, False)
@@ -313,6 +315,7 @@ class DigitalInputDevice(BaseDevice):
 
     async def initialize(self) -> None:
         from glider.hal.base_board import PinMode, PinType
+
         pin = self._config.pins["input"]
         pullup = self._config.settings.get("pullup", False)
         mode = PinMode.INPUT_PULLUP if pullup else PinMode.INPUT
@@ -375,6 +378,7 @@ class AnalogInputDevice(BaseDevice):
 
     async def initialize(self) -> None:
         from glider.hal.base_board import PinMode, PinType
+
         pin = self._config.pins["input"]
         await self._board.set_pin_mode(pin, PinMode.INPUT, PinType.ANALOG)
         self._initialized = True
@@ -403,7 +407,7 @@ class AnalogInputDevice(BaseDevice):
     async def read_voltage(self) -> float:
         """Read the analog value as voltage."""
         raw = await self.read()
-        max_value = 2 ** self._board.capabilities.analog_resolution - 1
+        max_value = 2**self._board.capabilities.analog_resolution - 1
         return (raw / max_value) * self._reference_voltage
 
     @classmethod
@@ -447,6 +451,7 @@ class PWMOutputDevice(BaseDevice):
 
     async def initialize(self) -> None:
         from glider.hal.base_board import PinMode, PinType
+
         pin = self._config.pins["output"]
         await self._board.set_pin_mode(pin, PinMode.OUTPUT, PinType.PWM)
         await self._board.write_analog(pin, 0)
@@ -459,7 +464,7 @@ class PWMOutputDevice(BaseDevice):
 
     async def set_value(self, value: int) -> None:
         """Set the raw PWM value."""
-        max_value = 2 ** self._board.capabilities.pwm_resolution - 1
+        max_value = 2**self._board.capabilities.pwm_resolution - 1
         value = max(0, min(value, max_value))
         pin = self._config.pins["output"]
         await self._board.write_analog(pin, value)
@@ -467,7 +472,7 @@ class PWMOutputDevice(BaseDevice):
 
     async def set_percent(self, percent: float) -> None:
         """Set the PWM value as a percentage (0-100)."""
-        max_value = 2 ** self._board.capabilities.pwm_resolution - 1
+        max_value = 2**self._board.capabilities.pwm_resolution - 1
         value = int((percent / 100.0) * max_value)
         await self.set_value(value)
 
@@ -517,6 +522,7 @@ class ServoDevice(BaseDevice):
 
     async def initialize(self) -> None:
         from glider.hal.base_board import PinMode, PinType
+
         pin = self._config.pins["signal"]
         await self._board.set_pin_mode(pin, PinMode.OUTPUT, PinType.SERVO)
         await self.center()
@@ -570,7 +576,7 @@ class ADS1115Device(BaseDevice):
 
     # Gain settings mapping to voltage ranges
     GAIN_RANGES = {
-        2/3: 6.144,
+        2 / 3: 6.144,
         1: 4.096,
         2: 2.048,
         4: 1.024,

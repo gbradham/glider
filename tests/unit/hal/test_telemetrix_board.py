@@ -7,8 +7,9 @@ from glider.hal.boards.telemetrix_board import TelemetrixBoard
 
 @pytest.fixture
 def mock_telemetrix():
-    with patch('telemetrix_aio.telemetrix_aio.TelemetrixAIO') as mock:
+    with patch("telemetrix_aio.telemetrix_aio.TelemetrixAIO") as mock:
         yield mock
+
 
 @pytest.mark.asyncio
 async def test_telemetrix_board_init():
@@ -17,6 +18,7 @@ async def test_telemetrix_board_init():
     assert board.name == "Arduino Uno"
     assert board.board_type == "telemetrix"
     assert not board.is_connected
+
 
 @pytest.mark.asyncio
 async def test_telemetrix_board_capabilities():

@@ -45,9 +45,9 @@ logger = logging.getLogger(__name__)
 
 # Default zone colors (BGR for OpenCV)
 DEFAULT_COLORS = [
-    (0, 255, 0),    # Green
+    (0, 255, 0),  # Green
     (255, 165, 0),  # Orange (BGR)
-    (255, 0, 0),    # Blue (BGR)
+    (255, 0, 0),  # Blue (BGR)
     (0, 255, 255),  # Yellow (BGR)
     (255, 0, 255),  # Magenta
     (0, 165, 255),  # Orange
@@ -77,10 +77,7 @@ class ZonePreviewWidget(QLabel):
             }
         """)
         self.setMouseTracking(True)
-        self.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Expanding
-        )
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         self._frame: Optional[np.ndarray] = None
         self._zone_config: Optional[ZoneConfiguration] = None
@@ -134,24 +131,22 @@ class ZonePreviewWidget(QLabel):
 
         # Draw existing zones
         if self._zone_config and self._zone_config.zones:
-            display_frame = draw_zones(display_frame, self._zone_config,
-                                       alpha=0.3, show_labels=True)
+            display_frame = draw_zones(
+                display_frame, self._zone_config, alpha=0.3, show_labels=True
+            )
 
         # Convert to QImage
         rgb_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
         rgb_frame = np.ascontiguousarray(rgb_frame)
         bytes_per_line = 3 * w
-        q_image = QImage(
-            rgb_frame.data, w, h, bytes_per_line,
-            QImage.Format.Format_RGB888
-        ).copy()
+        q_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888).copy()
 
         # Scale to fit widget
         pixmap = QPixmap.fromImage(q_image)
         scaled = pixmap.scaled(
             self.size(),
             Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
+            Qt.TransformationMode.SmoothTransformation,
         )
 
         # Calculate image rect for mouse coordinate mapping
@@ -200,8 +195,7 @@ class ZonePreviewWidget(QLabel):
         if first_coords is None:
             return False
 
-        dist = math.sqrt((coords[0] - first_coords[0]) ** 2 +
-                        (coords[1] - first_coords[1]) ** 2)
+        dist = math.sqrt((coords[0] - first_coords[0]) ** 2 + (coords[1] - first_coords[1]) ** 2)
         return dist <= self._close_threshold
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
@@ -309,8 +303,9 @@ class ZonePreviewWidget(QLabel):
 
         # Draw existing zones first
         if self._zone_config and self._zone_config.zones:
-            display_frame = draw_zones(display_frame, self._zone_config,
-                                       alpha=0.3, show_labels=True)
+            display_frame = draw_zones(
+                display_frame, self._zone_config, alpha=0.3, show_labels=True
+            )
 
         # Get pixel coordinates for current points
         pixel_points = []
@@ -338,8 +333,9 @@ class ZonePreviewWidget(QLabel):
             if len(pixel_points) >= 1 and current_coords:
                 center = pixel_points[0]
                 radius_pt = current_coords
-                radius = int(math.sqrt((radius_pt[0] - center[0]) ** 2 +
-                                      (radius_pt[1] - center[1]) ** 2))
+                radius = int(
+                    math.sqrt((radius_pt[0] - center[0]) ** 2 + (radius_pt[1] - center[1]) ** 2)
+                )
                 cv2.circle(display_frame, center, radius, preview_color, 2)
                 cv2.circle(display_frame, center, 6, color, -1)
 
@@ -348,7 +344,7 @@ class ZonePreviewWidget(QLabel):
             for i, pt in enumerate(pixel_points):
                 cv2.circle(display_frame, pt, 6, color, -1)
                 if i > 0:
-                    cv2.line(display_frame, pixel_points[i-1], pt, preview_color, 2)
+                    cv2.line(display_frame, pixel_points[i - 1], pt, preview_color, 2)
 
             # Draw line to current mouse position
             if pixel_points and current_coords:
@@ -362,15 +358,12 @@ class ZonePreviewWidget(QLabel):
         rgb_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
         rgb_frame = np.ascontiguousarray(rgb_frame)
         bytes_per_line = 3 * w
-        q_image = QImage(
-            rgb_frame.data, w, h, bytes_per_line,
-            QImage.Format.Format_RGB888
-        ).copy()
+        q_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888).copy()
         pixmap = QPixmap.fromImage(q_image)
         scaled = pixmap.scaled(
             self.size(),
             Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
+            Qt.TransformationMode.SmoothTransformation,
         )
         self.clear()
         self.setPixmap(scaled)
@@ -393,10 +386,7 @@ class ZoneDialog(QDialog):
     """
 
     def __init__(
-        self,
-        camera_manager: "CameraManager",
-        zone_config: ZoneConfiguration,
-        parent=None
+        self, camera_manager: "CameraManager", zone_config: ZoneConfiguration, parent=None
     ):
         super().__init__(parent)
         self._camera = camera_manager
@@ -644,8 +634,9 @@ class ZoneDialog(QDialog):
         for zone in self._zone_config.zones:
             if zone.name == name:
                 QMessageBox.warning(
-                    self, "Duplicate Name",
-                    f"A zone named '{name}' already exists. Please choose a different name."
+                    self,
+                    "Duplicate Name",
+                    f"A zone named '{name}' already exists. Please choose a different name.",
                 )
                 return
 
@@ -688,7 +679,7 @@ class ZoneDialog(QDialog):
 
     def _get_current_color(self) -> tuple[int, int, int]:
         """Get the current zone color."""
-        if hasattr(self, '_custom_color') and self._custom_color:
+        if hasattr(self, "_custom_color") and self._custom_color:
             return self._custom_color
         return DEFAULT_COLORS[self._color_index % len(DEFAULT_COLORS)]
 
@@ -696,8 +687,7 @@ class ZoneDialog(QDialog):
         """Capture a new frame from camera."""
         if not self._camera.is_connected:
             QMessageBox.warning(
-                self, "No Camera",
-                "Camera is not connected. Start camera preview first."
+                self, "No Camera", "Camera is not connected. Start camera preview first."
             )
             return
 
@@ -763,27 +753,18 @@ class ZoneDialog(QDialog):
         from pathlib import Path
 
         path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save Zone Configuration",
-            "",
-            "JSON Files (*.json);;All Files (*)"
+            self, "Save Zone Configuration", "", "JSON Files (*.json);;All Files (*)"
         )
         if path:
             self._zone_config.save(Path(path))
-            QMessageBox.information(
-                self, "Saved",
-                f"Zone configuration saved to {path}"
-            )
+            QMessageBox.information(self, "Saved", f"Zone configuration saved to {path}")
 
     def _load_config(self) -> None:
         """Load zone configuration from file."""
         from pathlib import Path
 
         path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Load Zone Configuration",
-            "",
-            "JSON Files (*.json);;All Files (*)"
+            self, "Load Zone Configuration", "", "JSON Files (*.json);;All Files (*)"
         )
         if path:
             if self._zone_config.load(Path(path)):
@@ -791,14 +772,10 @@ class ZoneDialog(QDialog):
                 self._preview.set_zone_configuration(self._zone_config)
                 self._preview._update_display()
                 QMessageBox.information(
-                    self, "Loaded",
-                    f"Loaded {len(self._zone_config.zones)} zones"
+                    self, "Loaded", f"Loaded {len(self._zone_config.zones)} zones"
                 )
             else:
-                QMessageBox.warning(
-                    self, "Error",
-                    "Failed to load zone configuration file"
-                )
+                QMessageBox.warning(self, "Error", "Failed to load zone configuration file")
 
     def _clear_zones(self) -> None:
         """Clear all zones."""
@@ -806,9 +783,10 @@ class ZoneDialog(QDialog):
             return
 
         reply = QMessageBox.question(
-            self, "Clear Zones",
+            self,
+            "Clear Zones",
             "Remove all zones?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
             self._zone_config.clear()

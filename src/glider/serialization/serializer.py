@@ -226,9 +226,7 @@ class ExperimentSerializer:
             dashboard=dashboard,
         )
 
-    def _extract_hardware_config(
-        self, hardware_manager: "HardwareManager"
-    ) -> HardwareConfigSchema:
+    def _extract_hardware_config(self, hardware_manager: "HardwareManager") -> HardwareConfigSchema:
         """Extract hardware configuration from manager."""
         boards = []
         devices = []
@@ -357,9 +355,7 @@ class ExperimentSerializer:
                 **device_config.settings,
             )
 
-    def _apply_flow_config(
-        self, config: FlowConfigSchema, flow_engine: "FlowEngine"
-    ) -> None:
+    def _apply_flow_config(self, config: FlowConfigSchema, flow_engine: "FlowEngine") -> None:
         """Apply flow configuration to engine."""
         # Clear existing flow
         flow_engine.clear()
@@ -405,14 +401,10 @@ class ExperimentSerializer:
 
         # Check version compatibility
         major, minor, patch = map(int, version.split("."))
-        current_major, current_minor, current_patch = map(
-            int, SCHEMA_VERSION.split(".")
-        )
+        current_major, current_minor, current_patch = map(int, SCHEMA_VERSION.split("."))
 
         if major > current_major:
-            raise ValueError(
-                f"Schema version {version} is newer than supported {SCHEMA_VERSION}"
-            )
+            raise ValueError(f"Schema version {version} is newer than supported {SCHEMA_VERSION}")
 
         # Apply migrations for older versions
         if major < current_major or (major == current_major and minor < current_minor):

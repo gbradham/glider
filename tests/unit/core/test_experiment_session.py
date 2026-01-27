@@ -34,9 +34,7 @@ class TestSessionMetadata:
     def test_to_dict(self):
         """Test SessionMetadata serialization."""
         metadata = SessionMetadata(
-            name="Test Session",
-            description="A test description",
-            author="Test Author"
+            name="Test Session", description="A test description", author="Test Author"
         )
         data = metadata.to_dict()
 
@@ -52,7 +50,7 @@ class TestSessionMetadata:
             "name": "Loaded Session",
             "description": "Loaded description",
             "author": "Loaded Author",
-            "version": "1.0.0"
+            "version": "1.0.0",
         }
         metadata = SessionMetadata.from_dict(data)
 
@@ -66,10 +64,7 @@ class TestBoardConfig:
 
     def test_creation(self):
         """Test BoardConfig creation."""
-        config = BoardConfig(
-            id="board_1",
-            driver_type="arduino"
-        )
+        config = BoardConfig(id="board_1", driver_type="arduino")
 
         assert config.id == "board_1"
         assert config.driver_type == "arduino"
@@ -81,7 +76,7 @@ class TestBoardConfig:
             driver_type="arduino",
             port="/dev/ttyUSB0",
             board_type="uno",
-            auto_reconnect=True
+            auto_reconnect=True,
         )
 
         assert config.port == "/dev/ttyUSB0"
@@ -91,10 +86,7 @@ class TestBoardConfig:
     def test_to_dict(self):
         """Test BoardConfig serialization."""
         config = BoardConfig(
-            id="board_1",
-            driver_type="arduino",
-            port="/dev/ttyUSB0",
-            settings={"baud_rate": 115200}
+            id="board_1", driver_type="arduino", port="/dev/ttyUSB0", settings={"baud_rate": 115200}
         )
         data = config.to_dict()
 
@@ -104,12 +96,7 @@ class TestBoardConfig:
 
     def test_from_dict(self):
         """Test BoardConfig deserialization."""
-        data = {
-            "id": "board_2",
-            "driver_type": "raspberry_pi",
-            "port": None,
-            "settings": {}
-        }
+        data = {"id": "board_2", "driver_type": "raspberry_pi", "port": None, "settings": {}}
         config = BoardConfig.from_dict(data)
 
         assert config.id == "board_2"
@@ -126,7 +113,7 @@ class TestDeviceConfig:
             device_type="DigitalOutput",
             name="LED",
             board_id="board_1",
-            pins={"signal": 13}
+            pins={"signal": 13},
         )
 
         assert config.id == "device_1"
@@ -143,7 +130,7 @@ class TestDeviceConfig:
             name="LED",
             board_id="board_1",
             pins={"signal": 13},
-            settings={"inverted": False}
+            settings={"inverted": False},
         )
         data = config.to_dict()
 
@@ -158,7 +145,7 @@ class TestDeviceConfig:
             "device_type": "AnalogInput",
             "name": "Temperature Sensor",
             "pins": {"analog": 0},
-            "settings": {"smoothing": True}
+            "settings": {"smoothing": True},
         }
         config = DeviceConfig.from_dict(data)
 
@@ -216,19 +203,13 @@ class TestExperimentSession:
         assert session.is_dirty is False
 
         # Adding board should mark dirty
-        session.add_board(BoardConfig(
-            id="board_1",
-            driver_type="arduino"
-        ))
+        session.add_board(BoardConfig(id="board_1", driver_type="arduino"))
         assert session.is_dirty is True
 
     def test_add_board(self):
         """Test adding a board to the session."""
         session = ExperimentSession()
-        config = BoardConfig(
-            id="board_1",
-            driver_type="arduino"
-        )
+        config = BoardConfig(id="board_1", driver_type="arduino")
 
         session.add_board(config)
 
@@ -253,7 +234,7 @@ class TestExperimentSession:
             device_type="DigitalOutput",
             name="LED",
             board_id="board_1",
-            pins={"signal": 13}
+            pins={"signal": 13},
         )
 
         session.add_device(config)
@@ -269,7 +250,7 @@ class TestExperimentSession:
             device_type="DigitalOutput",
             name="LED",
             board_id="board_1",
-            pins={"signal": 13}
+            pins={"signal": 13},
         )
         session.add_device(config)
 
@@ -297,7 +278,7 @@ class TestExperimentSession:
             device_type="DigitalOutput",
             name="LED",
             board_id="board_1",
-            pins={"signal": 13}
+            pins={"signal": 13},
         )
         session.add_device(config)
 
@@ -311,13 +292,16 @@ class TestExperimentSession:
         """Test session serialization."""
         session = ExperimentSession()
         session.name = "Test Session"
-        session.add_board(BoardConfig(
-            id="board_1", driver_type="arduino"
-        ))
-        session.add_device(DeviceConfig(
-            id="led_1", device_type="DigitalOutput", name="LED",
-            board_id="board_1", pins={"signal": 13}
-        ))
+        session.add_board(BoardConfig(id="board_1", driver_type="arduino"))
+        session.add_device(
+            DeviceConfig(
+                id="led_1",
+                device_type="DigitalOutput",
+                name="LED",
+                board_id="board_1",
+                pins={"signal": 13},
+            )
+        )
 
         data = session.to_dict()
 
@@ -333,19 +317,22 @@ class TestExperimentSession:
                 "name": "Loaded Session",
                 "description": "Test",
                 "author": "Author",
-                "version": "1.0.0"
+                "version": "1.0.0",
             },
             "hardware": {
-                "boards": [
-                    {"id": "b1", "driver_type": "arduino"}
-                ],
+                "boards": [{"id": "b1", "driver_type": "arduino"}],
                 "devices": [
-                    {"id": "d1", "board_id": "b1", "device_type": "DigitalOutput",
-                     "name": "Device", "pins": {"signal": 13}}
-                ]
+                    {
+                        "id": "d1",
+                        "board_id": "b1",
+                        "device_type": "DigitalOutput",
+                        "name": "Device",
+                        "pins": {"signal": 13},
+                    }
+                ],
             },
             "flow": {"nodes": [], "connections": []},
-            "dashboard": {"widgets": [], "layout": "vertical"}
+            "dashboard": {"widgets": [], "layout": "vertical"},
         }
 
         session = ExperimentSession.from_dict(data)
@@ -359,10 +346,15 @@ class TestExperimentSession:
         session = ExperimentSession()
         session.name = "Test"
         session.add_board(BoardConfig(id="b1", driver_type="arduino"))
-        session.add_device(DeviceConfig(
-            id="d1", device_type="DigitalOutput", name="Device",
-            board_id="b1", pins={"signal": 13}
-        ))
+        session.add_device(
+            DeviceConfig(
+                id="d1",
+                device_type="DigitalOutput",
+                name="Device",
+                board_id="b1",
+                pins={"signal": 13},
+            )
+        )
 
         session.clear()
 
@@ -374,13 +366,16 @@ class TestExperimentSession:
         original = ExperimentSession()
         original.name = "Roundtrip Test"
         original.metadata.description = "Testing roundtrip"
-        original.add_board(BoardConfig(
-            id="board_1", driver_type="arduino", port="/dev/ttyUSB0"
-        ))
-        original.add_device(DeviceConfig(
-            id="led_1", device_type="DigitalOutput",
-            name="Status LED", board_id="board_1", pins={"signal": 13}
-        ))
+        original.add_board(BoardConfig(id="board_1", driver_type="arduino", port="/dev/ttyUSB0"))
+        original.add_device(
+            DeviceConfig(
+                id="led_1",
+                device_type="DigitalOutput",
+                name="Status LED",
+                board_id="board_1",
+                pins={"signal": 13},
+            )
+        )
 
         data = original.to_dict()
         restored = ExperimentSession.from_dict(data)

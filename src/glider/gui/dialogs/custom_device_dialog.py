@@ -55,9 +55,9 @@ class PinEditorWidget(QWidget):
         self._table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         self._table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
         self._table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
-        self._table.setColumnWidth(1, 60)   # Pin #
+        self._table.setColumnWidth(1, 60)  # Pin #
         self._table.setColumnWidth(2, 120)  # Type
-        self._table.setColumnWidth(3, 60)   # Default
+        self._table.setColumnWidth(3, 60)  # Default
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         layout.addWidget(self._table)
 
@@ -131,20 +131,22 @@ class PinEditorWidget(QWidget):
                 default_value = None
                 if default_text:
                     if pin_type in (PinType.DIGITAL_OUTPUT, PinType.DIGITAL_INPUT):
-                        default_value = default_text.lower() in ('true', '1', 'high')
+                        default_value = default_text.lower() in ("true", "1", "high")
                     elif pin_type in (PinType.ANALOG_INPUT, PinType.ANALOG_OUTPUT, PinType.PWM):
                         try:
                             default_value = int(default_text)
                         except ValueError:
                             pass
 
-                pins.append(PinDefinition(
-                    name=name,
-                    pin_type=pin_type,
-                    pin_number=pin_number,
-                    default_value=default_value,
-                    description=description,
-                ))
+                pins.append(
+                    PinDefinition(
+                        name=name,
+                        pin_type=pin_type,
+                        pin_number=pin_number,
+                        default_value=default_value,
+                        description=description,
+                    )
+                )
         return pins
 
     def set_pins(self, pins: list[PinDefinition]):

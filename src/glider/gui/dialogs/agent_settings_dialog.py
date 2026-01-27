@@ -35,11 +35,7 @@ logger = logging.getLogger(__name__)
 class AgentSettingsDialog(QDialog):
     """Dialog for configuring AI agent settings."""
 
-    def __init__(
-        self,
-        config: AgentConfig,
-        parent: Optional[QWidget] = None
-    ):
+    def __init__(self, config: AgentConfig, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self._config = config
         self._available_models: list[str] = []
@@ -329,21 +325,12 @@ class AgentSettingsDialog(QDialog):
                 if current in models:
                     self._model_combo.setCurrentText(current)
 
-                QMessageBox.information(
-                    self, "Models Refreshed",
-                    f"Found {len(models)} model(s)."
-                )
+                QMessageBox.information(self, "Models Refreshed", f"Found {len(models)} model(s).")
             else:
-                QMessageBox.warning(
-                    self, "No Models",
-                    "No models found. Is the server running?"
-                )
+                QMessageBox.warning(self, "No Models", "No models found. Is the server running?")
 
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error",
-                f"Failed to fetch models: {str(e)}"
-            )
+            QMessageBox.critical(self, "Error", f"Failed to fetch models: {str(e)}")
         finally:
             await backend.close()
 
@@ -363,20 +350,19 @@ class AgentSettingsDialog(QDialog):
 
             if connected:
                 QMessageBox.information(
-                    self, "Connection Successful",
-                    f"Successfully connected to {config.provider.value.title()}!"
+                    self,
+                    "Connection Successful",
+                    f"Successfully connected to {config.provider.value.title()}!",
                 )
             else:
                 QMessageBox.warning(
-                    self, "Connection Failed",
-                    "Could not connect to the server. Check your settings."
+                    self,
+                    "Connection Failed",
+                    "Could not connect to the server. Check your settings.",
                 )
 
         except Exception as e:
-            QMessageBox.critical(
-                self, "Connection Error",
-                f"Error: {str(e)}"
-            )
+            QMessageBox.critical(self, "Connection Error", f"Error: {str(e)}")
         finally:
             await backend.close()
 

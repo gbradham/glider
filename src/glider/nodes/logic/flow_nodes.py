@@ -79,8 +79,12 @@ class TimerNode(ExecNode):
         category=NodeCategory.LOGIC,
         description="Trigger execution at regular intervals",
         inputs=[
-            PortDefinition(name="Interval", data_type=float, default_value=1.0,
-                          description="Interval in seconds"),
+            PortDefinition(
+                name="Interval",
+                data_type=float,
+                default_value=1.0,
+                description="Interval in seconds",
+            ),
             PortDefinition(name="Enabled", data_type=bool, default_value=True),
         ],
         outputs=[

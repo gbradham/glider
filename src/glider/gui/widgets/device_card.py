@@ -18,6 +18,7 @@ from glider.core.types import DeviceType
 @dataclass
 class DeviceStateInfo:
     """Formatted device state information for display."""
+
     state_text: str
     state_color: str
     font_size: str
@@ -35,17 +36,19 @@ def get_device_state_info(device) -> DeviceStateInfo:
         DeviceStateInfo with formatted display values
     """
     config = get_config()
-    initialized = getattr(device, '_initialized', False)
-    device_type_str = getattr(device, 'device_type', 'Unknown')
+    initialized = getattr(device, "_initialized", False)
+    device_type_str = getattr(device, "device_type", "Unknown")
 
     # Check if this is an analog input device
     device_type = DeviceType.from_string_safe(device_type_str)
     is_analog_input = device_type == DeviceType.ANALOG_INPUT
 
     if is_analog_input:
-        last_value = getattr(device, '_last_value', None)
+        last_value = getattr(device, "_last_value", None)
         if last_value is not None:
-            voltage = (last_value / config.hardware.adc_resolution) * config.hardware.adc_reference_voltage
+            voltage = (
+                last_value / config.hardware.adc_resolution
+            ) * config.hardware.adc_reference_voltage
             state_text = f"{last_value}\n{voltage:.2f}V"
             state_color = "#3498db"
         else:
@@ -53,7 +56,7 @@ def get_device_state_info(device) -> DeviceStateInfo:
             state_color = "#444"
         font_size = "11px"
     else:
-        state = getattr(device, '_state', None)
+        state = getattr(device, "_state", None)
         if state is not None:
             if isinstance(state, bool):
                 state_text = "HIGH" if state else "LOW"
@@ -67,10 +70,7 @@ def get_device_state_info(device) -> DeviceStateInfo:
         font_size = "14px"
 
     return DeviceStateInfo(
-        state_text=state_text,
-        state_color=state_color,
-        font_size=font_size,
-        is_ready=initialized
+        state_text=state_text, state_color=state_color, font_size=font_size, is_ready=initialized
     )
 
 
@@ -109,7 +109,7 @@ def create_ready_label_style(is_ready: bool) -> str:
     Returns:
         CSS stylesheet string
     """
-    color = '#27ae60' if is_ready else '#666'
+    color = "#27ae60" if is_ready else "#666"
     return f"font-size: 10px; color: {color}; background: transparent; border: none;"
 
 
@@ -164,7 +164,7 @@ class DeviceCard(QWidget):
         )
         info_layout.addWidget(self._name_label)
 
-        device_type = getattr(self._device, 'device_type', 'Unknown')
+        device_type = getattr(self._device, "device_type", "Unknown")
         self._type_label = QLabel(device_type)
         self._type_label.setStyleSheet(
             "font-size: 12px; color: #888; background: transparent; border: none;"
@@ -175,7 +175,7 @@ class DeviceCard(QWidget):
         layout.addStretch()
 
         # Status indicator (right side)
-        device_type_str = getattr(self._device, 'device_type', 'Unknown')
+        device_type_str = getattr(self._device, "device_type", "Unknown")
         device_type = DeviceType.from_string_safe(device_type_str)
         is_analog_input = device_type == DeviceType.ANALOG_INPUT
 

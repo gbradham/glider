@@ -29,6 +29,7 @@ _analog_callback_registry: dict = {}
 
 def _create_analog_callback(board_id: str):
     """Create a module-level async callback function for analog data."""
+
     async def _callback(data):
         try:
             # Look up the board instance from the registry
@@ -81,13 +82,16 @@ class TelemetrixThread:
         import sys
 
         # Suppress telemetrix debug output via logging
-        logging.getLogger('telemetrix_aio').setLevel(logging.WARNING)
-        logging.getLogger('telemetrix_aio.telemetrix_aio').setLevel(logging.WARNING)
+        logging.getLogger("telemetrix_aio").setLevel(logging.WARNING)
+        logging.getLogger("telemetrix_aio.telemetrix_aio").setLevel(logging.WARNING)
 
         # Suppress print statements from telemetrix for this entire thread
         class NullWriter:
-            def write(self, s): pass
-            def flush(self): pass
+            def write(self, s):
+                pass
+
+            def flush(self):
+                pass
 
         sys.stdout = NullWriter()
 
@@ -153,9 +157,7 @@ class TelemetrixThread:
         """Stop the telemetrix thread."""
         if self._telemetrix is not None and self._loop is not None:
             try:
-                future = asyncio.run_coroutine_threadsafe(
-                    self._telemetrix.shutdown(), self._loop
-                )
+                future = asyncio.run_coroutine_threadsafe(self._telemetrix.shutdown(), self._loop)
                 future.result(timeout=5.0)
             except Exception as e:
                 logger.warning(f"Error during telemetrix shutdown: {e}")
@@ -190,8 +192,18 @@ ARDUINO_UNO_PINS = {
     6: PinCapability(6, {PinType.DIGITAL, PinType.PWM}, max_value=255, description="Digital/PWM"),
     7: PinCapability(7, {PinType.DIGITAL}, description="Digital"),
     8: PinCapability(8, {PinType.DIGITAL}, description="Digital"),
-    9: PinCapability(9, {PinType.DIGITAL, PinType.PWM, PinType.SERVO}, max_value=255, description="Digital/PWM/Servo"),
-    10: PinCapability(10, {PinType.DIGITAL, PinType.PWM, PinType.SERVO}, max_value=255, description="Digital/PWM/Servo"),
+    9: PinCapability(
+        9,
+        {PinType.DIGITAL, PinType.PWM, PinType.SERVO},
+        max_value=255,
+        description="Digital/PWM/Servo",
+    ),
+    10: PinCapability(
+        10,
+        {PinType.DIGITAL, PinType.PWM, PinType.SERVO},
+        max_value=255,
+        description="Digital/PWM/Servo",
+    ),
     11: PinCapability(11, {PinType.DIGITAL, PinType.PWM}, max_value=255, description="Digital/PWM"),
     12: PinCapability(12, {PinType.DIGITAL}, description="Digital"),
     13: PinCapability(13, {PinType.DIGITAL}, description="Digital (LED)"),
@@ -200,17 +212,27 @@ ARDUINO_UNO_PINS = {
     15: PinCapability(15, {PinType.DIGITAL, PinType.ANALOG}, max_value=1023, description="A1"),
     16: PinCapability(16, {PinType.DIGITAL, PinType.ANALOG}, max_value=1023, description="A2"),
     17: PinCapability(17, {PinType.DIGITAL, PinType.ANALOG}, max_value=1023, description="A3"),
-    18: PinCapability(18, {PinType.DIGITAL, PinType.ANALOG, PinType.I2C}, max_value=1023, description="A4 (SDA)"),
-    19: PinCapability(19, {PinType.DIGITAL, PinType.ANALOG, PinType.I2C}, max_value=1023, description="A5 (SCL)"),
+    18: PinCapability(
+        18, {PinType.DIGITAL, PinType.ANALOG, PinType.I2C}, max_value=1023, description="A4 (SDA)"
+    ),
+    19: PinCapability(
+        19, {PinType.DIGITAL, PinType.ANALOG, PinType.I2C}, max_value=1023, description="A5 (SCL)"
+    ),
 }
 
 # Arduino Mega pin capabilities (simplified)
 ARDUINO_MEGA_PINS = {
     **{i: PinCapability(i, {PinType.DIGITAL}) for i in range(54)},
     # PWM pins on Mega: 2-13, 44-46
-    **{i: PinCapability(i, {PinType.DIGITAL, PinType.PWM}, max_value=255) for i in [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 44, 45, 46]},
+    **{
+        i: PinCapability(i, {PinType.DIGITAL, PinType.PWM}, max_value=255)
+        for i in [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 44, 45, 46]
+    },
     # Analog pins A0-A15
-    **{i: PinCapability(i, {PinType.DIGITAL, PinType.ANALOG}, max_value=1023) for i in range(54, 70)},
+    **{
+        i: PinCapability(i, {PinType.DIGITAL, PinType.ANALOG}, max_value=1023)
+        for i in range(54, 70)
+    },
 }
 
 
@@ -326,7 +348,9 @@ class TelemetrixBoard(BaseBoard):
             try:
                 from telemetrix_aio import telemetrix_aio
             except ImportError:
-                logger.error("telemetrix-aio not installed. Install with: pip install telemetrix-aio")
+                logger.error(
+                    "telemetrix-aio not installed. Install with: pip install telemetrix-aio"
+                )
                 self._set_state(BoardConnectionState.ERROR)
                 return False
 
@@ -380,7 +404,9 @@ class TelemetrixBoard(BaseBoard):
             raise RuntimeError("Board not connected")
         return self._telemetrix_thread.call_method(method_name, *args, **kwargs)
 
-    async def set_pin_mode(self, pin: int, mode: PinMode, pin_type: PinType = PinType.DIGITAL) -> None:
+    async def set_pin_mode(
+        self, pin: int, mode: PinMode, pin_type: PinType = PinType.DIGITAL
+    ) -> None:
         """Configure a pin's mode."""
         if not self.is_connected or self._telemetrix_thread is None:
             raise RuntimeError("Board not connected")
@@ -388,11 +414,15 @@ class TelemetrixBoard(BaseBoard):
         try:
             if pin_type == PinType.DIGITAL:
                 if mode == PinMode.OUTPUT:
-                    self._call_telemetrix('set_pin_mode_digital_output', pin)
+                    self._call_telemetrix("set_pin_mode_digital_output", pin)
                 elif mode == PinMode.INPUT:
-                    self._call_telemetrix('set_pin_mode_digital_input', pin, callback=self._digital_callback)
+                    self._call_telemetrix(
+                        "set_pin_mode_digital_input", pin, callback=self._digital_callback
+                    )
                 elif mode == PinMode.INPUT_PULLUP:
-                    self._call_telemetrix('set_pin_mode_digital_input_pullup', pin, callback=self._digital_callback)
+                    self._call_telemetrix(
+                        "set_pin_mode_digital_input_pullup", pin, callback=self._digital_callback
+                    )
 
             elif pin_type == PinType.ANALOG:
                 # Convert pin number to analog pin number if needed
@@ -410,21 +440,23 @@ class TelemetrixBoard(BaseBoard):
                 # This makes analog values update more frequently for better logging
                 try:
                     self._call_telemetrix(
-                        'set_pin_mode_analog_input',
+                        "set_pin_mode_analog_input",
                         analog_pin,
                         differential=1,
-                        callback=self._analog_callbacks[analog_pin]
+                        callback=self._analog_callbacks[analog_pin],
                     )
-                    logger.info(f"Registered analog callback for pin {pin} (analog pin {analog_pin}), board_id={self._id}")
+                    logger.info(
+                        f"Registered analog callback for pin {pin} (analog pin {analog_pin}), board_id={self._id}"
+                    )
                 except Exception as e:
                     logger.error(f"Failed to set analog input mode for pin {pin}: {e}")
                     raise
 
             elif pin_type == PinType.PWM:
-                self._call_telemetrix('set_pin_mode_analog_output', pin)
+                self._call_telemetrix("set_pin_mode_analog_output", pin)
 
             elif pin_type == PinType.SERVO:
-                self._call_telemetrix('set_pin_mode_servo', pin)
+                self._call_telemetrix("set_pin_mode_servo", pin)
 
             self._pin_modes[pin] = mode
             logger.debug(f"Set pin {pin} to mode {mode} type {pin_type}")
@@ -438,7 +470,7 @@ class TelemetrixBoard(BaseBoard):
         if not self.is_connected or self._telemetrix_thread is None:
             raise RuntimeError("Board not connected")
 
-        self._call_telemetrix('digital_write', pin, 1 if value else 0)
+        self._call_telemetrix("digital_write", pin, 1 if value else 0)
         self._pin_values[pin] = value
 
     async def read_digital(self, pin: int) -> bool:
@@ -449,7 +481,7 @@ class TelemetrixBoard(BaseBoard):
         # Perform a live read from the hardware
         # telemetrix-aio's digital_read returns a list [pin, value, timestamp]
         try:
-            result = self._call_telemetrix('digital_read', pin)
+            result = self._call_telemetrix("digital_read", pin)
             if result and len(result) > 1:
                 value = bool(result[1])
                 self._pin_values[pin] = value  # Update cache
@@ -468,7 +500,7 @@ class TelemetrixBoard(BaseBoard):
             raise RuntimeError("Board not connected")
 
         value = max(0, min(255, value))
-        self._call_telemetrix('analog_write', pin, value)
+        self._call_telemetrix("analog_write", pin, value)
         self._pin_values[pin] = value
 
     async def read_analog(self, pin: int) -> int:
@@ -496,7 +528,7 @@ class TelemetrixBoard(BaseBoard):
             raise RuntimeError("Board not connected")
 
         angle = max(0, min(180, angle))
-        self._call_telemetrix('servo_write', pin, angle)
+        self._call_telemetrix("servo_write", pin, angle)
         self._pin_values[pin] = angle
 
     async def _debug_callback_silent(self, data: list) -> None:
@@ -542,9 +574,9 @@ class TelemetrixBoard(BaseBoard):
                 if mode == PinMode.OUTPUT:
                     cap = self._board_config["pins"].get(pin)
                     if cap and PinType.PWM in cap.supported_types:
-                        self._call_telemetrix('analog_write', pin, 0)
+                        self._call_telemetrix("analog_write", pin, 0)
                     else:
-                        self._call_telemetrix('digital_write', pin, 0)
+                        self._call_telemetrix("digital_write", pin, 0)
         except Exception as e:
             logger.error(f"Error during emergency stop: {e}")
 

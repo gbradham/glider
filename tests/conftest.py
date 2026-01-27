@@ -17,6 +17,7 @@ import pytest
 # Async Event Loop Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def event_loop():
     """Create an instance of the default event loop for each test case."""
@@ -28,6 +29,7 @@ def event_loop():
 # =============================================================================
 # Temporary Directory Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def temp_dir():
@@ -53,6 +55,7 @@ def temp_file(temp_dir):
 # =============================================================================
 # Mock Hardware Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mock_board():
@@ -133,6 +136,7 @@ def mock_hardware_manager(mock_board, mock_device):
 # Mock Vision Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_frame():
     """Provide a mock camera frame (640x480 BGR)."""
@@ -191,6 +195,7 @@ def mock_cv_processor():
 # Mock Flow Engine Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_flow_engine():
     """Provide a mock flow engine."""
@@ -222,6 +227,7 @@ def mock_flow_engine():
 # Mock Data Recorder Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_data_recorder(temp_dir):
     """Provide a mock data recorder."""
@@ -241,6 +247,7 @@ def mock_data_recorder(temp_dir):
 # =============================================================================
 # Mock Core Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mock_session():
@@ -291,6 +298,7 @@ def mock_core(mock_hardware_manager, mock_flow_engine, mock_session):
 # Sample Data Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def sample_board_config() -> dict[str, Any]:
     """Provide sample board configuration."""
@@ -299,7 +307,7 @@ def sample_board_config() -> dict[str, Any]:
         "driver": "arduino",
         "name": "Arduino Uno",
         "port": "/dev/ttyUSB0",
-        "settings": {}
+        "settings": {},
     }
 
 
@@ -312,19 +320,14 @@ def sample_device_config() -> dict[str, Any]:
         "device_type": "DigitalOutput",
         "name": "Status LED",
         "pin": 13,
-        "settings": {}
+        "settings": {},
     }
 
 
 @pytest.fixture
 def sample_node_config() -> dict[str, Any]:
     """Provide sample node configuration."""
-    return {
-        "id": "node_1",
-        "type": "Delay",
-        "position": [100, 100],
-        "state": {"duration": 1.0}
-    }
+    return {"id": "node_1", "type": "Delay", "position": [100, 100], "state": {"duration": 1.0}}
 
 
 @pytest.fixture
@@ -334,7 +337,7 @@ def sample_connection_config() -> dict[str, Any]:
         "source_node": "node_1",
         "source_port": "exec_out",
         "target_node": "node_2",
-        "target_port": "exec_in"
+        "target_port": "exec_in",
     }
 
 
@@ -348,28 +351,20 @@ def sample_experiment_schema() -> dict[str, Any]:
             "description": "A test experiment",
             "author": "Test Author",
             "created": "2024-01-01T00:00:00Z",
-            "modified": "2024-01-01T00:00:00Z"
+            "modified": "2024-01-01T00:00:00Z",
         },
-        "hardware": {
-            "boards": [],
-            "devices": []
-        },
-        "flow": {
-            "nodes": [],
-            "connections": []
-        },
-        "dashboard": {
-            "widgets": [],
-            "layout": {}
-        },
+        "hardware": {"boards": [], "devices": []},
+        "flow": {"nodes": [], "connections": []},
+        "dashboard": {"widgets": [], "layout": {}},
         "custom_devices": [],
-        "flow_functions": []
+        "flow_functions": [],
     }
 
 
 # =============================================================================
 # Calibration Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def sample_calibration_line():
@@ -381,7 +376,7 @@ def sample_calibration_line():
         "end_y": 0.5,
         "length": 100.0,
         "unit": "mm",
-        "color": [0, 255, 0]
+        "color": [0, 255, 0],
     }
 
 
@@ -396,13 +391,14 @@ def sample_zone_config():
         "color": [255, 0, 0],
         "track_entry": True,
         "track_exit": True,
-        "track_dwell": True
+        "track_dwell": True,
     }
 
 
 # =============================================================================
 # PyQt Fixtures (for GUI tests)
 # =============================================================================
+
 
 @pytest.fixture
 def qtbot_or_skip(request):
@@ -416,11 +412,12 @@ def qtbot_or_skip(request):
             # ... rest of test
     """
     import importlib.util
+
     if importlib.util.find_spec("pytestqt") is None:
         return None
     try:
         # Get qtbot from pytest-qt plugin
-        return request.getfixturevalue('qtbot')
+        return request.getfixturevalue("qtbot")
     except Exception:
         return None
 
@@ -428,6 +425,7 @@ def qtbot_or_skip(request):
 # =============================================================================
 # Utility Functions
 # =============================================================================
+
 
 def create_mock_node(node_type: str, node_id: str = "test_node"):
     """Create a mock node for testing."""

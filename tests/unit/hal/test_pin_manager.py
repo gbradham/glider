@@ -22,10 +22,7 @@ class TestPinAllocation:
     def test_creation(self):
         """Test PinAllocation creation."""
         alloc = PinAllocation(
-            pin=13,
-            device_id="led_1",
-            device_name="Status LED",
-            pin_role="output"
+            pin=13, device_id="led_1", device_name="Status LED", pin_role="output"
         )
 
         assert alloc.pin == 13

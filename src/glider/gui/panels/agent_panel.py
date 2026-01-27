@@ -51,22 +51,14 @@ class MessageBubble(QFrame):
         self._content_label = QLabel(self._content)
         self._content_label.setWordWrap(True)
         self._content_label.setTextFormat(Qt.TextFormat.PlainText)
-        self._content_label.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-        )
+        self._content_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         # Use Ignored horizontal policy to force word wrap
-        self._content_label.setSizePolicy(
-            QSizePolicy.Policy.Ignored,
-            QSizePolicy.Policy.Minimum
-        )
+        self._content_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Minimum)
         self._content_label.setMinimumWidth(100)
         layout.addWidget(self._content_label)
 
         # Allow the bubble itself to shrink
-        self.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Minimum
-        )
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         # Styling
         if self._role == "user":
@@ -105,11 +97,7 @@ class ActionConfirmWidget(QFrame):
     confirmed = pyqtSignal()
     rejected = pyqtSignal()
 
-    def __init__(
-        self,
-        actions: list,
-        parent: Optional[QWidget] = None
-    ):
+    def __init__(self, actions: list, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self._actions = actions
         self._setup_ui()
@@ -210,9 +198,7 @@ class AgentPanel(QWidget):
     settings_requested = pyqtSignal()
 
     def __init__(
-        self,
-        controller: Optional["AgentController"] = None,
-        parent: Optional[QWidget] = None
+        self, controller: Optional["AgentController"] = None, parent: Optional[QWidget] = None
     ):
         super().__init__(parent)
         self._controller = controller
@@ -273,10 +259,7 @@ class AgentPanel(QWidget):
         scroll_area.setStyleSheet("QScrollArea { border: none; background: #1e1e1e; }")
 
         self._chat_container = QWidget()
-        self._chat_container.setSizePolicy(
-            QSizePolicy.Policy.Preferred,
-            QSizePolicy.Policy.Minimum
-        )
+        self._chat_container.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
         self._chat_layout = QVBoxLayout(self._chat_container)
         self._chat_layout.setContentsMargins(8, 8, 8, 8)
         self._chat_layout.setSpacing(8)
@@ -364,12 +347,13 @@ class AgentPanel(QWidget):
         layout.addWidget(input_frame)
 
         # Add welcome message
-        self._add_message("assistant",
+        self._add_message(
+            "assistant",
             "Hello! I'm your AI assistant. I can help you:\n\n"
             "- Create experiments with visual flow graphs\n"
             "- Configure Arduino or Raspberry Pi hardware\n"
             "- Explain concepts and troubleshoot issues\n\n"
-            "What would you like to do?"
+            "What would you like to do?",
         )
 
     def _send_message(self, text: str) -> None:
@@ -511,6 +495,4 @@ class AgentPanel(QWidget):
             self._controller.clear_conversation()
 
         # Re-add welcome message
-        self._add_message("assistant",
-            "Chat cleared. How can I help you?"
-        )
+        self._add_message("assistant", "Chat cleared. How can I help you?")

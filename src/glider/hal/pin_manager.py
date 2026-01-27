@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 @dataclass
 class PinAllocation:
     """Represents a pin allocation to a device."""
+
     pin: int
     device_id: str
     device_name: str
@@ -24,6 +25,7 @@ class PinAllocation:
 
 class PinConflictError(Exception):
     """Raised when attempting to allocate an already-claimed pin."""
+
     def __init__(self, pin: int, existing_device: str, new_device: str):
         self.pin = pin
         self.existing_device = existing_device
@@ -36,13 +38,13 @@ class PinConflictError(Exception):
 
 class InvalidPinError(Exception):
     """Raised when attempting to use a pin for an unsupported operation."""
+
     def __init__(self, pin: int, requested_type: str, supported_types: set[str]):
         self.pin = pin
         self.requested_type = requested_type
         self.supported_types = supported_types
         super().__init__(
-            f"Pin {pin} does not support '{requested_type}'. "
-            f"Supported types: {supported_types}"
+            f"Pin {pin} does not support '{requested_type}'. " f"Supported types: {supported_types}"
         )
 
 
@@ -90,10 +92,7 @@ class PinManager:
 
     def get_pins_for_device(self, device_id: str) -> list[PinAllocation]:
         """Get all pin allocations for a specific device."""
-        return [
-            alloc for alloc in self._allocations.values()
-            if alloc.device_id == device_id
-        ]
+        return [alloc for alloc in self._allocations.values() if alloc.device_id == device_id]
 
     def get_compatible_pins(self, pin_type: "PinType") -> list[int]:
         """
@@ -228,8 +227,7 @@ class PinManager:
         """
         released = []
         pins_to_release = [
-            pin for pin, alloc in self._allocations.items()
-            if alloc.device_id == device_id
+            pin for pin, alloc in self._allocations.items() if alloc.device_id == device_id
         ]
         for pin in pins_to_release:
             released.append(self._allocations.pop(pin))
@@ -258,7 +256,5 @@ class PinManager:
         lines = ["Pin Allocations:"]
         for pin in sorted(self._allocations.keys()):
             alloc = self._allocations[pin]
-            lines.append(
-                f"  Pin {pin}: {alloc.device_name} ({alloc.pin_role})"
-            )
+            lines.append(f"  Pin {pin}: {alloc.device_name} ({alloc.pin_role})")
         return "\n".join(lines)

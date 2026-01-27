@@ -75,6 +75,7 @@ class DeleteNodeCommand(Command):
 
         if self._main_window._core.session:
             from glider.core.experiment_session import NodeConfig
+
             node_config = NodeConfig(
                 id=data["id"],
                 node_type=data["node_type"],
@@ -92,7 +93,15 @@ class DeleteNodeCommand(Command):
 class MoveNodeCommand(Command):
     """Command for moving a node."""
 
-    def __init__(self, main_window: "MainWindow", node_id: str, old_x: float, old_y: float, new_x: float, new_y: float):
+    def __init__(
+        self,
+        main_window: "MainWindow",
+        node_id: str,
+        old_x: float,
+        old_y: float,
+        new_x: float,
+        new_y: float,
+    ):
         self._main_window = main_window
         self._node_id = node_id
         self._old_x = old_x
@@ -110,7 +119,9 @@ class MoveNodeCommand(Command):
         if node_item:
             node_item.setPos(self._old_x, self._old_y)
         if self._main_window._core.session:
-            self._main_window._core.session.update_node_position(self._node_id, self._old_x, self._old_y)
+            self._main_window._core.session.update_node_position(
+                self._node_id, self._old_x, self._old_y
+            )
 
     def description(self) -> str:
         return "Move node"
@@ -119,7 +130,16 @@ class MoveNodeCommand(Command):
 class CreateConnectionCommand(Command):
     """Command for creating a connection."""
 
-    def __init__(self, main_window: "MainWindow", conn_id: str, from_node: str, from_port: int, to_node: str, to_port: int, conn_type: str):
+    def __init__(
+        self,
+        main_window: "MainWindow",
+        conn_id: str,
+        from_node: str,
+        from_port: int,
+        to_node: str,
+        to_port: int,
+        conn_type: str,
+    ):
         self._main_window = main_window
         self._conn_id = conn_id
         self._from_node = from_node
@@ -162,6 +182,7 @@ class DeleteConnectionCommand(Command):
         )
         if self._main_window._core.session:
             from glider.core.experiment_session import ConnectionConfig
+
             conn_config = ConnectionConfig(
                 id=data["id"],
                 from_node=data["from_node"],
@@ -179,7 +200,9 @@ class DeleteConnectionCommand(Command):
 class PropertyChangeCommand(Command):
     """Command for changing a node property."""
 
-    def __init__(self, main_window: "MainWindow", node_id: str, prop_name: str, old_value, new_value):
+    def __init__(
+        self, main_window: "MainWindow", node_id: str, prop_name: str, old_value, new_value
+    ):
         self._main_window = main_window
         self._node_id = node_id
         self._prop_name = prop_name
@@ -193,7 +216,9 @@ class PropertyChangeCommand(Command):
     def undo(self) -> None:
         """Restore old property value."""
         if self._main_window._core.session:
-            self._main_window._core.session.update_node_state(self._node_id, {self._prop_name: self._old_value})
+            self._main_window._core.session.update_node_state(
+                self._node_id, {self._prop_name: self._old_value}
+            )
 
     def description(self) -> str:
         return f"Change {self._prop_name}"

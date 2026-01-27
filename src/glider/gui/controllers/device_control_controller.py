@@ -47,12 +47,7 @@ class DeviceControlController(QWidget):
     device_selected = pyqtSignal(str)
     value_read = pyqtSignal(str, object)
 
-    def __init__(
-        self,
-        core: "GliderCore",
-        run_async: Callable,
-        parent: Optional[QWidget] = None
-    ):
+    def __init__(self, core: "GliderCore", run_async: Callable, parent: Optional[QWidget] = None):
         """
         Initialize the device control controller.
 
@@ -123,10 +118,7 @@ class DeviceControlController(QWidget):
         pwm_label = QLabel("PWM:")
         pwm_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._pwm_spinbox = QSpinBox()
-        self._pwm_spinbox.setRange(
-            self._config.hardware.pwm_min,
-            self._config.hardware.pwm_max
-        )
+        self._pwm_spinbox.setRange(self._config.hardware.pwm_min, self._config.hardware.pwm_max)
         self._pwm_spinbox.setMinimumHeight(28)
         self._pwm_spinbox.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._pwm_spinbox.valueChanged.connect(self._on_pwm_changed)
@@ -141,8 +133,7 @@ class DeviceControlController(QWidget):
         servo_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._servo_spinbox = QSpinBox()
         self._servo_spinbox.setRange(
-            self._config.hardware.servo_min_angle,
-            self._config.hardware.servo_max_angle
+            self._config.hardware.servo_min_angle, self._config.hardware.servo_max_angle
         )
         self._servo_spinbox.setValue(self._config.hardware.servo_default_angle)
         self._servo_spinbox.setSuffix("°")
@@ -187,8 +178,7 @@ class DeviceControlController(QWidget):
 
         self._poll_spinbox = QSpinBox()
         self._poll_spinbox.setRange(
-            self._config.hardware.min_poll_interval_ms,
-            self._config.hardware.max_poll_interval_ms
+            self._config.hardware.min_poll_interval_ms, self._config.hardware.max_poll_interval_ms
         )
         self._poll_spinbox.setValue(self._config.hardware.input_poll_interval_ms)
         self._poll_spinbox.setSuffix("ms")
@@ -218,8 +208,8 @@ class DeviceControlController(QWidget):
         self._device_combo.addItem("-- Select Device --", None)
 
         for device_id, device in self._core.hardware_manager.devices.items():
-            device_name = getattr(device, 'name', device_id)
-            device_type = getattr(device, 'device_type', 'unknown')
+            device_name = getattr(device, "name", device_id)
+            device_type = getattr(device, "device_type", "unknown")
             self._device_combo.addItem(f"{device_name} ({device_type})", device_id)
 
     def _on_device_selected(self, text: str) -> None:
@@ -241,10 +231,10 @@ class DeviceControlController(QWidget):
             self._input_group.setEnabled(False)
             return
 
-        device_type_str = getattr(device, 'device_type', 'unknown')
-        board = getattr(device, 'board', None)
+        device_type_str = getattr(device, "device_type", "unknown")
+        board = getattr(device, "board", None)
         connected = board.is_connected if board else False
-        initialized = getattr(device, '_initialized', False)
+        initialized = getattr(device, "_initialized", False)
 
         status = "Connected" if connected else "Disconnected"
         if connected and initialized:
@@ -257,7 +247,7 @@ class DeviceControlController(QWidget):
         # Enable/disable input reading based on device type
         device_type = DeviceType.from_string_safe(device_type_str)
         is_input = device_type is not None and device_type.is_input
-        self._input_group.setEnabled(is_input or device_type_str == 'ADS1115')
+        self._input_group.setEnabled(is_input or device_type_str == "ADS1115")
 
         # Emit signal
         self.device_selected.emit(device_id)
@@ -278,9 +268,9 @@ class DeviceControlController(QWidget):
 
         async def set_output():
             try:
-                if hasattr(device, 'set_state'):
+                if hasattr(device, "set_state"):
                     await device.set_state(value)
-                elif hasattr(device, 'turn_on') and hasattr(device, 'turn_off'):
+                elif hasattr(device, "turn_on") and hasattr(device, "turn_off"):
                     if value:
                         await device.turn_on()
                     else:
@@ -305,11 +295,11 @@ class DeviceControlController(QWidget):
 
         async def toggle():
             try:
-                if hasattr(device, 'toggle'):
+                if hasattr(device, "toggle"):
                     await device.toggle()
-                elif hasattr(device, 'state'):
+                elif hasattr(device, "state"):
                     new_state = not device.state
-                    if hasattr(device, 'set_state'):
+                    if hasattr(device, "set_state"):
                         await device.set_state(new_state)
                 self._status_label.setText("Status: Output toggled")
             except Exception as e:
@@ -325,9 +315,9 @@ class DeviceControlController(QWidget):
 
         async def set_pwm():
             try:
-                if hasattr(device, 'set_value'):
+                if hasattr(device, "set_value"):
                     await device.set_value(value)
-                elif hasattr(device, 'board'):
+                elif hasattr(device, "board"):
                     pin = list(device.pins.values())[0] if device.pins else 0
                     await device.board.write_analog(pin, value)
                 self._status_label.setText(f"Status: PWM set to {value}")
@@ -344,9 +334,9 @@ class DeviceControlController(QWidget):
 
         async def set_servo():
             try:
-                if hasattr(device, 'set_angle'):
+                if hasattr(device, "set_angle"):
                     await device.set_angle(angle)
-                elif hasattr(device, 'board'):
+                elif hasattr(device, "board"):
                     pin = list(device.pins.values())[0] if device.pins else 0
                     await device.board.write_servo(pin, angle)
                 self._status_label.setText(f"Status: Servo set to {angle}°")
@@ -362,37 +352,39 @@ class DeviceControlController(QWidget):
             QMessageBox.warning(self, "No Device", "Please select a device first.")
             return
 
-        device_type = getattr(device, 'device_type', '')
-        if device_type not in ('DigitalInput', 'AnalogInput', 'ADS1115'):
+        device_type = getattr(device, "device_type", "")
+        if device_type not in ("DigitalInput", "AnalogInput", "ADS1115"):
             QMessageBox.warning(self, "Invalid Device", "Please select an input device.")
             return
 
         async def read_value():
             try:
                 # Auto-initialize if not initialized
-                if not getattr(device, '_initialized', False):
+                if not getattr(device, "_initialized", False):
                     self._status_label.setText("Status: Initializing device...")
                     await device.initialize()
 
-                if device_type == 'DigitalInput':
-                    if hasattr(device, 'read'):
+                if device_type == "DigitalInput":
+                    if hasattr(device, "read"):
                         value = await device.read()
                     else:
-                        pin = device.pins.get('input', list(device.pins.values())[0])
+                        pin = device.pins.get("input", list(device.pins.values())[0])
                         value = await device.board.read_digital(pin)
                     display = "HIGH (1)" if value else "LOW (0)"
                     self._input_value_label.setText(display)
                     self._status_label.setText(f"Status: Digital = {display}")
                     self.value_read.emit(device.id, value)
                 else:  # AnalogInput or ADS1115
-                    if hasattr(device, 'read'):
+                    if hasattr(device, "read"):
                         raw_value = await device.read()
                     else:
-                        pin = device.pins.get('input', list(device.pins.values())[0])
+                        pin = device.pins.get("input", list(device.pins.values())[0])
                         raw_value = await device.board.read_analog(pin)
 
                     # Calculate voltage
-                    voltage = (raw_value / self._config.hardware.adc_resolution) * self._config.hardware.adc_reference_voltage
+                    voltage = (
+                        raw_value / self._config.hardware.adc_resolution
+                    ) * self._config.hardware.adc_reference_voltage
                     display = f"{raw_value}\n{voltage:.2f}V"
                     self._input_value_label.setText(display)
                     self._status_label.setText(f"Status: Analog = {raw_value} ({voltage:.2f}V)")

@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ToolResult:
     """Result of a tool execution."""
+
     success: bool
     result: Optional[Any] = None
     error: Optional[str] = None
@@ -32,6 +33,7 @@ class ToolResult:
         if self.success:
             if isinstance(self.result, dict):
                 import json
+
                 return json.dumps(self.result, indent=2)
             return str(self.result)
         else:
@@ -103,31 +105,19 @@ class AgentToolkit:
         executor = self._tool_executors.get(tool_name)
 
         if executor is None:
-            return ToolResult(
-                success=False,
-                error=f"Unknown tool: {tool_name}"
-            )
+            return ToolResult(success=False, error=f"Unknown tool: {tool_name}")
 
         try:
             result = await executor.execute(tool_name, args)
 
             if result.get("success", False):
-                return ToolResult(
-                    success=True,
-                    result=result.get("result")
-                )
+                return ToolResult(success=True, result=result.get("result"))
             else:
-                return ToolResult(
-                    success=False,
-                    error=result.get("error", "Unknown error")
-                )
+                return ToolResult(success=False, error=result.get("error", "Unknown error"))
 
         except Exception as e:
             logger.exception(f"Tool execution error: {tool_name}")
-            return ToolResult(
-                success=False,
-                error=str(e)
-            )
+            return ToolResult(success=False, error=str(e))
 
     def reset_state(self) -> None:
         """Reset any stateful components (like auto-layout)."""

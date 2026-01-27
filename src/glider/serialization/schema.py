@@ -46,6 +46,7 @@ def _validate_required(data: dict[str, Any], fields: list[str], path: str) -> No
 @dataclass
 class PortSchema:
     """Schema for a node port definition."""
+
     name: str
     type: str  # "data" or "exec"
     data_type: Optional[str] = None  # e.g., "int", "float", "bool", "any"
@@ -54,6 +55,7 @@ class PortSchema:
 @dataclass
 class NodeSchema:
     """Schema for a node in the flow graph."""
+
     id: str
     type: str  # Full node type path, e.g., "glider.nodes.hardware.DigitalWriteNode"
     title: str
@@ -70,8 +72,12 @@ class NodeSchema:
             "title": self.title,
             "position": self.position,
             "properties": self.properties,
-            "inputs": [{"name": p.name, "type": p.type, "data_type": p.data_type} for p in self.inputs],
-            "outputs": [{"name": p.name, "type": p.type, "data_type": p.data_type} for p in self.outputs],
+            "inputs": [
+                {"name": p.name, "type": p.type, "data_type": p.data_type} for p in self.inputs
+            ],
+            "outputs": [
+                {"name": p.name, "type": p.type, "data_type": p.data_type} for p in self.outputs
+            ],
         }
 
     @classmethod
@@ -111,6 +117,7 @@ class NodeSchema:
 @dataclass
 class ConnectionSchema:
     """Schema for a connection between nodes."""
+
     id: str
     from_node: str
     from_port: int
@@ -136,13 +143,11 @@ class ConnectionSchema:
         # from_port and to_port should be integers
         if not isinstance(data["from_port"], int):
             raise SchemaValidationError(
-                f"Expected int, got {type(data['from_port']).__name__}",
-                f"{path}.from_port"
+                f"Expected int, got {type(data['from_port']).__name__}", f"{path}.from_port"
             )
         if not isinstance(data["to_port"], int):
             raise SchemaValidationError(
-                f"Expected int, got {type(data['to_port']).__name__}",
-                f"{path}.to_port"
+                f"Expected int, got {type(data['to_port']).__name__}", f"{path}.to_port"
             )
 
         return cls(
@@ -158,6 +163,7 @@ class ConnectionSchema:
 @dataclass
 class BoardConfigSchema:
     """Schema for a hardware board configuration."""
+
     id: str
     type: str  # e.g., "telemetrix", "pigpio"
     port: Optional[str] = None  # Serial port for Arduino
@@ -180,15 +186,13 @@ class BoardConfigSchema:
         port = data.get("port")
         if port is not None and not isinstance(port, str):
             raise SchemaValidationError(
-                f"Expected str or null, got {type(port).__name__}",
-                f"{path}.port"
+                f"Expected str or null, got {type(port).__name__}", f"{path}.port"
             )
 
         settings = data.get("settings", {})
         if not isinstance(settings, dict):
             raise SchemaValidationError(
-                f"Expected dict, got {type(settings).__name__}",
-                f"{path}.settings"
+                f"Expected dict, got {type(settings).__name__}", f"{path}.settings"
             )
 
         return cls(
@@ -202,6 +206,7 @@ class BoardConfigSchema:
 @dataclass
 class DeviceConfigSchema:
     """Schema for a hardware device configuration."""
+
     id: str
     type: str  # e.g., "digital_output", "analog_input", "servo"
     board_id: str
@@ -226,22 +231,19 @@ class DeviceConfigSchema:
 
         if not isinstance(data["pin"], int):
             raise SchemaValidationError(
-                f"Expected int, got {type(data['pin']).__name__}",
-                f"{path}.pin"
+                f"Expected int, got {type(data['pin']).__name__}", f"{path}.pin"
             )
 
         name = data.get("name")
         if name is not None and not isinstance(name, str):
             raise SchemaValidationError(
-                f"Expected str or null, got {type(name).__name__}",
-                f"{path}.name"
+                f"Expected str or null, got {type(name).__name__}", f"{path}.name"
             )
 
         settings = data.get("settings", {})
         if not isinstance(settings, dict):
             raise SchemaValidationError(
-                f"Expected dict, got {type(settings).__name__}",
-                f"{path}.settings"
+                f"Expected dict, got {type(settings).__name__}", f"{path}.settings"
             )
 
         return cls(
@@ -257,6 +259,7 @@ class DeviceConfigSchema:
 @dataclass
 class HardwareConfigSchema:
     """Schema for hardware configuration."""
+
     boards: list[BoardConfigSchema] = field(default_factory=list)
     devices: list[DeviceConfigSchema] = field(default_factory=list)
 
@@ -278,13 +281,11 @@ class HardwareConfigSchema:
 
         if not isinstance(boards_data, list):
             raise SchemaValidationError(
-                f"Expected list, got {type(boards_data).__name__}",
-                f"{path}.boards"
+                f"Expected list, got {type(boards_data).__name__}", f"{path}.boards"
             )
         if not isinstance(devices_data, list):
             raise SchemaValidationError(
-                f"Expected list, got {type(devices_data).__name__}",
-                f"{path}.devices"
+                f"Expected list, got {type(devices_data).__name__}", f"{path}.devices"
             )
 
         boards = []
@@ -301,6 +302,7 @@ class HardwareConfigSchema:
 @dataclass
 class DashboardWidgetSchema:
     """Schema for a dashboard widget configuration."""
+
     node_id: str
     position: int  # Order in the dashboard
     size: str = "normal"  # "small", "normal", "large"
@@ -319,6 +321,7 @@ class DashboardWidgetSchema:
 @dataclass
 class DashboardConfigSchema:
     """Schema for dashboard configuration."""
+
     layout_mode: str = "vertical"  # "vertical", "horizontal", "grid"
     columns: int = 1
     widgets: list[DashboardWidgetSchema] = field(default_factory=list)
@@ -348,6 +351,7 @@ class DashboardConfigSchema:
 @dataclass
 class FlowConfigSchema:
     """Schema for flow graph configuration."""
+
     nodes: list[NodeSchema] = field(default_factory=list)
     connections: list[ConnectionSchema] = field(default_factory=list)
 
@@ -369,13 +373,11 @@ class FlowConfigSchema:
 
         if not isinstance(nodes_data, list):
             raise SchemaValidationError(
-                f"Expected list, got {type(nodes_data).__name__}",
-                f"{path}.nodes"
+                f"Expected list, got {type(nodes_data).__name__}", f"{path}.nodes"
             )
         if not isinstance(connections_data, list):
             raise SchemaValidationError(
-                f"Expected list, got {type(connections_data).__name__}",
-                f"{path}.connections"
+                f"Expected list, got {type(connections_data).__name__}", f"{path}.connections"
             )
 
         nodes = []
@@ -392,6 +394,7 @@ class FlowConfigSchema:
 @dataclass
 class MetadataSchema:
     """Schema for experiment metadata."""
+
     name: str
     description: str = ""
     author: str = ""
@@ -422,22 +425,17 @@ class MetadataSchema:
         for field_name in ["description", "author", "created", "modified"]:
             if field_name in data and not isinstance(data[field_name], str):
                 raise SchemaValidationError(
-                    f"Expected str, got {type(data[field_name]).__name__}",
-                    f"{path}.{field_name}"
+                    f"Expected str, got {type(data[field_name]).__name__}", f"{path}.{field_name}"
                 )
 
         # Validate tags is a list of strings
         tags = data.get("tags", [])
         if not isinstance(tags, list):
-            raise SchemaValidationError(
-                f"Expected list, got {type(tags).__name__}",
-                f"{path}.tags"
-            )
+            raise SchemaValidationError(f"Expected list, got {type(tags).__name__}", f"{path}.tags")
         for i, tag in enumerate(tags):
             if not isinstance(tag, str):
                 raise SchemaValidationError(
-                    f"Expected str, got {type(tag).__name__}",
-                    f"{path}.tags[{i}]"
+                    f"Expected str, got {type(tag).__name__}", f"{path}.tags[{i}]"
                 )
 
         return cls(
@@ -457,6 +455,7 @@ class ExperimentSchema:
 
     This is the top-level structure saved as a .glider file.
     """
+
     schema_version: str = SCHEMA_VERSION
     metadata: MetadataSchema = field(default_factory=lambda: MetadataSchema(name="Untitled"))
     hardware: HardwareConfigSchema = field(default_factory=HardwareConfigSchema)
@@ -487,8 +486,7 @@ class ExperimentSchema:
         schema_version = data.get("schema_version", SCHEMA_VERSION)
         if not isinstance(schema_version, str):
             raise SchemaValidationError(
-                f"Expected str, got {type(schema_version).__name__}",
-                "schema_version"
+                f"Expected str, got {type(schema_version).__name__}", "schema_version"
             )
 
         # Validate metadata (required)

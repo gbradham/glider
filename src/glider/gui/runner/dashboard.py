@@ -58,7 +58,10 @@ class RunnerDashboard(QWidget):
 
         # Enable kinetic scrolling for touch
         from PyQt6.QtWidgets import QScroller
-        QScroller.grabGesture(self._scroll.viewport(), QScroller.ScrollerGestureType.LeftMouseButtonGesture)
+
+        QScroller.grabGesture(
+            self._scroll.viewport(), QScroller.ScrollerGestureType.LeftMouseButtonGesture
+        )
 
         # Content widget
         self._content = QWidget()
@@ -96,8 +99,9 @@ class RunnerDashboard(QWidget):
 
         # Get visible nodes
         visible_nodes = [
-            node for node in self._flow_engine.nodes.values()
-            if hasattr(node, 'visible_in_runner') and node.visible_in_runner
+            node
+            for node in self._flow_engine.nodes.values()
+            if hasattr(node, "visible_in_runner") and node.visible_in_runner
         ]
 
         if not visible_nodes:
@@ -125,13 +129,12 @@ class RunnerDashboard(QWidget):
             widget = WidgetFactory.create_widget(node)
             if widget:
                 self._content_layout.insertWidget(
-                    self._content_layout.count() - 1,  # Before stretch
-                    widget
+                    self._content_layout.count() - 1, widget  # Before stretch
                 )
                 self._widgets[node.id] = widget
 
                 # Connect widget value changes
-                if hasattr(widget, 'value_changed'):
+                if hasattr(widget, "value_changed"):
                     widget.value_changed.connect(
                         lambda v, n=node: self.widget_value_changed.emit(n.id, v)
                     )
@@ -165,7 +168,7 @@ class RunnerDashboard(QWidget):
     def update_widget(self, node_id: str, value: object) -> None:
         """Update a specific widget with new data."""
         widget = self._widgets.get(node_id)
-        if widget and hasattr(widget, 'set_value'):
+        if widget and hasattr(widget, "set_value"):
             widget.set_value(value)
 
     def get_widget(self, node_id: str) -> Optional[QWidget]:

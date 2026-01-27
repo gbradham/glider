@@ -288,7 +288,7 @@ class MultiCameraManager:
                 logger.error(f"Frame callback error for {camera_id}: {e}")
 
         # Call primary frame callback if this is the primary camera
-        if camera_id == self._primary_camera_id and hasattr(self, '_primary_frame_callback'):
+        if camera_id == self._primary_camera_id and hasattr(self, "_primary_frame_callback"):
             try:
                 self._primary_frame_callback(camera_id, frame, timestamp)
             except Exception as e:

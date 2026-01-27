@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class PinType(Enum):
     """Types of pins supported by custom devices."""
+
     DIGITAL_OUTPUT = "digital_output"
     DIGITAL_INPUT = "digital_input"
     ANALOG_INPUT = "analog_input"
@@ -29,6 +30,7 @@ class PinType(Enum):
 @dataclass
 class PinDefinition:
     """Definition of a pin for a custom device."""
+
     name: str
     pin_type: PinType
     pin_number: Optional[int] = None  # Physical pin number on the board
@@ -58,6 +60,7 @@ class PinDefinition:
 @dataclass
 class CustomDeviceDefinition:
     """Complete definition of a custom device type."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: str = "Custom Device"
     description: str = ""

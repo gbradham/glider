@@ -112,7 +112,9 @@ class NodeGraphView(QGraphicsView):
     node_deleted = pyqtSignal(str)  # node_id
     node_selected = pyqtSignal(str)  # node_id
     node_moved = pyqtSignal(str, float, float)  # node_id, x, y
-    connection_created = pyqtSignal(str, int, str, int, str)  # from_node, from_port, to_node, to_port, conn_type
+    connection_created = pyqtSignal(
+        str, int, str, int, str
+    )  # from_node, from_port, to_node, to_port, conn_type
     connection_deleted = pyqtSignal(str)  # connection_id
 
     def __init__(self, parent: Optional[QWidget] = None):
@@ -193,11 +195,19 @@ class NodeGraphView(QGraphicsView):
     def _connect_port_signals(self, node_item: "NodeItem") -> None:
         """Connect port signals for connection creation."""
         for port in node_item.input_ports:
-            port.connection_started.connect(lambda p, n=node_item: self._on_port_connection_started(n, p))
-            port.connection_finished.connect(lambda p, n=node_item: self._on_port_connection_finished(n, p))
+            port.connection_started.connect(
+                lambda p, n=node_item: self._on_port_connection_started(n, p)
+            )
+            port.connection_finished.connect(
+                lambda p, n=node_item: self._on_port_connection_finished(n, p)
+            )
         for port in node_item.output_ports:
-            port.connection_started.connect(lambda p, n=node_item: self._on_port_connection_started(n, p))
-            port.connection_finished.connect(lambda p, n=node_item: self._on_port_connection_finished(n, p))
+            port.connection_started.connect(
+                lambda p, n=node_item: self._on_port_connection_started(n, p)
+            )
+            port.connection_finished.connect(
+                lambda p, n=node_item: self._on_port_connection_finished(n, p)
+            )
 
     def _on_port_connection_started(self, node: "NodeItem", port) -> None:
         """Handle start of connection from a port."""
@@ -276,7 +286,8 @@ class NodeGraphView(QGraphicsView):
 
             # Remove associated connections
             connections_to_remove = [
-                cid for cid, conn in self._connections.items()
+                cid
+                for cid, conn in self._connections.items()
                 if conn.from_node_id == node_id or conn.to_node_id == node_id
             ]
             for cid in connections_to_remove:
@@ -303,8 +314,10 @@ class NodeGraphView(QGraphicsView):
 
         conn_item = ConnectionItem(
             connection_id,
-            from_node, from_port,
-            to_node, to_port,
+            from_node,
+            from_port,
+            to_node,
+            to_port,
         )
         self._scene.addItem(conn_item)
         self._connections[connection_id] = conn_item
@@ -375,6 +388,7 @@ class NodeGraphView(QGraphicsView):
             item = self._scene.itemAt(scene_pos, self.transform())
 
             from glider.gui.node_graph.port_item import PortItem
+
             if isinstance(item, PortItem):
                 # Start connection from this port
                 self._start_connection_from_port(item)
@@ -411,12 +425,8 @@ class NodeGraphView(QGraphicsView):
         if self._panning:
             delta = event.position() - self._pan_start
             self._pan_start = event.position()
-            self.horizontalScrollBar().setValue(
-                int(self.horizontalScrollBar().value() - delta.x())
-            )
-            self.verticalScrollBar().setValue(
-                int(self.verticalScrollBar().value() - delta.y())
-            )
+            self.horizontalScrollBar().setValue(int(self.horizontalScrollBar().value() - delta.x()))
+            self.verticalScrollBar().setValue(int(self.verticalScrollBar().value() - delta.y()))
         elif self._connecting and self._temp_connection is not None:
             # Update temporary connection end point
             scene_pos = self.mapToScene(event.position().toPoint())
@@ -435,6 +445,7 @@ class NodeGraphView(QGraphicsView):
             item = self._scene.itemAt(scene_pos, self.transform())
 
             from glider.gui.node_graph.port_item import PortItem
+
             if isinstance(item, PortItem):
                 self._finish_connection_at_port(item)
             else:
@@ -506,6 +517,7 @@ class NodeGraphView(QGraphicsView):
         if event.key() == Qt.Key.Key_Delete:
             # Delete selected connections first
             from glider.gui.node_graph.connection_item import ConnectionItem
+
             selected_items = self._scene.selectedItems()
             for item in selected_items:
                 if isinstance(item, ConnectionItem):
@@ -537,8 +549,12 @@ class NodeGraphView(QGraphicsView):
 
         # Flow nodes
         flow_menu = add_menu.addMenu("Flow")
-        flow_menu.addAction("Start Experiment", lambda: self._add_node_at_cursor("StartExperiment", event.pos()))
-        flow_menu.addAction("End Experiment", lambda: self._add_node_at_cursor("EndExperiment", event.pos()))
+        flow_menu.addAction(
+            "Start Experiment", lambda: self._add_node_at_cursor("StartExperiment", event.pos())
+        )
+        flow_menu.addAction(
+            "End Experiment", lambda: self._add_node_at_cursor("EndExperiment", event.pos())
+        )
         flow_menu.addAction("Delay", lambda: self._add_node_at_cursor("Delay", event.pos()))
 
         # I/O nodes
@@ -550,6 +566,7 @@ class NodeGraphView(QGraphicsView):
 
         # Check for selected items (nodes or connections)
         from glider.gui.node_graph.connection_item import ConnectionItem
+
         selected_items = self._scene.selectedItems()
         has_selected_connections = any(isinstance(item, ConnectionItem) for item in selected_items)
 
@@ -567,6 +584,7 @@ class NodeGraphView(QGraphicsView):
         """Delete all selected nodes and connections."""
         # Delete selected connections first
         from glider.gui.node_graph.connection_item import ConnectionItem
+
         selected_items = self._scene.selectedItems()
         for item in selected_items:
             if isinstance(item, ConnectionItem):

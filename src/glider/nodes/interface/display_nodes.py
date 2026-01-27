@@ -116,14 +116,16 @@ class GaugeNode(InterfaceNode):
         else:
             percent = 0
 
-        self.notify_widget({
-            "value": value,
-            "percent": percent,
-            "min": min_val,
-            "max": max_val,
-            "unit": self._unit,
-            "label": self._label,
-        })
+        self.notify_widget(
+            {
+                "value": value,
+                "percent": percent,
+                "min": min_val,
+                "max": max_val,
+                "unit": self._unit,
+                "label": self._label,
+            }
+        )
 
     def get_state(self) -> dict[str, Any]:
         state = super().get_state()
@@ -192,12 +194,14 @@ class ChartNode(InterfaceNode):
         value = float(self.get_input(0) or 0)
         self._data.append(value)
 
-        self.notify_widget({
-            "data": list(self._data),
-            "label": self._label,
-            "y_min": self._y_min,
-            "y_max": self._y_max,
-        })
+        self.notify_widget(
+            {
+                "data": list(self._data),
+                "label": self._label,
+                "y_min": self._y_min,
+                "y_max": self._y_max,
+            }
+        )
 
     def get_state(self) -> dict[str, Any]:
         state = super().get_state()
@@ -263,11 +267,13 @@ class LEDIndicatorNode(InterfaceNode):
         state = bool(self.get_input(0))
         color = self._on_color if state else self._off_color
 
-        self.notify_widget({
-            "state": state,
-            "color": color,
-            "label": self._label,
-        })
+        self.notify_widget(
+            {
+                "state": state,
+                "color": color,
+                "label": self._label,
+            }
+        )
 
     def get_state(self) -> dict[str, Any]:
         state = super().get_state()

@@ -60,9 +60,7 @@ class DeviceLibrary:
     # =========================================================================
 
     def export_device(
-        self,
-        definition: CustomDeviceDefinition,
-        path: Optional[Path] = None
+        self, definition: CustomDeviceDefinition, path: Optional[Path] = None
     ) -> Path:
         """
         Export a custom device definition to a file.
@@ -84,7 +82,7 @@ class DeviceLibrary:
             "definition": definition.to_dict(),
         }
 
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
         logger.info(f"Exported custom device '{definition.name}' to {path}")
@@ -103,7 +101,7 @@ class DeviceLibrary:
         Raises:
             ValueError: If the file is not a valid device definition
         """
-        with open(path, encoding='utf-8') as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
         if data.get("type") != "custom_device":
@@ -125,16 +123,18 @@ class DeviceLibrary:
 
         for file_path in devices_dir.glob(f"*{DEVICE_EXTENSION}"):
             try:
-                with open(file_path, encoding='utf-8') as f:
+                with open(file_path, encoding="utf-8") as f:
                     data = json.load(f)
                 if data.get("type") == "custom_device":
                     definition = data.get("definition", {})
-                    devices.append({
-                        "name": definition.get("name", "Unknown"),
-                        "id": definition.get("id", ""),
-                        "description": definition.get("description", ""),
-                        "path": str(file_path),
-                    })
+                    devices.append(
+                        {
+                            "name": definition.get("name", "Unknown"),
+                            "id": definition.get("id", ""),
+                            "description": definition.get("description", ""),
+                            "path": str(file_path),
+                        }
+                    )
             except Exception as e:
                 logger.warning(f"Failed to read device file {file_path}: {e}")
 
@@ -145,9 +145,7 @@ class DeviceLibrary:
     # =========================================================================
 
     def export_flow_function(
-        self,
-        definition: FlowFunctionDefinition,
-        path: Optional[Path] = None
+        self, definition: FlowFunctionDefinition, path: Optional[Path] = None
     ) -> Path:
         """
         Export a flow function definition to a file.
@@ -169,7 +167,7 @@ class DeviceLibrary:
             "definition": definition.to_dict(),
         }
 
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
         logger.info(f"Exported flow function '{definition.name}' to {path}")
@@ -188,7 +186,7 @@ class DeviceLibrary:
         Raises:
             ValueError: If the file is not a valid flow function definition
         """
-        with open(path, encoding='utf-8') as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
         if data.get("type") != "flow_function":
@@ -210,16 +208,18 @@ class DeviceLibrary:
 
         for file_path in functions_dir.glob(f"*{FLOW_FUNCTION_EXTENSION}"):
             try:
-                with open(file_path, encoding='utf-8') as f:
+                with open(file_path, encoding="utf-8") as f:
                     data = json.load(f)
                 if data.get("type") == "flow_function":
                     definition = data.get("definition", {})
-                    functions.append({
-                        "name": definition.get("name", "Unknown"),
-                        "id": definition.get("id", ""),
-                        "description": definition.get("description", ""),
-                        "path": str(file_path),
-                    })
+                    functions.append(
+                        {
+                            "name": definition.get("name", "Unknown"),
+                            "id": definition.get("id", ""),
+                            "description": definition.get("description", ""),
+                            "path": str(file_path),
+                        }
+                    )
             except Exception as e:
                 logger.warning(f"Failed to read function file {file_path}: {e}")
 
@@ -233,7 +233,7 @@ class DeviceLibrary:
         self,
         devices: list[CustomDeviceDefinition],
         functions: list[FlowFunctionDefinition],
-        path: Path
+        path: Path,
     ) -> Path:
         """
         Export multiple devices and functions to a single library file.
@@ -257,15 +257,16 @@ class DeviceLibrary:
         if not str(path).endswith(LIBRARY_EXTENSION):
             path = Path(str(path) + LIBRARY_EXTENSION)
 
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
-        logger.info(f"Exported library with {len(devices)} devices and {len(functions)} functions to {path}")
+        logger.info(
+            f"Exported library with {len(devices)} devices and {len(functions)} functions to {path}"
+        )
         return path
 
     def import_library(
-        self,
-        path: Path
+        self, path: Path
     ) -> tuple[list[CustomDeviceDefinition], list[FlowFunctionDefinition]]:
         """
         Import devices and functions from a library file.
@@ -279,33 +280,25 @@ class DeviceLibrary:
         Raises:
             ValueError: If the file is not a valid library file
         """
-        with open(path, encoding='utf-8') as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
         if data.get("type") != "glider_library":
             raise ValueError(f"Not a valid library file: {path}")
 
-        devices = [
-            CustomDeviceDefinition.from_dict(d)
-            for d in data.get("devices", [])
-        ]
-        functions = [
-            FlowFunctionDefinition.from_dict(f)
-            for f in data.get("functions", [])
-        ]
+        devices = [CustomDeviceDefinition.from_dict(d) for d in data.get("devices", [])]
+        functions = [FlowFunctionDefinition.from_dict(f) for f in data.get("functions", [])]
 
-        logger.info(f"Imported library with {len(devices)} devices and {len(functions)} functions from {path}")
+        logger.info(
+            f"Imported library with {len(devices)} devices and {len(functions)} functions from {path}"
+        )
         return devices, functions
 
     # =========================================================================
     # Session Integration
     # =========================================================================
 
-    def export_session_definitions(
-        self,
-        session,
-        path: Path
-    ) -> Path:
+    def export_session_definitions(self, session, path: Path) -> Path:
         """
         Export all custom definitions from a session to a library file.
 
@@ -317,22 +310,15 @@ class DeviceLibrary:
             Path to the exported file
         """
         devices = [
-            CustomDeviceDefinition.from_dict(d)
-            for d in session.custom_device_definitions.values()
+            CustomDeviceDefinition.from_dict(d) for d in session.custom_device_definitions.values()
         ]
         functions = [
-            FlowFunctionDefinition.from_dict(f)
-            for f in session.flow_function_definitions.values()
+            FlowFunctionDefinition.from_dict(f) for f in session.flow_function_definitions.values()
         ]
 
         return self.export_library(devices, functions, path)
 
-    def import_to_session(
-        self,
-        session,
-        path: Path,
-        overwrite: bool = False
-    ) -> tuple[int, int]:
+    def import_to_session(self, session, path: Path, overwrite: bool = False) -> tuple[int, int]:
         """
         Import definitions from a file into a session.
 

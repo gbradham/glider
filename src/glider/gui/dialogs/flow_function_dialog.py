@@ -140,16 +140,18 @@ class ParameterEditorWidget(QWidget):
                         except ValueError:
                             pass
                     elif param_type == ParameterType.BOOL:
-                        default_value = default_text.lower() in ('true', '1', 'yes')
+                        default_value = default_text.lower() in ("true", "1", "yes")
                     else:
                         default_value = default_text
 
-                params.append(FlowFunctionParameter(
-                    name=name,
-                    param_type=param_type,
-                    default_value=default_value,
-                    description=description,
-                ))
+                params.append(
+                    FlowFunctionParameter(
+                        name=name,
+                        param_type=param_type,
+                        default_value=default_value,
+                        description=description,
+                    )
+                )
         return params
 
     def set_parameters(self, params: list[FlowFunctionParameter]):
@@ -199,7 +201,9 @@ class FlowGraphPreview(QGraphicsView):
         self.setMinimumHeight(200)
         self.setRenderHint(self.renderHints().Antialiasing)
 
-    def set_graph(self, nodes: list[InternalNodeConfig], connections: list[InternalConnectionConfig]):
+    def set_graph(
+        self, nodes: list[InternalNodeConfig], connections: list[InternalConnectionConfig]
+    ):
         """Set the graph to display."""
         self._scene.clear()
         self._nodes.clear()
@@ -231,8 +235,7 @@ class FlowGraphPreview(QGraphicsView):
 
                 # Draw line from right edge of from_node to left edge of to_node
                 line = self._scene.addLine(
-                    from_info["x"] + 120, from_info["y"] + 20,
-                    to_info["x"], to_info["y"] + 20
+                    from_info["x"] + 120, from_info["y"] + 20, to_info["x"], to_info["y"] + 20
                 )
                 line.setPen(QPen(QColor("#5a9bd4"), 2))
 
@@ -442,13 +445,17 @@ class FlowFunctionDialog(QDialog):
         self,
         definition: Optional[FlowFunctionDefinition] = None,
         available_node_types: list[str] = None,
-        parent=None
+        parent=None,
     ):
         super().__init__(parent)
         self._definition = definition or FlowFunctionDefinition()
         self._available_node_types = available_node_types or [
-            "FlowFunctionEntry", "FlowFunctionExit",
-            "Delay", "Output", "Input", "MotorGovernor"
+            "FlowFunctionEntry",
+            "FlowFunctionExit",
+            "Delay",
+            "Output",
+            "Input",
+            "MotorGovernor",
         ]
         self._setup_ui()
         self._load_definition()

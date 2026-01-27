@@ -43,6 +43,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FrameData:
     """Thread-safe container for frame data passed via Qt signals."""
+
     frame: np.ndarray
     timestamp: float
     camera_id: Optional[str] = None  # For multi-camera mode
@@ -52,7 +53,10 @@ class CVWorker(QObject):
     """
     Worker for offloading CV processing from the main thread.
     """
-    results_ready = pyqtSignal(object, list, list, object)  # frame_data, detections, tracked, motion
+
+    results_ready = pyqtSignal(
+        object, list, list, object
+    )  # frame_data, detections, tracked, motion
 
     def __init__(self, cv_processor: "CVProcessor"):
         super().__init__()
@@ -102,10 +106,7 @@ class CameraPreviewWidget(QLabel):
         self.setText("No Camera")
         # Prevent the widget from resizing based on pixmap content
         self.setScaledContents(False)
-        self.setSizePolicy(
-            QSizePolicy.Policy.Ignored,
-            QSizePolicy.Policy.Ignored
-        )
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
 
     def set_calibration(self, calibration) -> None:
         """Set calibration to display on preview."""
@@ -142,35 +143,38 @@ class CameraPreviewWidget(QLabel):
                 mid_y = (y1 + y2) // 2
                 label = f"{line.length:.1f}{line.unit.value}"
                 cv2.putText(
-                    display_frame, label,
+                    display_frame,
+                    label,
                     (mid_x + 5, mid_y - 5),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, line.color, 1
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.4,
+                    line.color,
+                    1,
                 )
 
         # Draw zones if enabled
         if self._show_zones and self._zone_config and self._zone_config.zones:
             from glider.vision.zones import draw_zones
+
             if display_frame is frame:
                 display_frame = frame.copy()
-            display_frame = draw_zones(display_frame, self._zone_config,
-                                       alpha=0.3, show_labels=True)
+            display_frame = draw_zones(
+                display_frame, self._zone_config, alpha=0.3, show_labels=True
+            )
 
         # Convert BGR to RGB
         rgb_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
         h, w, ch = rgb_frame.shape
         bytes_per_line = ch * w
 
-        q_image = QImage(
-            rgb_frame.data, w, h, bytes_per_line,
-            QImage.Format.Format_RGB888
-        )
+        q_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
 
         # Scale to fit widget while maintaining aspect ratio
         pixmap = QPixmap.fromImage(q_image)
         scaled = pixmap.scaled(
             self.size(),
             Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
+            Qt.TransformationMode.SmoothTransformation,
         )
         self.setPixmap(scaled)
 
@@ -224,7 +228,7 @@ class CameraPanel(QWidget):
         camera_manager: "CameraManager",
         cv_processor: "CVProcessor",
         multi_camera_manager: Optional["MultiCameraManager"] = None,
-        parent=None
+        parent=None,
     ):
         super().__init__(parent)
         self._camera = camera_manager
@@ -277,6 +281,7 @@ class CameraPanel(QWidget):
 
         # Multi-camera preview (grid mode)
         from glider.gui.widgets.multi_camera_preview import MultiCameraPreviewWidget
+
         self._multi_preview = MultiCameraPreviewWidget()
         self._multi_preview.primary_changed.connect(self._on_primary_camera_changed)
 
@@ -421,10 +426,12 @@ class CameraPanel(QWidget):
 
     def _handle_multi_frame_input(self, frame_data: FrameData) -> None:
         """Decide whether to process multi-frame with CV or update UI immediately."""
-        if (self._cv_enabled_cb.isChecked() and
-            self._cv_processor.is_initialized and
-            self._multi_cam and
-            frame_data.camera_id == self._multi_cam.primary_camera_id):
+        if (
+            self._cv_enabled_cb.isChecked()
+            and self._cv_processor.is_initialized
+            and self._multi_cam
+            and frame_data.camera_id == self._multi_cam.primary_camera_id
+        ):
             # Offload primary camera to CV worker thread
             self._cv_worker.process_frame(frame_data)
         else:
@@ -517,7 +524,7 @@ class CameraPanel(QWidget):
         frame_data: FrameData,
         detections: Optional[list] = None,
         tracked: Optional[list] = None,
-        motion: Optional[Any] = None
+        motion: Optional[Any] = None,
     ) -> None:
         """
         Update UI with frame and CV results (called on main thread).
@@ -533,14 +540,16 @@ class CameraPanel(QWidget):
         annotated_frame = None
 
         # Use provided results or process locally if not provided but enabled
-        if detections is None and self._cv_enabled_cb.isChecked() and self._cv_processor.is_initialized:
+        if (
+            detections is None
+            and self._cv_enabled_cb.isChecked()
+            and self._cv_processor.is_initialized
+        ):
             detections, tracked, motion = self._cv_processor.process_frame(frame, timestamp)
 
         if detections is not None:
             if self._overlay_cb.isChecked():
-                display_frame = self._cv_processor.draw_overlays(
-                    frame, detections, tracked, motion
-                )
+                display_frame = self._cv_processor.draw_overlays(frame, detections, tracked, motion)
                 annotated_frame = display_frame
 
         self._last_frame = display_frame
@@ -554,7 +563,11 @@ class CameraPanel(QWidget):
             self._video_recorder.write_annotated_frame(annotated_frame)
 
         # Log tracking data if tracking logger is active
-        if self._tracking_logger is not None and self._tracking_logger.is_recording and tracked is not None:
+        if (
+            self._tracking_logger is not None
+            and self._tracking_logger.is_recording
+            and tracked is not None
+        ):
             # Set frame size and calibration for distance calculations
             h, w = frame.shape[:2]
             self._tracking_logger.set_frame_size(w, h)
@@ -564,16 +577,10 @@ class CameraPanel(QWidget):
             motion_detected = motion.motion_detected if motion else False
             motion_area = motion.motion_area if motion else 0.0
 
-            self._tracking_logger.log_frame(
-                timestamp, tracked, motion_detected, motion_area
-            )
+            self._tracking_logger.log_frame(timestamp, tracked, motion_detected, motion_area)
 
     def _process_cv_results_on_main_thread(
-        self,
-        frame_data: FrameData,
-        detections: list,
-        tracked: list,
-        motion: Any
+        self, frame_data: FrameData, detections: list, tracked: list, motion: Any
     ) -> None:
         """Handle results from CV worker on main thread."""
         if frame_data.camera_id:
@@ -601,9 +608,7 @@ class CameraPanel(QWidget):
             mid_y = (y1 + y2) // 2
             label = f"{line.length:.1f}{line.unit.value}"
             cv2.putText(
-                output, label,
-                (mid_x + 5, mid_y - 5),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.4, line.color, 1
+                output, label, (mid_x + 5, mid_y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, line.color, 1
             )
 
         return output
@@ -680,7 +685,7 @@ class CameraPanel(QWidget):
             # Add camera to manager
             if self._multi_cam.add_camera(camera_id, settings):
                 # Add preview tile
-                is_primary = (i == 0)
+                is_primary = i == 0
                 self._multi_preview.add_camera(camera_id, is_primary)
 
                 # Register frame callback
@@ -736,18 +741,16 @@ class CameraPanel(QWidget):
         frame_copy = frame.copy()
 
         # Emit signal to process on main thread (thread-safe)
-        self._multi_frame_received.emit(FrameData(
-            frame=frame_copy,
-            timestamp=timestamp,
-            camera_id=camera_id
-        ))
+        self._multi_frame_received.emit(
+            FrameData(frame=frame_copy, timestamp=timestamp, camera_id=camera_id)
+        )
 
     def _process_multi_frame_on_main_thread(
         self,
         frame_data: FrameData,
         detections: Optional[list] = None,
         tracked: Optional[list] = None,
-        motion: Optional[Any] = None
+        motion: Optional[Any] = None,
     ) -> None:
         """
         Process multi-camera frame and update UI (called on main thread via signal).
@@ -774,7 +777,11 @@ class CameraPanel(QWidget):
             annotated_frame = None
 
             # Use provided results or process locally if enabled
-            if detections is None and self._cv_enabled_cb.isChecked() and self._cv_processor.is_initialized:
+            if (
+                detections is None
+                and self._cv_enabled_cb.isChecked()
+                and self._cv_processor.is_initialized
+            ):
                 detections, tracked, motion = self._cv_processor.process_frame(frame, timestamp)
 
             if detections is not None:
@@ -801,7 +808,11 @@ class CameraPanel(QWidget):
                     self._video_recorder.write_annotated_frame(annotated_frame)
 
             # Log tracking data if tracking logger is active
-            if self._tracking_logger is not None and self._tracking_logger.is_recording and tracked is not None:
+            if (
+                self._tracking_logger is not None
+                and self._tracking_logger.is_recording
+                and tracked is not None
+            ):
                 h, w = frame.shape[:2]
                 self._tracking_logger.set_frame_size(w, h)
                 if self._calibration:
@@ -810,9 +821,7 @@ class CameraPanel(QWidget):
                 motion_detected = motion.motion_detected if motion else False
                 motion_area = motion.motion_area if motion else 0.0
 
-                self._tracking_logger.log_frame(
-                    timestamp, tracked, motion_detected, motion_area
-                )
+                self._tracking_logger.log_frame(timestamp, tracked, motion_detected, motion_area)
 
     def _on_primary_camera_changed(self, camera_id: str) -> None:
         """Handle primary camera change from UI."""

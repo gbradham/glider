@@ -14,6 +14,7 @@ class NodeType(Enum):
 
     Use this enum instead of string comparisons for node type checking.
     """
+
     # Experiment nodes
     START_EXPERIMENT = "StartExperiment"
     END_EXPERIMENT = "EndExperiment"
@@ -121,6 +122,7 @@ class DeviceType(Enum):
 
     Use this enum instead of string comparisons for device type checking.
     """
+
     DIGITAL_OUTPUT = "DigitalOutput"
     DIGITAL_INPUT = "DigitalInput"
     ANALOG_INPUT = "AnalogInput"
@@ -176,7 +178,7 @@ class DeviceType(Enum):
             DeviceType.DIGITAL_OUTPUT,
             DeviceType.PWM_OUTPUT,
             DeviceType.SERVO,
-            DeviceType.STEPPER
+            DeviceType.STEPPER,
         )
 
     @property
@@ -191,6 +193,7 @@ class SessionState(Enum):
 
     Matches the states used in ExperimentSession.
     """
+
     IDLE = auto()
     INITIALIZING = auto()
     READY = auto()

@@ -95,7 +95,7 @@ class DraggableNodeButton(QPushButton):
         if not (event.buttons() & Qt.MouseButton.LeftButton):
             return
 
-        if not hasattr(self, '_drag_start_pos'):
+        if not hasattr(self, "_drag_start_pos"):
             return
 
         # Check if we've moved enough to start a drag
@@ -124,7 +124,7 @@ class EditableDraggableButton(DraggableNodeButton):
         category: str,
         on_edit=None,
         on_delete=None,
-        parent=None
+        parent=None,
     ):
         super().__init__(node_type, display_name, category, parent)
         self._on_edit = on_edit
@@ -135,6 +135,7 @@ class EditableDraggableButton(DraggableNodeButton):
     def _show_context_menu(self, pos):
         """Show context menu with edit/delete options."""
         from PyQt6.QtWidgets import QMenu
+
         menu = QMenu(self)
 
         edit_action = menu.addAction("Edit")
@@ -275,7 +276,7 @@ class MainWindow(QMainWindow):
 
         # Add to stack
         self._stack.addWidget(self._builder_view)  # Index 0
-        self._stack.addWidget(self._runner_view)   # Index 1
+        self._stack.addWidget(self._runner_view)  # Index 1
 
         # Set initial view based on mode
         if self._view_manager.is_runner_mode:
@@ -376,7 +377,7 @@ class MainWindow(QMainWindow):
 
         # Menu button for settings/exit
         self._runner_menu_btn = QPushButton("⚙️")
-        #self._runner_menu_btn.setFixedSize(40, 40)
+        # self._runner_menu_btn.setFixedSize(40, 40)
         self._runner_menu_btn.setStyleSheet("""
             QPushButton {
                 background-color: #2d2d44;
@@ -411,7 +412,10 @@ class MainWindow(QMainWindow):
 
         # Enable kinetic scrolling
         from PyQt6.QtWidgets import QScroller
-        QScroller.grabGesture(scroll.viewport(), QScroller.ScrollerGestureType.LeftMouseButtonGesture)
+
+        QScroller.grabGesture(
+            scroll.viewport(), QScroller.ScrollerGestureType.LeftMouseButtonGesture
+        )
 
         # Content widget for device cards
         self._runner_devices_widget = QWidget()
@@ -542,7 +546,9 @@ class MainWindow(QMainWindow):
         # Device Control Panel dock
         self._control_dock = QDockWidget("Device Control", self)
         self._control_dock.setAllowedAreas(
-            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.BottomDockWidgetArea
+            Qt.DockWidgetArea.LeftDockWidgetArea
+            | Qt.DockWidgetArea.RightDockWidgetArea
+            | Qt.DockWidgetArea.BottomDockWidgetArea
         )
 
         # Wrap in scroll area for touch screens
@@ -631,7 +637,9 @@ class MainWindow(QMainWindow):
         )
         self._input_value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._input_value_label.setMinimumHeight(48)
-        self._input_value_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self._input_value_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
         input_group_layout.addWidget(self._input_value_label)
 
         # Read controls row
@@ -668,8 +676,8 @@ class MainWindow(QMainWindow):
 
         # Real-time callback tracking for analog inputs
         self._analog_callback_board = None  # Board with registered callback
-        self._analog_callback_pin = None    # Pin with registered callback
-        self._analog_callback_func = None   # The callback function reference
+        self._analog_callback_pin = None  # Pin with registered callback
+        self._analog_callback_func = None  # The callback function reference
         self.analog_value_received.connect(self._on_analog_value_received)
 
         # Status display
@@ -697,7 +705,7 @@ class MainWindow(QMainWindow):
         self._camera_panel = CameraPanel(
             self._core.camera_manager,
             self._core.cv_processor,
-            multi_camera_manager=self._core.multi_camera_manager
+            multi_camera_manager=self._core.multi_camera_manager,
         )
         self._camera_panel.settings_requested.connect(self._on_camera_settings)
         self._camera_panel.calibration_requested.connect(self._on_camera_calibration)
@@ -715,7 +723,9 @@ class MainWindow(QMainWindow):
         # Files dock (for Pi touchscreen access to file operations)
         self._files_dock = QDockWidget("Files", self)
         self._files_dock.setAllowedAreas(
-            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.BottomDockWidgetArea
+            Qt.DockWidgetArea.LeftDockWidgetArea
+            | Qt.DockWidgetArea.RightDockWidgetArea
+            | Qt.DockWidgetArea.BottomDockWidgetArea
         )
 
         # Wrap in scroll area for touch screens
@@ -829,32 +839,32 @@ class MainWindow(QMainWindow):
         view_menu.addSeparator()
 
         # Panel visibility toggles (only in desktop mode)
-        if hasattr(self, '_node_library_dock'):
+        if hasattr(self, "_node_library_dock"):
             node_library_action = self._node_library_dock.toggleViewAction()
             node_library_action.setText("&Node Library")
             view_menu.addAction(node_library_action)
 
-        if hasattr(self, '_properties_dock'):
+        if hasattr(self, "_properties_dock"):
             properties_action = self._properties_dock.toggleViewAction()
             properties_action.setText("&Properties Panel")
             view_menu.addAction(properties_action)
 
-        if hasattr(self, '_hardware_dock'):
+        if hasattr(self, "_hardware_dock"):
             hardware_action = self._hardware_dock.toggleViewAction()
             hardware_action.setText("&Hardware Panel")
             view_menu.addAction(hardware_action)
 
-        if hasattr(self, '_control_dock'):
+        if hasattr(self, "_control_dock"):
             control_action = self._control_dock.toggleViewAction()
             control_action.setText("&Device Control")
             view_menu.addAction(control_action)
 
-        if hasattr(self, '_camera_dock'):
+        if hasattr(self, "_camera_dock"):
             camera_action = self._camera_dock.toggleViewAction()
             camera_action.setText("&Camera Panel")
             view_menu.addAction(camera_action)
 
-        if hasattr(self, '_files_dock'):
+        if hasattr(self, "_files_dock"):
             files_action = self._files_dock.toggleViewAction()
             files_action.setText("&Files Panel")
             view_menu.addAction(files_action)
@@ -956,8 +966,11 @@ class MainWindow(QMainWindow):
 
         # Add spacer to push status to the right
         spacer = QWidget()
-        spacer.setSizePolicy(spacer.sizePolicy().horizontalPolicy(), spacer.sizePolicy().verticalPolicy())
+        spacer.setSizePolicy(
+            spacer.sizePolicy().horizontalPolicy(), spacer.sizePolicy().verticalPolicy()
+        )
         from PyQt6.QtWidgets import QSizePolicy
+
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         toolbar.addWidget(spacer)
 
@@ -994,31 +1007,31 @@ class MainWindow(QMainWindow):
         self.state_changed.emit(state_name)
 
         # Update runner view status label - uses property for color (defined in QSS)
-        if hasattr(self, '_status_label'):
+        if hasattr(self, "_status_label"):
             self._status_label.setText(state_name)
             self._status_label.setProperty("statusState", state_name)
             self._status_label.style().unpolish(self._status_label)
             self._status_label.style().polish(self._status_label)
 
         # Update toolbar status indicator - uses property for color (defined in QSS)
-        if hasattr(self, '_toolbar_status'):
+        if hasattr(self, "_toolbar_status"):
             self._toolbar_status.setText(state_name)
             self._toolbar_status.setProperty("statusState", state_name)
             self._toolbar_status.style().unpolish(self._toolbar_status)
             self._toolbar_status.style().polish(self._toolbar_status)
 
-        if hasattr(self, 'statusBar') and self.statusBar():
+        if hasattr(self, "statusBar") and self.statusBar():
             self.statusBar().showMessage(f"State: {state_name}")
 
         # Update runner view recording indicator
-        if hasattr(self, '_runner_recording'):
+        if hasattr(self, "_runner_recording"):
             if state_name == "RUNNING" and self._core.data_recorder.is_recording:
                 self._runner_recording.show()
             else:
                 self._runner_recording.hide()
 
         # Start/stop device refresh timer based on state
-        if hasattr(self, '_device_refresh_timer'):
+        if hasattr(self, "_device_refresh_timer"):
             if state_name == "RUNNING":
                 self._device_refresh_timer.start()
             else:
@@ -1027,21 +1040,22 @@ class MainWindow(QMainWindow):
                 self._update_runner_device_states()
 
         # Start/stop elapsed timer based on state
-        if hasattr(self, '_elapsed_timer'):
+        if hasattr(self, "_elapsed_timer"):
             if state_name == "RUNNING":
                 import time
+
                 self._experiment_start_time = time.time()
                 self._elapsed_timer.start()
                 self._update_elapsed_time()  # Immediate update
             else:
                 self._elapsed_timer.stop()
-                if hasattr(self, '_runner_timer'):
+                if hasattr(self, "_runner_timer"):
                     # Keep the last time displayed when stopped
                     pass
 
     def _refresh_runner_devices(self) -> None:
         """Refresh the device cards in runner view."""
-        if not hasattr(self, '_runner_devices_layout'):
+        if not hasattr(self, "_runner_devices_layout"):
             return
 
         # Clear existing device cards
@@ -1063,9 +1077,7 @@ class MainWindow(QMainWindow):
         for device_id, device in devices.items():
             card = self._create_device_card(device_id, device)
             # Insert before the stretch
-            self._runner_devices_layout.insertWidget(
-                self._runner_devices_layout.count() - 1, card
-            )
+            self._runner_devices_layout.insertWidget(self._runner_devices_layout.count() - 1, card)
             self._runner_device_cards[device_id] = card
 
     def _create_device_card(self, device_id: str, device) -> QWidget:
@@ -1089,20 +1101,24 @@ class MainWindow(QMainWindow):
         info_layout.setSpacing(2)
 
         name_label = QLabel(device_id)
-        name_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #fff; background: transparent; border: none;")
+        name_label.setStyleSheet(
+            "font-size: 16px; font-weight: bold; color: #fff; background: transparent; border: none;"
+        )
         info_layout.addWidget(name_label)
 
-        device_type = getattr(device, 'device_type', 'Unknown')
+        device_type = getattr(device, "device_type", "Unknown")
         type_label = QLabel(device_type)
-        type_label.setStyleSheet("font-size: 12px; color: #888; background: transparent; border: none;")
+        type_label.setStyleSheet(
+            "font-size: 12px; color: #888; background: transparent; border: none;"
+        )
         info_layout.addWidget(type_label)
 
         layout.addLayout(info_layout)
         layout.addStretch()
 
         # Status indicator (right side)
-        initialized = getattr(device, '_initialized', False)
-        device_type = getattr(device, 'device_type', 'Unknown')
+        initialized = getattr(device, "_initialized", False)
+        device_type = getattr(device, "device_type", "Unknown")
 
         # Check if this is an analog input device
         is_analog_input = device_type == "AnalogInput"
@@ -1116,7 +1132,7 @@ class MainWindow(QMainWindow):
         # State value
         if is_analog_input:
             # For analog inputs, show the raw value and voltage
-            last_value = getattr(device, '_last_value', None)
+            last_value = getattr(device, "_last_value", None)
             if last_value is not None:
                 # Calculate voltage (assuming 10-bit ADC, 5V reference)
                 voltage = (last_value / 1023.0) * 5.0
@@ -1127,7 +1143,7 @@ class MainWindow(QMainWindow):
                 state_color = "#444"
         else:
             # For other devices, use the state
-            state = getattr(device, '_state', None)
+            state = getattr(device, "_state", None)
             if state is not None:
                 if isinstance(state, bool):
                     state_text = "HIGH" if state else "LOW"
@@ -1158,7 +1174,9 @@ class MainWindow(QMainWindow):
         # Ready indicator
         ready_label = QLabel("Ready" if initialized else "---")
         ready_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        ready_label.setStyleSheet(f"font-size: 10px; color: {'#27ae60' if initialized else '#666'}; background: transparent; border: none;")
+        ready_label.setStyleSheet(
+            f"font-size: 10px; color: {'#27ae60' if initialized else '#666'}; background: transparent; border: none;"
+        )
         status_layout.addWidget(ready_label)
 
         layout.addWidget(status_widget)
@@ -1171,7 +1189,7 @@ class MainWindow(QMainWindow):
 
     def _update_runner_experiment_name(self) -> None:
         """Update the experiment name in runner view from session."""
-        if not hasattr(self, '_runner_exp_name'):
+        if not hasattr(self, "_runner_exp_name"):
             return
 
         # Block signals to prevent feedback loop
@@ -1190,10 +1208,11 @@ class MainWindow(QMainWindow):
 
     def _update_elapsed_time(self) -> None:
         """Update the elapsed time display in runner view."""
-        if not hasattr(self, '_runner_timer') or self._experiment_start_time is None:
+        if not hasattr(self, "_runner_timer") or self._experiment_start_time is None:
             return
 
         import time
+
         elapsed = time.time() - self._experiment_start_time
         hours = int(elapsed // 3600)
         minutes = int((elapsed % 3600) // 60)
@@ -1208,7 +1227,7 @@ class MainWindow(QMainWindow):
 
     def _update_runner_device_states(self) -> None:
         """Update the device state displays in runner view."""
-        if not hasattr(self, '_runner_device_cards'):
+        if not hasattr(self, "_runner_device_cards"):
             return
 
         for device_id, card in self._runner_device_cards.items():
@@ -1217,15 +1236,15 @@ class MainWindow(QMainWindow):
                 continue
 
             # Get device info
-            initialized = getattr(device, '_initialized', False)
-            device_type = getattr(device, 'device_type', 'Unknown')
+            initialized = getattr(device, "_initialized", False)
+            device_type = getattr(device, "device_type", "Unknown")
             is_analog_input = device_type == "AnalogInput"
 
             # Update state label
-            if hasattr(card, '_state_label'):
+            if hasattr(card, "_state_label"):
                 if is_analog_input:
                     # For analog inputs, show raw value and voltage
-                    last_value = getattr(device, '_last_value', None)
+                    last_value = getattr(device, "_last_value", None)
                     if last_value is not None:
                         # Calculate voltage (assuming 10-bit ADC, 5V reference)
                         voltage = (last_value / 1023.0) * 5.0
@@ -1238,7 +1257,7 @@ class MainWindow(QMainWindow):
                         font_size = "11px"
                 else:
                     # For other devices, use the state
-                    state = getattr(device, '_state', None)
+                    state = getattr(device, "_state", None)
                     if state is not None:
                         if isinstance(state, bool):
                             state_text = "HIGH" if state else "LOW"
@@ -1266,7 +1285,7 @@ class MainWindow(QMainWindow):
                 """)
 
             # Update ready label
-            if hasattr(card, '_ready_label'):
+            if hasattr(card, "_ready_label"):
                 card._ready_label.setText("Ready" if initialized else "---")
                 card._ready_label.setStyleSheet(
                     f"font-size: 10px; color: {'#27ae60' if initialized else '#666'}; background: transparent; border: none;"
@@ -1288,10 +1307,11 @@ class MainWindow(QMainWindow):
             return
 
         # Check if we're running an experiment
-        if not hasattr(self._core, 'state'):
+        if not hasattr(self._core, "state"):
             return
 
         from glider.core.glider_core import SessionState
+
         if self._core.state != SessionState.RUNNING:
             # Not running, just log it
             logger.warning(f"Board {board_id} disconnected (state: {state.name})")
@@ -1306,7 +1326,9 @@ class MainWindow(QMainWindow):
         # Show the disconnection dialog
         self._show_hardware_disconnection_dialog(board_id, state)
 
-    def _show_hardware_disconnection_dialog(self, board_id: str, state: BoardConnectionState) -> None:
+    def _show_hardware_disconnection_dialog(
+        self, board_id: str, state: BoardConnectionState
+    ) -> None:
         """Show a dialog when hardware disconnects during an experiment."""
         dialog = QDialog(self)
         dialog.setWindowTitle("Hardware Disconnected")
@@ -1383,9 +1405,7 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 logger.error(f"Error reconnecting to {board_id}: {e}")
                 self.statusBar().showMessage(f"Error: {e}", 5000)
-                self._show_hardware_disconnection_dialog(
-                    board_id, BoardConnectionState.ERROR
-                )
+                self._show_hardware_disconnection_dialog(board_id, BoardConnectionState.ERROR)
 
         self._run_async(retry_connection())
 
@@ -1399,7 +1419,7 @@ class MainWindow(QMainWindow):
             "Continuing without the disconnected hardware may cause errors "
             "or unexpected behavior. Are you sure?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.No,
         )
 
         if reply == QMessageBox.StandardButton.Yes:
@@ -1444,25 +1464,25 @@ class MainWindow(QMainWindow):
         self.resize(480, 800)
 
         # Show runner view as main content (Pi is for running, not creating flows)
-        if hasattr(self, '_stack') and self._stack is not None:
+        if hasattr(self, "_stack") and self._stack is not None:
             self._stack.setCurrentIndex(1)  # Runner view
 
         # Collect dock widgets relevant for Pi: Files, Hardware, Control, Camera
         # Excludes: Node Library, Properties (flow creation), Agent
         docks = []
-        if getattr(self, '_files_dock', None) is not None:
+        if getattr(self, "_files_dock", None) is not None:
             docks.append(self._files_dock)
-        if getattr(self, '_hardware_dock', None) is not None:
+        if getattr(self, "_hardware_dock", None) is not None:
             docks.append(self._hardware_dock)
-        if getattr(self, '_control_dock', None) is not None:
+        if getattr(self, "_control_dock", None) is not None:
             docks.append(self._control_dock)
-        if getattr(self, '_camera_dock', None) is not None:
+        if getattr(self, "_camera_dock", None) is not None:
             docks.append(self._camera_dock)
 
         # Hide flow-creation docks on Pi
-        if getattr(self, '_node_library_dock', None) is not None:
+        if getattr(self, "_node_library_dock", None) is not None:
             self._node_library_dock.setVisible(False)
-        if getattr(self, '_properties_dock', None) is not None:
+        if getattr(self, "_properties_dock", None) is not None:
             self._properties_dock.setVisible(False)
 
         if len(docks) < 2:
@@ -1497,47 +1517,49 @@ class MainWindow(QMainWindow):
 
         # Default dock features for desktop (movable, floatable, closable)
         default_features = (
-            QDockWidget.DockWidgetFeature.DockWidgetMovable |
-            QDockWidget.DockWidgetFeature.DockWidgetFloatable |
-            QDockWidget.DockWidgetFeature.DockWidgetClosable
+            QDockWidget.DockWidgetFeature.DockWidgetMovable
+            | QDockWidget.DockWidgetFeature.DockWidgetFloatable
+            | QDockWidget.DockWidgetFeature.DockWidgetClosable
         )
         default_areas = Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
 
         # Restore dock positions and features
-        if getattr(self, '_node_library_dock', None) is not None:
+        if getattr(self, "_node_library_dock", None) is not None:
             self._node_library_dock.setFeatures(default_features)
             self._node_library_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._node_library_dock)
             self._node_library_dock.setVisible(True)
 
-        if getattr(self, '_properties_dock', None) is not None:
+        if getattr(self, "_properties_dock", None) is not None:
             self._properties_dock.setFeatures(default_features)
             self._properties_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._properties_dock)
             self._properties_dock.setVisible(True)
 
-        if getattr(self, '_hardware_dock', None) is not None:
+        if getattr(self, "_hardware_dock", None) is not None:
             self._hardware_dock.setFeatures(default_features)
             self._hardware_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._hardware_dock)
             self._hardware_dock.setVisible(True)
 
-        if getattr(self, '_control_dock', None) is not None:
+        if getattr(self, "_control_dock", None) is not None:
             self._control_dock.setFeatures(default_features)
-            self._control_dock.setAllowedAreas(default_areas | Qt.DockWidgetArea.BottomDockWidgetArea)
+            self._control_dock.setAllowedAreas(
+                default_areas | Qt.DockWidgetArea.BottomDockWidgetArea
+            )
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._control_dock)
-            if getattr(self, '_hardware_dock', None) is not None:
+            if getattr(self, "_hardware_dock", None) is not None:
                 self.tabifyDockWidget(self._hardware_dock, self._control_dock)
                 self._hardware_dock.raise_()
 
-        if getattr(self, '_camera_dock', None) is not None:
+        if getattr(self, "_camera_dock", None) is not None:
             self._camera_dock.setFeatures(default_features)
             self._camera_dock.setAllowedAreas(default_areas)
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._camera_dock)
             self._camera_dock.setVisible(True)
 
         # Hide files dock on large screens (menu/toolbar available)
-        if getattr(self, '_files_dock', None) is not None:
+        if getattr(self, "_files_dock", None) is not None:
             self._files_dock.setVisible(False)
 
         self.statusBar().showMessage("Default layout restored", 2000)
@@ -1660,7 +1682,9 @@ class MainWindow(QMainWindow):
 
                 # Handle CustomDevice/CustomDeviceAction nodes - get display name from definition
                 if node_type in ("CustomDevice", "CustomDeviceAction"):
-                    definition_id = node_config.state.get("definition_id") if node_config.state else None
+                    definition_id = (
+                        node_config.state.get("definition_id") if node_config.state else None
+                    )
                     if definition_id:
                         def_dict = self._core.session.get_custom_device_definition(definition_id)
                         if def_dict:
@@ -1668,7 +1692,9 @@ class MainWindow(QMainWindow):
 
                 # Handle FlowFunctionCall nodes - get display name from definition
                 elif node_type == "FlowFunctionCall":
-                    definition_id = node_config.state.get("definition_id") if node_config.state else None
+                    definition_id = (
+                        node_config.state.get("definition_id") if node_config.state else None
+                    )
                     if definition_id:
                         def_dict = self._core.session.get_flow_function_definition(definition_id)
                         if def_dict:
@@ -1676,15 +1702,28 @@ class MainWindow(QMainWindow):
 
                 # Handle ZoneInput nodes - get display name from zone_name in state
                 elif node_type == "ZoneInput":
-                    zone_name = node_config.state.get("zone_name", "Zone") if node_config.state else "Zone"
+                    zone_name = (
+                        node_config.state.get("zone_name", "Zone") if node_config.state else "Zone"
+                    )
                     display_name = f"Zone: {zone_name}"
 
                 # Determine category from node type
                 category = "default"
                 flow_nodes = ["StartExperiment", "EndExperiment", "Delay"]
                 control_nodes = ["Loop", "WaitForInput"]
-                io_nodes = ["Output", "Input", "MotorGovernor", "CustomDevice", "CustomDeviceAction"]
-                function_nodes = ["FlowFunctionCall", "FunctionCall", "StartFunction", "EndFunction"]
+                io_nodes = [
+                    "Output",
+                    "Input",
+                    "MotorGovernor",
+                    "CustomDevice",
+                    "CustomDeviceAction",
+                ]
+                function_nodes = [
+                    "FlowFunctionCall",
+                    "FunctionCall",
+                    "StartFunction",
+                    "EndFunction",
+                ]
                 interface_nodes = ["ZoneInput"]
 
                 node_type_normalized = node_type.replace(" ", "")
@@ -1702,7 +1741,9 @@ class MainWindow(QMainWindow):
                 # Add visual node to graph (use display_name for visual)
                 node_item = self._graph_view.add_node(node_config.id, display_name, x, y)
                 node_item._category = category
-                node_item._header_color = node_item.CATEGORY_COLORS.get(category, node_item.CATEGORY_COLORS["default"])
+                node_item._header_color = node_item.CATEGORY_COLORS.get(
+                    category, node_item.CATEGORY_COLORS["default"]
+                )
 
                 # Store actual node type and definition ID for custom nodes
                 node_item._actual_node_type = node_type
@@ -1734,7 +1775,9 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 logger.error(f"Failed to load connection {conn_config.id}: {e}")
 
-        logger.info(f"Loaded {len(self._core.session.flow.nodes)} nodes and {len(self._core.session.flow.connections)} connections from session")
+        logger.info(
+            f"Loaded {len(self._core.session.flow.nodes)} nodes and {len(self._core.session.flow.connections)} connections from session"
+        )
 
     def _on_save(self) -> None:
         """Save experiment."""
@@ -1778,9 +1821,9 @@ class MainWindow(QMainWindow):
                 self,
                 "Save Changes?",
                 "The current experiment has unsaved changes. Save before continuing?",
-                QMessageBox.StandardButton.Save |
-                QMessageBox.StandardButton.Discard |
-                QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Save
+                | QMessageBox.StandardButton.Discard
+                | QMessageBox.StandardButton.Cancel,
             )
 
             if result == QMessageBox.StandardButton.Save:
@@ -1820,6 +1863,7 @@ class MainWindow(QMainWindow):
             port_combo.addItem("Auto-detect", None)
             try:
                 import serial.tools.list_ports
+
                 ports = serial.tools.list_ports.comports()
                 for port in ports:
                     # Show port with description
@@ -1965,7 +2009,9 @@ class MainWindow(QMainWindow):
 
                 # Gain
                 gain_combo = QComboBox()
-                gain_combo.addItems(["1 (±4.096V)", "2 (±2.048V)", "4 (±1.024V)", "8 (±0.512V)", "16 (±0.256V)"])
+                gain_combo.addItems(
+                    ["1 (±4.096V)", "2 (±2.048V)", "4 (±1.024V)", "8 (±0.512V)", "16 (±0.256V)"]
+                )
                 gain_combo.setCurrentIndex(0)
                 ads1115_settings["gain_combo"] = gain_combo
                 pin_layout.addRow("Gain:", gain_combo)
@@ -2019,7 +2065,9 @@ class MainWindow(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             from glider.core.experiment_session import DeviceConfig
 
-            device_id = id_edit.text().strip() or f"device_{len(self._core.hardware_manager.devices)}"
+            device_id = (
+                id_edit.text().strip() or f"device_{len(self._core.hardware_manager.devices)}"
+            )
             ui_device_type = type_combo.currentText()
             board_id = board_combo.currentText()
             name = name_edit.text().strip() or device_id
@@ -2048,12 +2096,14 @@ class MainWindow(QMainWindow):
                 # Auto-initialize if board is connected
                 board = self._core.hardware_manager.get_board(board_id)
                 if board and board.is_connected:
+
                     async def init_device():
                         try:
                             await self._core.hardware_manager.initialize_device(device_id)
                             logger.info(f"Auto-initialized device: {device_id}")
                         except Exception as e:
                             logger.error(f"Failed to auto-initialize device {device_id}: {e}")
+
                     self._run_async(init_device())
 
                 # Add to session for persistence
@@ -2082,7 +2132,7 @@ class MainWindow(QMainWindow):
 
         # Get session config for current values
         board_config = self._core.session.get_board(board_id) if self._core.session else None
-        current_port = board_config.port if board_config else getattr(board, 'port', None)
+        current_port = board_config.port if board_config else getattr(board, "port", None)
 
         dialog = QDialog(self)
         dialog.setWindowTitle(f"Edit Board: {board_id}")
@@ -2105,6 +2155,7 @@ class MainWindow(QMainWindow):
             port_combo.addItem("Auto-detect", None)
             try:
                 import serial.tools.list_ports
+
                 ports = serial.tools.list_ports.comports()
                 for port in ports:
                     label = f"{port.device}"
@@ -2144,7 +2195,7 @@ class MainWindow(QMainWindow):
 
             try:
                 # Update board in hardware manager via internal attribute
-                if hasattr(board, '_port'):
+                if hasattr(board, "_port"):
                     board._port = new_port
 
                 # Update session config
@@ -2153,9 +2204,10 @@ class MainWindow(QMainWindow):
 
                 self._refresh_hardware_tree()
                 QMessageBox.information(
-                    self, "Success",
+                    self,
+                    "Success",
                     f"Updated board: {board_id}\n\n"
-                    "Note: Port changes take effect after reconnecting."
+                    "Note: Port changes take effect after reconnecting.",
                 )
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to update board: {e}")
@@ -2171,14 +2223,14 @@ class MainWindow(QMainWindow):
         device_config = self._core.session.get_device(device_id) if self._core.session else None
 
         # Get current values
-        current_name = device_config.name if device_config else getattr(device, 'name', device_id)
+        current_name = device_config.name if device_config else getattr(device, "name", device_id)
         current_pins = device_config.pins if device_config else {}
         device_type = device_config.device_type if device_config else type(device).__name__
 
         # If no pins in config, try to get from device
-        if not current_pins and hasattr(device, 'pin'):
-            current_pins = {"output": device.pin} if hasattr(device, 'pin') else {}
-        if not current_pins and hasattr(device, 'pins'):
+        if not current_pins and hasattr(device, "pin"):
+            current_pins = {"output": device.pin} if hasattr(device, "pin") else {}
+        if not current_pins and hasattr(device, "pins"):
             current_pins = device.pins if isinstance(device.pins, dict) else {}
 
         dialog = QDialog(self)
@@ -2237,13 +2289,13 @@ class MainWindow(QMainWindow):
             try:
                 # Update device in hardware manager
                 # Update name via _name attribute (name property may not have setter)
-                if hasattr(device, '_name'):
+                if hasattr(device, "_name"):
                     device._name = new_name
 
                 # Update pins via the config object
-                if hasattr(device, 'config') and hasattr(device.config, 'pins'):
+                if hasattr(device, "config") and hasattr(device.config, "pins"):
                     device.config.pins.update(new_pins)
-                elif hasattr(device, '_config') and hasattr(device._config, 'pins'):
+                elif hasattr(device, "_config") and hasattr(device._config, "pins"):
                     device._config.pins.update(new_pins)
 
                 # Update session config
@@ -2252,39 +2304,48 @@ class MainWindow(QMainWindow):
 
                 self._refresh_hardware_tree()
                 QMessageBox.information(
-                    self, "Success",
+                    self,
+                    "Success",
                     f"Updated device: {device_id}\n\n"
-                    "Note: Pin changes take effect after reconnecting the board."
+                    "Note: Pin changes take effect after reconnecting the board.",
                 )
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to update device: {e}")
 
     def _refresh_hardware_tree(self) -> None:
         """Refresh the hardware tree widget."""
-        if not hasattr(self, '_hardware_tree'):
+        if not hasattr(self, "_hardware_tree"):
             return
 
         self._hardware_tree.clear()
 
         # Add boards
         for board_id, board in self._core.hardware_manager.boards.items():
-            board_item = QTreeWidgetItem([
-                board_id,
-                getattr(board, 'name', type(board).__name__),
-                board.state.name if hasattr(board, 'state') else "Unknown"
-            ])
+            board_item = QTreeWidgetItem(
+                [
+                    board_id,
+                    getattr(board, "name", type(board).__name__),
+                    board.state.name if hasattr(board, "state") else "Unknown",
+                ]
+            )
             board_item.setData(0, Qt.ItemDataRole.UserRole, ("board", board_id))
 
             # Add devices under this board
             for device_id, device in self._core.hardware_manager.devices.items():
-                if hasattr(device, 'board') and device.board is board:
-                    pins = getattr(device, '_pins', [])
+                if hasattr(device, "board") and device.board is board:
+                    pins = getattr(device, "_pins", [])
                     pin_str = f"Pin {pins[0]}" if pins else ""
-                    device_item = QTreeWidgetItem([
-                        getattr(device, 'name', device_id),
-                        f"{getattr(device, 'device_type', 'unknown')} ({pin_str})",
-                        "Ready" if getattr(device, '_initialized', False) else "Not initialized"
-                    ])
+                    device_item = QTreeWidgetItem(
+                        [
+                            getattr(device, "name", device_id),
+                            f"{getattr(device, 'device_type', 'unknown')} ({pin_str})",
+                            (
+                                "Ready"
+                                if getattr(device, "_initialized", False)
+                                else "Not initialized"
+                            ),
+                        ]
+                    )
                     device_item.setData(0, Qt.ItemDataRole.UserRole, ("device", device_id))
                     board_item.addChild(device_item)
 
@@ -2340,13 +2401,14 @@ class MainWindow(QMainWindow):
 
     def _connect_board(self, board_id: str) -> None:
         """Connect to a specific board and initialize its devices."""
+
         async def connect():
             try:
                 success = await self._core.hardware_manager.connect_board(board_id)
                 if success:
                     # Initialize devices for this board
                     for device_id, device in self._core.hardware_manager.devices.items():
-                        if hasattr(device, 'board') and device.board is not None:
+                        if hasattr(device, "board") and device.board is not None:
                             if device.board.id == board_id:
                                 try:
                                     await self._core.hardware_manager.initialize_device(device_id)
@@ -2354,52 +2416,63 @@ class MainWindow(QMainWindow):
                                     logger.warning(f"Failed to initialize device {device_id}: {e}")
                     self.statusBar().showMessage(f"Connected to {board_id}", 3000)
                 else:
-                    QMessageBox.warning(self, "Connection Failed", f"Could not connect to {board_id}")
+                    QMessageBox.warning(
+                        self, "Connection Failed", f"Could not connect to {board_id}"
+                    )
                 self._refresh_hardware_tree()
             except Exception as e:
                 QMessageBox.critical(self, "Connection Error", str(e))
+
         self._run_async(connect())
 
     def _disconnect_board(self, board_id: str) -> None:
         """Disconnect from a specific board."""
+
         async def disconnect():
             try:
                 await self._core.hardware_manager.disconnect_board(board_id)
                 self._refresh_hardware_tree()
             except Exception as e:
                 QMessageBox.critical(self, "Disconnect Error", str(e))
+
         self._run_async(disconnect())
 
     def _remove_board(self, board_id: str) -> None:
         """Remove a board."""
         reply = QMessageBox.question(
-            self, "Remove Board",
+            self,
+            "Remove Board",
             f"Remove board '{board_id}' and all its devices?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
+
             async def remove():
                 await self._core.hardware_manager.remove_board(board_id)
                 # Also remove from session for persistence
                 if self._core.session:
                     self._core.session.remove_board(board_id)
                 self._refresh_hardware_tree()
+
             self._run_async(remove())
 
     def _remove_device(self, device_id: str) -> None:
         """Remove a device."""
         reply = QMessageBox.question(
-            self, "Remove Device",
+            self,
+            "Remove Device",
             f"Remove device '{device_id}'?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
+
             async def remove():
                 await self._core.hardware_manager.remove_device(device_id)
                 # Also remove from session for persistence
                 if self._core.session:
                     self._core.session.remove_device(device_id)
                 self._refresh_hardware_tree()
+
             self._run_async(remove())
 
     def _on_connect_hardware(self) -> None:
@@ -2415,8 +2488,7 @@ class MainWindow(QMainWindow):
             failed = [k for k, v in results.items() if not v]
             if failed:
                 QMessageBox.warning(
-                    self, "Connection Warning",
-                    f"Failed to connect: {', '.join(failed)}"
+                    self, "Connection Warning", f"Failed to connect: {', '.join(failed)}"
                 )
         except Exception as e:
             QMessageBox.critical(self, "Connection Error", str(e))
@@ -2432,7 +2504,7 @@ class MainWindow(QMainWindow):
             camera_settings=self._core.camera_manager.settings,
             cv_settings=self._core.cv_processor.settings,
             parent=self,
-            view_manager=self._view_manager
+            view_manager=self._view_manager,
         )
 
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -2451,7 +2523,7 @@ class MainWindow(QMainWindow):
         dialog = CalibrationDialog(
             camera_manager=self._core.camera_manager,
             calibration=self._core.calibration,
-            parent=self
+            parent=self,
         )
 
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -2468,9 +2540,7 @@ class MainWindow(QMainWindow):
     def _on_zones_requested(self) -> None:
         """Show zone configuration dialog."""
         dialog = ZoneDialog(
-            camera_manager=self._core.camera_manager,
-            zone_config=self._zone_config,
-            parent=self
+            camera_manager=self._core.camera_manager, zone_config=self._zone_config, parent=self
         )
 
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -2482,7 +2552,7 @@ class MainWindow(QMainWindow):
             # Update tracking logger for CSV zone columns
             self._core.tracking_logger.set_zone_configuration(self._zone_config)
             # Update data recorder for zone columns
-            if hasattr(self._core, 'data_recorder'):
+            if hasattr(self._core, "data_recorder"):
                 self._core.data_recorder.set_zone_configuration(self._zone_config)
                 self._core.data_recorder.set_cv_processor(self._core.cv_processor)
 
@@ -2503,6 +2573,7 @@ class MainWindow(QMainWindow):
         if session_zones.zones:
             # Convert session ZoneConfig to vision ZoneConfiguration
             from glider.vision.zones import Zone
+
             self._zone_config.zones.clear()
             for zone_dict in session_zones.zones:
                 zone = Zone.from_dict(zone_dict)
@@ -2531,9 +2602,7 @@ class MainWindow(QMainWindow):
             return
 
         # Convert ZoneConfiguration to session ZoneConfig
-        self._core.session.zones.zones = [
-            zone.to_dict() for zone in self._zone_config.zones
-        ]
+        self._core.session.zones.zones = [zone.to_dict() for zone in self._zone_config.zones]
         self._core.session.zones.config_width = self._zone_config.config_width
         self._core.session.zones.config_height = self._zone_config.config_height
         self._core.session._mark_dirty()
@@ -2576,7 +2645,7 @@ class MainWindow(QMainWindow):
             "GLIDER - General Laboratory Interface for Design, "
             "Experimentation, and Recording\n\n"
             "Version 1.0.0\n\n"
-            "A modular experimental orchestration platform."
+            "A modular experimental orchestration platform.",
         )
 
     def _show_runner_menu(self) -> None:
@@ -2626,9 +2695,7 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
 
         # Show menu at button position
-        menu.exec(self._runner_menu_btn.mapToGlobal(
-            self._runner_menu_btn.rect().bottomLeft()
-        ))
+        menu.exec(self._runner_menu_btn.mapToGlobal(self._runner_menu_btn.rect().bottomLeft()))
 
     def _switch_to_desktop_mode(self) -> None:
         """Switch from runner to desktop mode."""
@@ -2639,7 +2706,7 @@ class MainWindow(QMainWindow):
         self._stack.setCurrentIndex(0)
 
         # Create dock widgets if they don't exist yet
-        if getattr(self, '_node_library_dock', None) is None:
+        if getattr(self, "_node_library_dock", None) is None:
             self._setup_dock_widgets()
 
         # Use appropriate size for the screen
@@ -2734,18 +2801,18 @@ class MainWindow(QMainWindow):
         # Detect available serial ports
         def get_available_ports():
             ports = []
-            if sys.platform.startswith('linux'):
+            if sys.platform.startswith("linux"):
                 # Common Linux serial port patterns
-                patterns = ['/dev/ttyACM*', '/dev/ttyUSB*', '/dev/ttyAMA*']
+                patterns = ["/dev/ttyACM*", "/dev/ttyUSB*", "/dev/ttyAMA*"]
                 for pattern in patterns:
                     ports.extend(glob.glob(pattern))
-            elif sys.platform == 'darwin':
-                ports.extend(glob.glob('/dev/tty.usbmodem*'))
-                ports.extend(glob.glob('/dev/tty.usbserial*'))
+            elif sys.platform == "darwin":
+                ports.extend(glob.glob("/dev/tty.usbmodem*"))
+                ports.extend(glob.glob("/dev/tty.usbserial*"))
             else:
                 # Windows
                 for i in range(10):
-                    ports.append(f'COM{i}')
+                    ports.append(f"COM{i}")
             return sorted(ports)
 
         available_ports = get_available_ports()
@@ -2764,7 +2831,7 @@ class MainWindow(QMainWindow):
                 group_layout = QVBoxLayout(group)
 
                 # Board type
-                board_type = getattr(board, 'board_type', 'unknown')
+                board_type = getattr(board, "board_type", "unknown")
                 type_label = QLabel(f"Type: {board_type}")
                 group_layout.addWidget(type_label)
 
@@ -2775,7 +2842,7 @@ class MainWindow(QMainWindow):
                 port_combo.setEditable(True)  # Allow custom port entry
 
                 # Add available ports
-                current_port = getattr(board, '_port', '') or ''
+                current_port = getattr(board, "_port", "") or ""
                 if available_ports:
                     port_combo.addItems(available_ports)
                 # Add current port if not in list
@@ -2791,7 +2858,7 @@ class MainWindow(QMainWindow):
                 group_layout.addLayout(port_layout)
 
                 # Connection status
-                connected = getattr(board, 'is_connected', False)
+                connected = getattr(board, "is_connected", False)
                 status_text = "Connected" if connected else "Disconnected"
                 status_color = "#2ecc71" if connected else "#e74c3c"
                 status_label = QLabel(f"Status: {status_text}")
@@ -2833,7 +2900,7 @@ class MainWindow(QMainWindow):
                 new_port = combo.currentText()
                 board = boards.get(board_id)
                 if board and new_port:
-                    old_port = getattr(board, '_port', '')
+                    old_port = getattr(board, "_port", "")
                     if new_port != old_port:
                         board._port = new_port
                         logger.info(f"Updated board '{board_id}' port: {old_port} -> {new_port}")
@@ -2842,7 +2909,7 @@ class MainWindow(QMainWindow):
                         if self._core and self._core.session:
                             for board_config in self._core.session.boards:
                                 if board_config.id == board_id:
-                                    board_config.config['port'] = new_port
+                                    board_config.config["port"] = new_port
                                     self._core.session._dirty = True
                                     break
 
@@ -2866,7 +2933,11 @@ class MainWindow(QMainWindow):
                 ("Delay", "Delay", "Wait for a specified duration"),
             ],
             "Functions": [
-                ("StartFunction", "Start Function", "Define a reusable function - set name in properties"),
+                (
+                    "StartFunction",
+                    "Start Function",
+                    "Define a reusable function - set name in properties",
+                ),
                 ("EndFunction", "End Function", "End of function definition"),
             ],
             "Control": [
@@ -2881,10 +2952,10 @@ class MainWindow(QMainWindow):
 
         # Category colors for headers
         category_colors = {
-            "Flow": "#2d5a7a",      # Blue
-            "Functions": "#2d7a7a", # Teal
-            "Control": "#7a5a2d",   # Orange/Brown
-            "I/O": "#2d7a2d",       # Green
+            "Flow": "#2d5a7a",  # Blue
+            "Functions": "#2d7a7a",  # Teal
+            "Control": "#7a5a2d",  # Orange/Brown
+            "I/O": "#2d7a2d",  # Green
         }
 
         for category, nodes in node_categories.items():
@@ -2949,6 +3020,7 @@ class MainWindow(QMainWindow):
                 def toggle(checked):
                     container.setVisible(checked)
                     btn.setText(f"▼  {btn.text()[3:]}" if checked else f"▶  {btn.text()[3:]}")
+
                 return toggle
 
             header_btn.toggled.connect(make_toggle(header_btn, nodes_container))
@@ -2966,7 +3038,7 @@ class MainWindow(QMainWindow):
             "Custom Devices",
             "#6a4a8a",  # Purple
             layout,
-            add_new_callback=self._on_new_custom_device
+            add_new_callback=self._on_new_custom_device,
         )
 
         # Flow Functions section (dynamic)
@@ -2980,7 +3052,7 @@ class MainWindow(QMainWindow):
             "Flow Functions",
             "#4a6a8a",  # Steel blue
             layout,
-            add_new_callback=self._on_new_flow_function
+            add_new_callback=self._on_new_flow_function,
         )
 
         # Zones section (dynamic - populated from zone configuration)
@@ -2994,7 +3066,7 @@ class MainWindow(QMainWindow):
             "Zones",
             "#5a4a2d",  # Orange/brown - matches zone color
             layout,
-            add_new_callback=None  # Zones are created via Zone dialog
+            add_new_callback=None,  # Zones are created via Zone dialog
         )
 
         layout.addStretch()
@@ -3013,7 +3085,7 @@ class MainWindow(QMainWindow):
         category_name: str,
         color: str,
         parent_layout: QVBoxLayout,
-        add_new_callback=None
+        add_new_callback=None,
     ) -> None:
         """Setup a custom category with a header and add button."""
         category_widget = QWidget()
@@ -3100,6 +3172,7 @@ class MainWindow(QMainWindow):
             def toggle(checked):
                 container.setVisible(checked)
                 btn.setText(f"▼  {btn.text()[3:]}" if checked else f"▶  {btn.text()[3:]}")
+
             return toggle
 
         header_btn.toggled.connect(make_toggle(header_btn, nodes_container))
@@ -3110,6 +3183,7 @@ class MainWindow(QMainWindow):
         """Open dialog to create a new custom device."""
         try:
             from glider.gui.dialogs.custom_device_dialog import CustomDeviceDialog
+
             dialog = CustomDeviceDialog(parent=self)
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 definition = dialog.get_definition()
@@ -3146,7 +3220,7 @@ class MainWindow(QMainWindow):
 
     def _refresh_custom_devices(self) -> None:
         """Refresh the custom devices in the node library."""
-        if not hasattr(self, '_custom_devices_layout'):
+        if not hasattr(self, "_custom_devices_layout"):
             return
 
         # Clear existing items
@@ -3166,10 +3240,14 @@ class MainWindow(QMainWindow):
                         name,
                         "Custom Devices",
                         on_edit=lambda did=def_id: self._edit_custom_device(did),
-                        on_delete=lambda did=def_id: self._delete_custom_device(did)
+                        on_delete=lambda did=def_id: self._delete_custom_device(did),
                     )
-                    btn.setToolTip(f"{def_dict.get('description', '')}\n(Right-click to edit/delete)")
-                    btn.clicked.connect(lambda checked, did=def_id: self._add_custom_device_node(did))
+                    btn.setToolTip(
+                        f"{def_dict.get('description', '')}\n(Right-click to edit/delete)"
+                    )
+                    btn.clicked.connect(
+                        lambda checked, did=def_id: self._add_custom_device_node(did)
+                    )
                     self._custom_devices_layout.addWidget(btn)
             else:
                 placeholder = QLabel("No devices defined")
@@ -3184,7 +3262,7 @@ class MainWindow(QMainWindow):
 
     def _refresh_flow_functions(self) -> None:
         """Refresh the flow functions in the node library."""
-        if not hasattr(self, '_flow_functions_layout'):
+        if not hasattr(self, "_flow_functions_layout"):
             return
 
         # Clear existing items
@@ -3203,14 +3281,12 @@ class MainWindow(QMainWindow):
                 func_name = func_info["name"]
                 start_node_id = func_info["start_node_id"]
 
-                btn = DraggableNodeButton(
-                    f"FunctionCall:{start_node_id}",
-                    func_name,
-                    "Functions"
-                )
+                btn = DraggableNodeButton(f"FunctionCall:{start_node_id}", func_name, "Functions")
                 btn.setToolTip(f"Call function '{func_name}'")
                 btn.clicked.connect(
-                    lambda checked, nid=start_node_id, name=func_name: self._add_function_call_node(nid, name)
+                    lambda checked, nid=start_node_id, name=func_name: self._add_function_call_node(
+                        nid, name
+                    )
                 )
                 self._flow_functions_layout.addWidget(btn)
 
@@ -3223,7 +3299,7 @@ class MainWindow(QMainWindow):
 
     def _refresh_zones(self) -> None:
         """Refresh the zones in the node library."""
-        if not hasattr(self, '_zones_layout'):
+        if not hasattr(self, "_zones_layout"):
             return
 
         # Clear existing items
@@ -3235,13 +3311,11 @@ class MainWindow(QMainWindow):
         # Add zones from zone configuration
         if self._zone_config.zones:
             for zone in self._zone_config.zones:
-                btn = DraggableNodeButton(
-                    f"ZoneInput:{zone.id}",
-                    f"Zone: {zone.name}",
-                    "Zones"
+                btn = DraggableNodeButton(f"ZoneInput:{zone.id}", f"Zone: {zone.name}", "Zones")
+                btn.setToolTip(
+                    f"Monitor zone '{zone.name}' for object occupancy\n"
+                    f"Outputs: Occupied (bool), Object Count (int), On Enter, On Exit"
                 )
-                btn.setToolTip(f"Monitor zone '{zone.name}' for object occupancy\n"
-                              f"Outputs: Occupied (bool), Object Count (int), On Enter, On Exit")
                 btn.clicked.connect(lambda checked, zid=zone.id: self._add_zone_node(zid))
                 self._zones_layout.addWidget(btn)
         else:
@@ -3253,10 +3327,8 @@ class MainWindow(QMainWindow):
 
     def _add_zone_node(self, zone_id: str) -> None:
         """Add a zone input node to the graph."""
-        if hasattr(self, '_graph_view'):
-            center = self._graph_view.mapToScene(
-                self._graph_view.viewport().rect().center()
-            )
+        if hasattr(self, "_graph_view"):
+            center = self._graph_view.mapToScene(self._graph_view.viewport().rect().center())
             # Create node with zone ID encoded in the type
             self._graph_view.node_created.emit(f"ZoneInput:{zone_id}", center.x(), center.y())
 
@@ -3287,10 +3359,12 @@ class MainWindow(QMainWindow):
 
             # Check if this StartFunction leads to an EndFunction
             if self._trace_to_end_function(start_node.id, flow):
-                functions.append({
-                    "name": func_name,
-                    "start_node_id": start_node.id,
-                })
+                functions.append(
+                    {
+                        "name": func_name,
+                        "start_node_id": start_node.id,
+                    }
+                )
 
         return functions
 
@@ -3328,29 +3402,29 @@ class MainWindow(QMainWindow):
 
     def _add_function_call_node(self, start_node_id: str, func_name: str) -> None:
         """Add a FunctionCall node to the graph."""
-        if hasattr(self, '_graph_view'):
-            center = self._graph_view.mapToScene(
-                self._graph_view.viewport().rect().center()
-            )
+        if hasattr(self, "_graph_view"):
+            center = self._graph_view.mapToScene(self._graph_view.viewport().rect().center())
             # Create a FunctionCall node with the function reference
-            self._graph_view.node_created.emit(f"FunctionCall:{start_node_id}", center.x(), center.y())
+            self._graph_view.node_created.emit(
+                f"FunctionCall:{start_node_id}", center.x(), center.y()
+            )
 
     def _add_custom_device_node(self, definition_id: str) -> None:
         """Add a custom device action node to the graph."""
-        if hasattr(self, '_graph_view'):
-            center = self._graph_view.mapToScene(
-                self._graph_view.viewport().rect().center()
-            )
+        if hasattr(self, "_graph_view"):
+            center = self._graph_view.mapToScene(self._graph_view.viewport().rect().center())
             # Create node with custom device definition ID encoded in the type
-            self._graph_view.node_created.emit(f"CustomDevice:{definition_id}", center.x(), center.y())
+            self._graph_view.node_created.emit(
+                f"CustomDevice:{definition_id}", center.x(), center.y()
+            )
 
     def _add_flow_function_node(self, definition_id: str) -> None:
         """Add a flow function node to the graph."""
-        if hasattr(self, '_graph_view'):
-            center = self._graph_view.mapToScene(
-                self._graph_view.viewport().rect().center()
+        if hasattr(self, "_graph_view"):
+            center = self._graph_view.mapToScene(self._graph_view.viewport().rect().center())
+            self._graph_view.node_created.emit(
+                f"FlowFunction:{definition_id}", center.x(), center.y()
             )
-            self._graph_view.node_created.emit(f"FlowFunction:{definition_id}", center.x(), center.y())
 
     def _edit_custom_device(self, definition_id: str) -> None:
         """Edit an existing custom device definition."""
@@ -3392,7 +3466,7 @@ class MainWindow(QMainWindow):
             "Delete Custom Device",
             f"Are you sure you want to delete '{name}'?\n\nThis cannot be undone.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.No,
         )
 
         if result == QMessageBox.StandardButton.Yes:
@@ -3420,9 +3494,7 @@ class MainWindow(QMainWindow):
             available_types.extend(["FlowFunctionEntry", "FlowFunctionExit", "Parameter"])
 
             dialog = FlowFunctionDialog(
-                definition=definition,
-                available_node_types=available_types,
-                parent=self
+                definition=definition, available_node_types=available_types, parent=self
             )
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 updated_def = dialog.get_definition()
@@ -3448,7 +3520,7 @@ class MainWindow(QMainWindow):
             "Delete Flow Function",
             f"Are you sure you want to delete '{name}'?\n\nThis cannot be undone.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.No,
         )
 
         if result == QMessageBox.StandardButton.Yes:
@@ -3458,11 +3530,9 @@ class MainWindow(QMainWindow):
 
     def _add_node_to_center(self, node_type: str) -> None:
         """Add a node to the center of the graph view."""
-        if hasattr(self, '_graph_view'):
+        if hasattr(self, "_graph_view"):
             # Get center of current view
-            center = self._graph_view.mapToScene(
-                self._graph_view.viewport().rect().center()
-            )
+            center = self._graph_view.mapToScene(self._graph_view.viewport().rect().center())
             self._graph_view.node_created.emit(node_type, center.x(), center.y())
 
     # Node graph event handlers
@@ -3550,7 +3620,9 @@ class MainWindow(QMainWindow):
         # Add visual node to graph (use display_name for the visual)
         node_item = self._graph_view.add_node(node_id, display_name, x, y)
         node_item._category = category
-        node_item._header_color = node_item.CATEGORY_COLORS.get(category, node_item.CATEGORY_COLORS["default"])
+        node_item._header_color = node_item.CATEGORY_COLORS.get(
+            category, node_item.CATEGORY_COLORS["default"]
+        )
         # Store the actual node type and definition ID for later use
         node_item._actual_node_type = actual_node_type
         node_item._definition_id = definition_id
@@ -3593,21 +3665,30 @@ class MainWindow(QMainWindow):
         port_configs = {
             # Flow nodes
             "StartExperiment": ([], [">next"]),  # No inputs, one exec output
-            "EndExperiment": ([">exec"], []),     # One exec input, no outputs
+            "EndExperiment": ([">exec"], []),  # One exec input, no outputs
             "Delay": ([">exec"], [">next"]),  # Exec in, exec out (duration set via properties)
             # Control nodes (properties controlled via panel, not ports)
             "Loop": ([">exec"], [">body", ">done"]),  # Exec in, body and done exec outputs
-            "WaitForInput": ([">exec"], [">triggered"]),  # Exec in, triggered exec output (timeout set via properties)
+            "WaitForInput": (
+                [">exec"],
+                [">triggered"],
+            ),  # Exec in, triggered exec output (timeout set via properties)
             # I/O nodes
             "Output": ([">exec"], [">next"]),  # Exec in, exec out (value set via properties)
-            "Input": ([">exec"], ["value", ">next"]),   # Exec in, outputs value and exec
-            "MotorGovernor": ([">exec"], [">next"]),  # Exec in, exec out (action set via properties: up/down/stop)
+            "Input": ([">exec"], ["value", ">next"]),  # Exec in, outputs value and exec
+            "MotorGovernor": (
+                [">exec"],
+                [">next"],
+            ),  # Exec in, exec out (action set via properties: up/down/stop)
             # Custom device action node
             "CustomDevice": ([">exec"], ["value", ">next"]),  # Exec in, value out, exec out
-            "CustomDeviceAction": ([">exec"], ["value", ">next"]),  # Alias for backward compatibility
+            "CustomDeviceAction": (
+                [">exec"],
+                ["value", ">next"],
+            ),  # Alias for backward compatibility
             # Flow function definition nodes
             "StartFunction": ([], [">next"]),  # No inputs, exec out
-            "EndFunction": ([">exec"], []),    # Exec in, no outputs
+            "EndFunction": ([">exec"], []),  # Exec in, no outputs
             # Flow function call node
             "FunctionCall": ([">exec"], [">next"]),  # Exec in, exec out
             "FlowFunctionCall": ([">exec"], [">next"]),  # Legacy alias
@@ -3670,7 +3751,9 @@ class MainWindow(QMainWindow):
         if self._core.session:
             self._core.session.update_node_position(node_id, x, y)
 
-    def _on_connection_created(self, from_node: str, from_port: int, to_node: str, to_port: int, conn_type: str = "data") -> None:
+    def _on_connection_created(
+        self, from_node: str, from_port: int, to_node: str, to_port: int, conn_type: str = "data"
+    ) -> None:
         """Handle connection creation from graph view."""
         import uuid
 
@@ -3692,10 +3775,14 @@ class MainWindow(QMainWindow):
                 connection_type=conn_type,
             )
             self._core.session.add_connection(conn_config)
-            logger.info(f"Saved connection: {from_node}:{from_port} -> {to_node}:{to_port} (type: {conn_type})")
+            logger.info(
+                f"Saved connection: {from_node}:{from_port} -> {to_node}:{to_port} (type: {conn_type})"
+            )
 
         # Add to undo stack
-        command = CreateConnectionCommand(self, connection_id, from_node, from_port, to_node, to_port, conn_type)
+        command = CreateConnectionCommand(
+            self, connection_id, from_node, from_port, to_node, to_port, conn_type
+        )
         self._undo_stack.push(command)
         self._update_undo_redo_actions()
 
@@ -3733,7 +3820,7 @@ class MainWindow(QMainWindow):
 
     def _update_properties_panel(self, node_id: str) -> None:
         """Update the properties panel for the selected node."""
-        if not hasattr(self, '_properties_dock'):
+        if not hasattr(self, "_properties_dock"):
             return
 
         # Get node from graph view
@@ -3757,7 +3844,7 @@ class MainWindow(QMainWindow):
 
         # Use actual node type if available (for custom devices/flow functions)
         # Otherwise use the display node type
-        if hasattr(node_item, '_actual_node_type') and node_item._actual_node_type:
+        if hasattr(node_item, "_actual_node_type") and node_item._actual_node_type:
             node_type = node_item._actual_node_type.replace(" ", "")
         else:
             node_type = node_item.node_type.replace(" ", "")
@@ -3770,15 +3857,17 @@ class MainWindow(QMainWindow):
             current_index = 0
 
             for i, (dev_id, device) in enumerate(self._core.hardware_manager.devices.items()):
-                device_name = getattr(device, 'name', dev_id)
-                device_type = getattr(device, 'device_type', '')
+                device_name = getattr(device, "name", dev_id)
+                device_type = getattr(device, "device_type", "")
                 device_combo.addItem(f"{device_name} ({device_type})", dev_id)
                 if dev_id == current_device_id:
                     current_index = i + 1  # +1 because of "-- Select Device --" item
 
             device_combo.setCurrentIndex(current_index)
             device_combo.currentIndexChanged.connect(
-                lambda idx, nid=node_id, combo=device_combo: self._on_node_device_changed(nid, combo.currentData())
+                lambda idx, nid=node_id, combo=device_combo: self._on_node_device_changed(
+                    nid, combo.currentData()
+                )
             )
             props_layout.addRow("Device:", device_combo)
 
@@ -3820,6 +3909,7 @@ class MainWindow(QMainWindow):
         # Add HIGH/LOW selector for Output node
         if node_type == "Output":
             from PyQt6.QtWidgets import QHBoxLayout, QRadioButton
+
             value_layout = QHBoxLayout()
             high_radio = QRadioButton("HIGH")
             low_radio = QRadioButton("LOW")
@@ -3837,7 +3927,9 @@ class MainWindow(QMainWindow):
             value_layout.addWidget(high_radio)
             value_layout.addWidget(low_radio)
             high_radio.toggled.connect(
-                lambda checked, nid=node_id: self._on_node_property_changed(nid, "value", 1 if checked else 0)
+                lambda checked, nid=node_id: self._on_node_property_changed(
+                    nid, "value", 1 if checked else 0
+                )
             )
             value_widget = QWidget()
             value_widget.setLayout(value_layout)
@@ -3977,7 +4069,9 @@ class MainWindow(QMainWindow):
                 saved_continuous = node_config.state.get("continuous", False)
             continuous_check.setChecked(saved_continuous)
             continuous_check.toggled.connect(
-                lambda checked, nid=node_id: self._on_node_property_changed(nid, "continuous", checked)
+                lambda checked, nid=node_id: self._on_node_property_changed(
+                    nid, "continuous", checked
+                )
             )
             props_layout.addRow(continuous_check)
 
@@ -4003,7 +4097,9 @@ class MainWindow(QMainWindow):
                 saved_threshold_enabled = node_config.state.get("threshold_enabled", False)
             threshold_check.setChecked(saved_threshold_enabled)
             threshold_check.toggled.connect(
-                lambda checked, nid=node_id: self._on_node_property_changed(nid, "threshold_enabled", checked)
+                lambda checked, nid=node_id: self._on_node_property_changed(
+                    nid, "threshold_enabled", checked
+                )
             )
             props_layout.addRow(threshold_check)
 
@@ -4026,7 +4122,9 @@ class MainWindow(QMainWindow):
                 saved_visible = node_config.state.get("visible_in_runner", False)
             visible_check.setChecked(saved_visible)
             visible_check.toggled.connect(
-                lambda checked, nid=node_id: self._on_node_property_changed(nid, "visible_in_runner", checked)
+                lambda checked, nid=node_id: self._on_node_property_changed(
+                    nid, "visible_in_runner", checked
+                )
             )
             props_layout.addRow(visible_check)
 
@@ -4046,7 +4144,7 @@ class MainWindow(QMainWindow):
             definition_id = None
             if node_config and node_config.state:
                 definition_id = node_config.state.get("definition_id")
-            if not definition_id and hasattr(node_item, '_definition_id'):
+            if not definition_id and hasattr(node_item, "_definition_id"):
                 definition_id = node_item._definition_id
 
             if definition_id and self._core.session:
@@ -4133,13 +4231,17 @@ class MainWindow(QMainWindow):
                             value_spin.setValue(int(saved_value))
 
                             value_spin.valueChanged.connect(
-                                lambda val, nid=node_id: self._on_node_property_changed(nid, "value", val)
+                                lambda val, nid=node_id: self._on_node_property_changed(
+                                    nid, "value", val
+                                )
                             )
                             props_layout.addRow("Value:", value_spin)
 
                     # Edit device button
                     edit_btn = QPushButton("Edit Device Definition")
-                    edit_btn.clicked.connect(lambda checked, did=definition_id: self._edit_custom_device(did))
+                    edit_btn.clicked.connect(
+                        lambda checked, did=definition_id: self._edit_custom_device(did)
+                    )
                     props_layout.addRow(edit_btn)
             else:
                 props_layout.addRow(QLabel("(Custom device not found)"))
@@ -4185,9 +4287,9 @@ class MainWindow(QMainWindow):
                 logger.info(f"Node {node_id} device changed to: {device_id}")
 
                 # Also bind device to the runtime node in flow engine
-                if device_id and hasattr(self._core, 'flow_engine') and self._core.flow_engine:
+                if device_id and hasattr(self._core, "flow_engine") and self._core.flow_engine:
                     runtime_node = self._core.flow_engine.get_node(node_id)
-                    if runtime_node and hasattr(runtime_node, 'bind_device'):
+                    if runtime_node and hasattr(runtime_node, "bind_device"):
                         device = self._core.hardware_manager.get_device(device_id)
                         if device:
                             runtime_node.bind_device(device)
@@ -4253,15 +4355,21 @@ class MainWindow(QMainWindow):
             if node_item:
                 node_item.setPos(command._new_x, command._new_y)
             if self._core.session:
-                self._core.session.update_node_position(command._node_id, command._new_x, command._new_y)
+                self._core.session.update_node_position(
+                    command._node_id, command._new_x, command._new_y
+                )
         elif isinstance(command, CreateConnectionCommand):
             # Re-create the connection
             self._graph_view.add_connection(
-                command._conn_id, command._from_node, command._from_port,
-                command._to_node, command._to_port
+                command._conn_id,
+                command._from_node,
+                command._from_port,
+                command._to_node,
+                command._to_port,
             )
             if self._core.session:
                 from glider.core.experiment_session import ConnectionConfig
+
                 conn_config = ConnectionConfig(
                     id=command._conn_id,
                     from_node=command._from_node,
@@ -4279,11 +4387,13 @@ class MainWindow(QMainWindow):
         elif isinstance(command, PropertyChangeCommand):
             # Re-apply the property change
             if self._core.session:
-                self._core.session.update_node_state(command._node_id, {command._prop_name: command._new_value})
+                self._core.session.update_node_state(
+                    command._node_id, {command._prop_name: command._new_value}
+                )
 
     def _update_undo_redo_actions(self) -> None:
         """Update the enabled state of undo/redo menu actions."""
-        if hasattr(self, '_undo_action'):
+        if hasattr(self, "_undo_action"):
             can_undo = self._undo_stack.can_undo()
             self._undo_action.setEnabled(can_undo)
             if can_undo:
@@ -4291,7 +4401,7 @@ class MainWindow(QMainWindow):
             else:
                 self._undo_action.setText("&Undo")
 
-        if hasattr(self, '_redo_action'):
+        if hasattr(self, "_redo_action"):
             can_redo = self._undo_stack.can_redo()
             self._redo_action.setEnabled(can_redo)
             if can_redo:
@@ -4302,45 +4412,45 @@ class MainWindow(QMainWindow):
     # Device Control Panel methods
     def _refresh_device_combo(self) -> None:
         """Refresh the device selector combo box."""
-        if not hasattr(self, '_device_combo'):
+        if not hasattr(self, "_device_combo"):
             return
 
         self._device_combo.clear()
         self._device_combo.addItem("-- Select Device --", None)
 
         for device_id, device in self._core.hardware_manager.devices.items():
-            device_name = getattr(device, 'name', device_id)
-            device_type = getattr(device, 'device_type', 'unknown')
+            device_name = getattr(device, "name", device_id)
+            device_type = getattr(device, "device_type", "unknown")
             self._device_combo.addItem(f"{device_name} ({device_type})", device_id)
 
     def _on_device_selected(self, text: str) -> None:
         """Handle device selection change."""
         # Stop any continuous input reading
-        if hasattr(self, '_input_poll_timer'):
+        if hasattr(self, "_input_poll_timer"):
             self._input_poll_timer.stop()
-        if hasattr(self, '_continuous_checkbox'):
+        if hasattr(self, "_continuous_checkbox"):
             self._continuous_checkbox.setChecked(False)
-        if hasattr(self, '_input_value_label'):
+        if hasattr(self, "_input_value_label"):
             self._input_value_label.setText("--")
 
         device_id = self._device_combo.currentData()
         if device_id is None:
             self._device_status_label.setText("Status: No device selected")
-            if hasattr(self, '_input_group'):
+            if hasattr(self, "_input_group"):
                 self._input_group.setEnabled(False)
             return
 
         device = self._core.hardware_manager.get_device(device_id)
         if device is None:
             self._device_status_label.setText("Status: Device not found")
-            if hasattr(self, '_input_group'):
+            if hasattr(self, "_input_group"):
                 self._input_group.setEnabled(False)
             return
 
-        device_type = getattr(device, 'device_type', 'unknown')
-        board = getattr(device, 'board', None)
+        device_type = getattr(device, "device_type", "unknown")
+        board = getattr(device, "board", None)
         connected = board.is_connected if board else False
-        initialized = getattr(device, '_initialized', False)
+        initialized = getattr(device, "_initialized", False)
 
         status = "Connected" if connected else "Disconnected"
         if connected and initialized:
@@ -4351,8 +4461,8 @@ class MainWindow(QMainWindow):
         self._device_status_label.setText(f"Status: {status} | Type: {device_type}")
 
         # Enable/disable input reading based on device type
-        if hasattr(self, '_input_group'):
-            is_input_device = device_type in ('DigitalInput', 'AnalogInput', 'ADS1115')
+        if hasattr(self, "_input_group"):
+            is_input_device = device_type in ("DigitalInput", "AnalogInput", "ADS1115")
             self._input_group.setEnabled(is_input_device)
 
     def _get_selected_device(self):
@@ -4371,9 +4481,9 @@ class MainWindow(QMainWindow):
 
         async def set_output():
             try:
-                if hasattr(device, 'set_state'):
+                if hasattr(device, "set_state"):
                     await device.set_state(value)
-                elif hasattr(device, 'turn_on') and hasattr(device, 'turn_off'):
+                elif hasattr(device, "turn_on") and hasattr(device, "turn_off"):
                     if value:
                         await device.turn_on()
                     else:
@@ -4399,11 +4509,11 @@ class MainWindow(QMainWindow):
 
         async def toggle():
             try:
-                if hasattr(device, 'toggle'):
+                if hasattr(device, "toggle"):
                     await device.toggle()
-                elif hasattr(device, 'state'):
+                elif hasattr(device, "state"):
                     new_state = not device.state
-                    if hasattr(device, 'set_state'):
+                    if hasattr(device, "set_state"):
                         await device.set_state(new_state)
                 self._device_status_label.setText("Status: Output toggled")
             except Exception as e:
@@ -4419,9 +4529,9 @@ class MainWindow(QMainWindow):
 
         async def set_pwm():
             try:
-                if hasattr(device, 'set_value'):
+                if hasattr(device, "set_value"):
                     await device.set_value(value)
-                elif hasattr(device, 'board'):
+                elif hasattr(device, "board"):
                     pin = list(device.pins.values())[0] if device.pins else 0
                     await device.board.write_analog(pin, value)
                 self._device_status_label.setText(f"Status: PWM set to {value}")
@@ -4438,9 +4548,9 @@ class MainWindow(QMainWindow):
 
         async def set_servo():
             try:
-                if hasattr(device, 'set_angle'):
+                if hasattr(device, "set_angle"):
                     await device.set_angle(angle)
-                elif hasattr(device, 'board'):
+                elif hasattr(device, "board"):
                     pin = list(device.pins.values())[0] if device.pins else 0
                     await device.board.write_servo(pin, angle)
                 self._device_status_label.setText(f"Status: Servo set to {angle}°")
@@ -4456,59 +4566,71 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "No Device", "Please select a device first.")
             return
 
-        device_type = getattr(device, 'device_type', '')
-        if device_type not in ('DigitalInput', 'AnalogInput', 'ADS1115'):
-            QMessageBox.warning(self, "Invalid Device", "Please select a DigitalInput, AnalogInput, or ADS1115 device.")
+        device_type = getattr(device, "device_type", "")
+        if device_type not in ("DigitalInput", "AnalogInput", "ADS1115"):
+            QMessageBox.warning(
+                self,
+                "Invalid Device",
+                "Please select a DigitalInput, AnalogInput, or ADS1115 device.",
+            )
             return
 
         async def read_value():
             try:
                 # Auto-initialize if not initialized
-                if not getattr(device, '_initialized', False):
+                if not getattr(device, "_initialized", False):
                     self._device_status_label.setText("Status: Initializing device...")
                     await device.initialize()
                     logger.info(f"Auto-initialized device for reading: {device.id}")
 
-                if device_type == 'DigitalInput':
-                    if hasattr(device, 'read'):
+                if device_type == "DigitalInput":
+                    if hasattr(device, "read"):
                         value = await device.read()
                         display = "HIGH (1)" if value else "LOW (0)"
                         self._input_value_label.setText(display)
                         self._device_status_label.setText(f"Status: Digital input = {display}")
                     else:
-                        pin = device.pins.get('input', list(device.pins.values())[0])
+                        pin = device.pins.get("input", list(device.pins.values())[0])
                         value = await device.board.read_digital(pin)
                         display = "HIGH (1)" if value else "LOW (0)"
                         self._input_value_label.setText(display)
                         self._device_status_label.setText(f"Status: Digital input = {display}")
-                elif device_type == 'AnalogInput':
-                    if hasattr(device, 'read') and hasattr(device, 'read_voltage'):
+                elif device_type == "AnalogInput":
+                    if hasattr(device, "read") and hasattr(device, "read_voltage"):
                         raw_value = await device.read()
                         voltage = await device.read_voltage()
                         display = f"{raw_value}\n{voltage:.2f}V"
                         self._input_value_label.setText(display)
-                        self._device_status_label.setText(f"Status: Analog = {raw_value} ({voltage:.2f}V)")
-                    elif hasattr(device, 'read'):
+                        self._device_status_label.setText(
+                            f"Status: Analog = {raw_value} ({voltage:.2f}V)"
+                        )
+                    elif hasattr(device, "read"):
                         raw_value = await device.read()
                         voltage = (raw_value / 1023.0) * 5.0
                         display = f"{raw_value}\n{voltage:.2f}V"
                         self._input_value_label.setText(display)
-                        self._device_status_label.setText(f"Status: Analog = {raw_value} ({voltage:.2f}V)")
+                        self._device_status_label.setText(
+                            f"Status: Analog = {raw_value} ({voltage:.2f}V)"
+                        )
                     else:
-                        pin = device.pins.get('input', list(device.pins.values())[0])
+                        pin = device.pins.get("input", list(device.pins.values())[0])
                         raw_value = await device.board.read_analog(pin)
                         voltage = (raw_value / 1023.0) * 5.0
                         display = f"{raw_value}\n{voltage:.2f}V"
                         self._input_value_label.setText(display)
-                        self._device_status_label.setText(f"Status: Analog = {raw_value} ({voltage:.2f}V)")
-                elif device_type == 'ADS1115':
+                        self._device_status_label.setText(
+                            f"Status: Analog = {raw_value} ({voltage:.2f}V)"
+                        )
+                elif device_type == "ADS1115":
                     # ADS1115 16-bit ADC via I2C
-                    channel = device._config.settings.get('channel', 0)
+                    channel = device._config.settings.get("channel", 0)
                     raw_value = await device.read(channel)
                     voltage = await device.read_voltage(channel)
                     display = f"{raw_value}\n{voltage:.3f}V"
                     self._input_value_label.setText(display)
-                    self._device_status_label.setText(f"Status: ADS1115 Ch{channel} = {raw_value} ({voltage:.3f}V)")
+                    self._device_status_label.setText(
+                        f"Status: ADS1115 Ch{channel} = {raw_value} ({voltage:.3f}V)"
+                    )
             except Exception as e:
                 logger.error(f"Read error: {e}")
                 self._input_value_label.setText("ERROR")
@@ -4525,16 +4647,20 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "No Device", "Please select a device first.")
                 return
 
-            device_type = getattr(device, 'device_type', '')
-            if device_type not in ('DigitalInput', 'AnalogInput', 'ADS1115'):
+            device_type = getattr(device, "device_type", "")
+            if device_type not in ("DigitalInput", "AnalogInput", "ADS1115"):
                 self._continuous_checkbox.setChecked(False)
-                QMessageBox.warning(self, "Invalid Device", "Please select a DigitalInput, AnalogInput, or ADS1115 device.")
+                QMessageBox.warning(
+                    self,
+                    "Invalid Device",
+                    "Please select a DigitalInput, AnalogInput, or ADS1115 device.",
+                )
                 return
 
-            if device_type == 'AnalogInput':
+            if device_type == "AnalogInput":
                 # Use real-time callbacks for analog inputs (much faster than polling)
                 self._start_analog_callback(device)
-            elif device_type == 'ADS1115':
+            elif device_type == "ADS1115":
                 # ADS1115 uses I2C polling (no pin-based callbacks)
                 interval = self._poll_spinbox.value()
                 self._input_poll_timer.start(interval)
@@ -4555,7 +4681,7 @@ class MainWindow(QMainWindow):
         # First, stop any existing callback
         self._stop_analog_callback()
 
-        pin = device.pins.get('input', list(device.pins.values())[0])
+        pin = device.pins.get("input", list(device.pins.values())[0])
         board = device.board
 
         # Create a callback that emits the Qt signal (thread-safe)
@@ -4581,8 +4707,7 @@ class MainWindow(QMainWindow):
         if self._analog_callback_board is not None and self._analog_callback_func is not None:
             try:
                 self._analog_callback_board.unregister_callback(
-                    self._analog_callback_pin,
-                    self._analog_callback_func
+                    self._analog_callback_pin, self._analog_callback_func
                 )
                 logger.info(f"Stopped analog callback for pin {self._analog_callback_pin}")
             except Exception as e:
@@ -4597,7 +4722,7 @@ class MainWindow(QMainWindow):
         """Handle real-time analog value updates (called via Qt signal from callback)."""
         # Get reference voltage from current device if available
         device = self._get_selected_device()
-        if device is not None and hasattr(device, '_reference_voltage'):
+        if device is not None and hasattr(device, "_reference_voltage"):
             ref_voltage = device._reference_voltage
         else:
             ref_voltage = 5.0
@@ -4620,41 +4745,41 @@ class MainWindow(QMainWindow):
             self._continuous_checkbox.setChecked(False)
             return
 
-        device_type = getattr(device, 'device_type', '')
-        if device_type not in ('DigitalInput', 'AnalogInput', 'ADS1115'):
+        device_type = getattr(device, "device_type", "")
+        if device_type not in ("DigitalInput", "AnalogInput", "ADS1115"):
             self._input_poll_timer.stop()
             self._continuous_checkbox.setChecked(False)
             return
 
         async def read_value():
             try:
-                if device_type == 'DigitalInput':
-                    if hasattr(device, 'read'):
+                if device_type == "DigitalInput":
+                    if hasattr(device, "read"):
                         value = await device.read()
                     else:
-                        pin = device.pins.get('input', list(device.pins.values())[0])
+                        pin = device.pins.get("input", list(device.pins.values())[0])
                         value = await device.board.read_digital(pin)
                     display = "HIGH (1)" if value else "LOW (0)"
                     self._input_value_label.setText(display)
-                elif device_type == 'AnalogInput':
-                    if hasattr(device, 'read'):
+                elif device_type == "AnalogInput":
+                    if hasattr(device, "read"):
                         raw_value = await device.read()
                     else:
-                        pin = device.pins.get('input', list(device.pins.values())[0])
+                        pin = device.pins.get("input", list(device.pins.values())[0])
                         raw_value = await device.board.read_analog(pin)
 
                     # Get voltage
-                    if hasattr(device, '_reference_voltage'):
+                    if hasattr(device, "_reference_voltage"):
                         ref_voltage = device._reference_voltage
                     else:
                         ref_voltage = 5.0
                     voltage = (raw_value / 1023.0) * ref_voltage
                     display = f"{raw_value}\n{voltage:.2f}V"
                     self._input_value_label.setText(display)
-                elif device_type == 'ADS1115':
+                elif device_type == "ADS1115":
                     # ADS1115 has read() and read_voltage() methods
                     # Get channel from settings (default 0)
-                    channel = device._config.settings.get('channel', 0)
+                    channel = device._config.settings.get("channel", 0)
                     raw_value = await device.read(channel)
                     voltage = await device.read_voltage(channel)
                     # ADS1115 is 16-bit, show full value
@@ -4671,15 +4796,15 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         """Handle window close event."""
         # Stop device refresh timer
-        if hasattr(self, '_device_refresh_timer'):
+        if hasattr(self, "_device_refresh_timer"):
             self._device_refresh_timer.stop()
 
         # Stop input poll timer
-        if hasattr(self, '_input_poll_timer'):
+        if hasattr(self, "_input_poll_timer"):
             self._input_poll_timer.stop()
 
         # Stop analog callback (if initialized)
-        if hasattr(self, '_analog_callback_board'):
+        if hasattr(self, "_analog_callback_board"):
             self._stop_analog_callback()
 
         if self._check_save():
@@ -4701,6 +4826,7 @@ class MainWindow(QMainWindow):
                     import time
 
                     from PyQt6.QtWidgets import QApplication
+
                     # Process events until shutdown completes (max 10 seconds)
                     timeout = time.time() + 10
                     while not future.done() and time.time() < timeout:

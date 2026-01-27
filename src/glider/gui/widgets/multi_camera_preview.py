@@ -100,10 +100,7 @@ class CameraPreviewTile(QFrame):
         self._preview.setMinimumSize(160, 120)
         self._preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._preview.setScaledContents(False)
-        self._preview.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Expanding
-        )
+        self._preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._preview.setStyleSheet("""
             QLabel {
                 background-color: #0d0d1a;
@@ -167,17 +164,14 @@ class CameraPreviewTile(QFrame):
         h, w, ch = rgb_frame.shape
         bytes_per_line = ch * w
 
-        q_image = QImage(
-            rgb_frame.data, w, h, bytes_per_line,
-            QImage.Format.Format_RGB888
-        )
+        q_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
 
         # Scale to fit while maintaining aspect ratio
         pixmap = QPixmap.fromImage(q_image)
         scaled = pixmap.scaled(
             self._preview.size(),
             Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
+            Qt.TransformationMode.SmoothTransformation,
         )
         self._preview.setPixmap(scaled)
 

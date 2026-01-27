@@ -120,9 +120,7 @@ def build_session_context(
             node_types[ntype] = node_types.get(ntype, 0) + 1
 
         if node_types:
-            sections.append("Node types: " + ", ".join(
-                f"{t} ({c})" for t, c in node_types.items()
-            ))
+            sections.append("Node types: " + ", ".join(f"{t} ({c})" for t, c in node_types.items()))
     else:
         sections.append("\n### Current Flow\nNo nodes in the flow graph (empty experiment).")
 

@@ -85,7 +85,7 @@ class AnalogReadNode(HardwareNode):
             self.set_output(1, raw_value)
 
             # Calculate voltage
-            max_value = 2 ** self._resolution - 1
+            max_value = 2**self._resolution - 1
             voltage = (raw_value / max_value) * self._reference_voltage
             self.set_output(2, voltage)
 

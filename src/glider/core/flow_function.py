@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class ParameterType(Enum):
     """Types of parameters for flow functions."""
+
     INT = "int"
     FLOAT = "float"
     BOOL = "bool"
@@ -30,6 +31,7 @@ class ParameterType(Enum):
 @dataclass
 class FlowFunctionParameter:
     """Definition of a flow function parameter."""
+
     name: str
     param_type: ParameterType
     default_value: Any = None
@@ -70,6 +72,7 @@ class FlowFunctionParameter:
 @dataclass
 class FlowFunctionOutput:
     """Definition of a flow function output value."""
+
     name: str
     output_type: ParameterType = ParameterType.STRING
     description: str = ""
@@ -93,6 +96,7 @@ class FlowFunctionOutput:
 @dataclass
 class InternalNodeConfig:
     """Configuration for a node within a flow function."""
+
     id: str
     node_type: str
     position: tuple = (0, 0)
@@ -122,6 +126,7 @@ class InternalNodeConfig:
 @dataclass
 class InternalConnectionConfig:
     """Configuration for a connection within a flow function."""
+
     id: str
     from_node: str
     from_output: int
@@ -154,6 +159,7 @@ class InternalConnectionConfig:
 @dataclass
 class FlowFunctionDefinition:
     """Complete definition of a flow function."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: str = "Untitled Function"
     description: str = ""
@@ -186,7 +192,9 @@ class FlowFunctionDefinition:
             parameters=[FlowFunctionParameter.from_dict(p) for p in data.get("parameters", [])],
             outputs=[FlowFunctionOutput.from_dict(o) for o in data.get("outputs", [])],
             nodes=[InternalNodeConfig.from_dict(n) for n in data.get("nodes", [])],
-            connections=[InternalConnectionConfig.from_dict(c) for c in data.get("connections", [])],
+            connections=[
+                InternalConnectionConfig.from_dict(c) for c in data.get("connections", [])
+            ],
             entry_node_id=data.get("entry_node_id"),
             exit_node_ids=data.get("exit_node_ids", []),
         )
@@ -258,9 +266,9 @@ class FlowFunctionRunner:
             # Find and execute from entry point
             if self._definition.entry_node_id:
                 entry_node = self._internal_nodes.get(self._definition.entry_node_id)
-                if entry_node and hasattr(entry_node, 'start'):
+                if entry_node and hasattr(entry_node, "start"):
                     await entry_node.start()
-                elif entry_node and hasattr(entry_node, 'execute'):
+                elif entry_node and hasattr(entry_node, "execute"):
                     await entry_node.execute()
 
             # Wait for completion (exit node reached) with timeout
@@ -300,13 +308,13 @@ class FlowFunctionRunner:
                 node._glider_id = f"ff_{self._definition.id}_{node_config.id}"
 
                 # Apply state
-                if node_config.state and hasattr(node, 'set_state'):
+                if node_config.state and hasattr(node, "set_state"):
                     node.set_state(node_config.state)
 
                 # Bind device if specified
                 if node_config.device_id and self._hardware_manager:
                     device = self._hardware_manager.get_device(node_config.device_id)
-                    if device and hasattr(node, 'bind_device'):
+                    if device and hasattr(node, "bind_device"):
                         node.bind_device(device)
 
             self._internal_nodes[node_config.id] = node
@@ -429,17 +437,18 @@ class FlowFunctionRunner:
             # Create execution callback
             def make_exec_callback(target):
                 async def propagate():
-                    if hasattr(target, 'execute'):
+                    if hasattr(target, "execute"):
                         await target.execute()
+
                 return lambda name, val: asyncio.create_task(propagate())
 
-            if hasattr(from_node, '_update_callbacks'):
+            if hasattr(from_node, "_update_callbacks"):
                 from_node._update_callbacks.append(make_exec_callback(to_node))
 
     async def _cleanup(self) -> None:
         """Clean up internal nodes."""
         for node_id, node in self._internal_nodes.items():
-            if hasattr(node, 'stop'):
+            if hasattr(node, "stop"):
                 try:
                     await node.stop()
                 except Exception as e:
@@ -472,23 +481,27 @@ def create_flow_function_node_class(definition: FlowFunctionDefinition) -> type[
     # Build input ports from parameters
     inputs = [PortDefinition("exec", PortType.EXEC)]
     for param in definition.parameters:
-        inputs.append(PortDefinition(
-            param.name,
-            PortType.DATA,
-            _param_type_to_python(param.param_type),
-            param.default_value,
-            param.description,
-        ))
+        inputs.append(
+            PortDefinition(
+                param.name,
+                PortType.DATA,
+                _param_type_to_python(param.param_type),
+                param.default_value,
+                param.description,
+            )
+        )
 
     # Build output ports
     outputs = [PortDefinition("next", PortType.EXEC)]
     for output in definition.outputs:
-        outputs.append(PortDefinition(
-            output.name,
-            PortType.DATA,
-            _param_type_to_python(output.output_type),
-            description=output.description,
-        ))
+        outputs.append(
+            PortDefinition(
+                output.name,
+                PortType.DATA,
+                _param_type_to_python(output.output_type),
+                description=output.description,
+            )
+        )
 
     # Create the node definition
     node_def = NodeDefinition(

@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class PinType(Enum):
     """Types of pin operations supported by the HAL."""
+
     DIGITAL = auto()
     ANALOG = auto()
     PWM = auto()
@@ -29,6 +30,7 @@ class PinType(Enum):
 
 class PinMode(Enum):
     """Pin modes for configuration."""
+
     INPUT = auto()
     OUTPUT = auto()
     INPUT_PULLUP = auto()
@@ -38,6 +40,7 @@ class PinMode(Enum):
 @dataclass
 class PinCapability:
     """Describes the capabilities of a specific pin."""
+
     pin: int
     supported_types: set[PinType] = field(default_factory=set)
     max_value: int = 1  # For analog/PWM, max value (e.g., 255 for 8-bit PWM)
@@ -47,6 +50,7 @@ class PinCapability:
 @dataclass
 class BoardCapabilities:
     """Describes the overall capabilities of a board."""
+
     name: str
     pins: dict[int, PinCapability] = field(default_factory=dict)
     supports_analog: bool = False
@@ -59,6 +63,7 @@ class BoardCapabilities:
 
 class BoardConnectionState(Enum):
     """Connection states for the board."""
+
     DISCONNECTED = auto()
     CONNECTING = auto()
     CONNECTED = auto()
@@ -152,7 +157,9 @@ class BaseBoard(ABC):
         ...
 
     @abstractmethod
-    async def set_pin_mode(self, pin: int, mode: PinMode, pin_type: PinType = PinType.DIGITAL) -> None:
+    async def set_pin_mode(
+        self, pin: int, mode: PinMode, pin_type: PinType = PinType.DIGITAL
+    ) -> None:
         """
         Configure a pin's mode.
 

@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AgentResponse:
     """A response from the agent."""
+
     content: str = ""
     actions: list[AgentAction] = field(default_factory=list)
     is_complete: bool = False
@@ -146,21 +147,25 @@ class AgentController:
         try:
             hw_manager = self._core.hardware_manager
             for board_id, board in hw_manager.boards.items():
-                boards.append({
-                    "id": board_id,
-                    "name": board.name,
-                    "type": board.board_type,
-                    "connected": board.is_connected,
-                })
+                boards.append(
+                    {
+                        "id": board_id,
+                        "name": board.name,
+                        "type": board.board_type,
+                        "connected": board.is_connected,
+                    }
+                )
 
             for device_id, device in hw_manager.devices.items():
-                devices.append({
-                    "id": device_id,
-                    "name": device.name,
-                    "type": device.device_type,
-                    "pin": device.pin,
-                    "board": device.board_id,
-                })
+                devices.append(
+                    {
+                        "id": device_id,
+                        "name": device.name,
+                        "type": device.device_type,
+                        "pin": device.pin,
+                        "board": device.board_id,
+                    }
+                )
         except Exception as e:
             logger.warning(f"Failed to get hardware state: {e}")
 
@@ -213,11 +218,7 @@ class AgentController:
             AgentResponse objects as content streams in
         """
         if self._is_processing:
-            yield AgentResponse(
-                content="",
-                error="Already processing a message",
-                is_complete=True
-            )
+            yield AgentResponse(content="", error="Already processing a message", is_complete=True)
             return
 
         self._is_processing = True
@@ -276,7 +277,9 @@ class AgentController:
                         if not action.requires_confirmation:
                             action.confirm()
                             result = await self._execute_action(action)
-                            accumulated_content += f"\n\n**{action.description}**: {result.to_message()}"
+                            accumulated_content += (
+                                f"\n\n**{action.description}**: {result.to_message()}"
+                            )
 
                 # Store pending batch if there are confirmable actions
                 if batch.pending_actions:
@@ -285,36 +288,31 @@ class AgentController:
                     self._pending_batch = None
 
                 # Add assistant response to conversation
-                self._conversation.append(Message(
-                    role="assistant",
-                    content=accumulated_content,
-                ))
+                self._conversation.append(
+                    Message(
+                        role="assistant",
+                        content=accumulated_content,
+                    )
+                )
 
                 yield AgentResponse(
-                    content=accumulated_content,
-                    actions=batch.actions,
-                    is_complete=True
+                    content=accumulated_content, actions=batch.actions, is_complete=True
                 )
             else:
                 # No tool calls - just a text response
-                self._conversation.append(Message(
-                    role="assistant",
-                    content=accumulated_content,
-                ))
-
-                yield AgentResponse(
-                    content=accumulated_content,
-                    is_complete=True
+                self._conversation.append(
+                    Message(
+                        role="assistant",
+                        content=accumulated_content,
+                    )
                 )
+
+                yield AgentResponse(content=accumulated_content, is_complete=True)
 
         except Exception as e:
             logger.exception("Error processing message")
             self.add_error(str(e))
-            yield AgentResponse(
-                content="",
-                error=f"Error: {str(e)}",
-                is_complete=True
-            )
+            yield AgentResponse(content="", error=f"Error: {str(e)}", is_complete=True)
         finally:
             self._is_processing = False
 
@@ -330,16 +328,19 @@ class AgentController:
             # Handle string arguments (JSON)
             if isinstance(args, str):
                 import json
+
                 try:
                     args = json.loads(args)
                 except json.JSONDecodeError:
                     args = {}
 
-            calls.append(ToolCall(
-                id=tc.get("id", f"call_{i}"),
-                name=name,
-                arguments=args,
-            ))
+            calls.append(
+                ToolCall(
+                    id=tc.get("id", f"call_{i}"),
+                    name=name,
+                    arguments=args,
+                )
+            )
 
         return calls
 
@@ -354,10 +355,7 @@ class AgentController:
             AgentResponse with execution results
         """
         if not self._pending_batch:
-            return AgentResponse(
-                content="No pending actions to confirm.",
-                is_complete=True
-            )
+            return AgentResponse(content="No pending actions to confirm.", is_complete=True)
 
         results = []
 
@@ -372,10 +370,7 @@ class AgentController:
 
         content = "\n".join(results) if results else "No actions executed."
 
-        return AgentResponse(
-            content=content,
-            is_complete=True
-        )
+        return AgentResponse(content=content, is_complete=True)
 
     async def reject_actions(self, action_ids: Optional[list[str]] = None) -> AgentResponse:
         """
@@ -388,10 +383,7 @@ class AgentController:
             AgentResponse confirming rejection
         """
         if not self._pending_batch:
-            return AgentResponse(
-                content="No pending actions to reject.",
-                is_complete=True
-            )
+            return AgentResponse(content="No pending actions to reject.", is_complete=True)
 
         rejected = []
 
@@ -407,10 +399,7 @@ class AgentController:
 
         content = f"Rejected: {', '.join(rejected)}" if rejected else "No actions rejected."
 
-        return AgentResponse(
-            content=content,
-            is_complete=True
-        )
+        return AgentResponse(content=content, is_complete=True)
 
     async def _execute_action(self, action: AgentAction) -> ToolResult:
         """Execute a single action."""

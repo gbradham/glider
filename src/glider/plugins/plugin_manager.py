@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PluginInfo:
     """Information about a plugin."""
+
     name: str
     version: str = "1.0.0"
     description: str = ""
@@ -155,10 +156,10 @@ class PluginManager:
                 try:
                     # Handle different Python versions
                     eps = entry_points()
-                    if hasattr(eps, 'select'):
+                    if hasattr(eps, "select"):
                         # Python 3.10+
                         group_eps = eps.select(group=group)
-                    elif hasattr(eps, 'get'):
+                    elif hasattr(eps, "get"):
                         # Python 3.9
                         group_eps = eps.get(group, [])
                     else:
@@ -205,7 +206,7 @@ class PluginManager:
                 manifest_path = item / "manifest.json"
                 if manifest_path.exists():
                     try:
-                        with open(manifest_path, encoding='utf-8') as f:
+                        with open(manifest_path, encoding="utf-8") as f:
                             manifest = json.load(f)
 
                         info = PluginInfo.from_dict(manifest)
@@ -225,7 +226,9 @@ class PluginManager:
                     except UnicodeDecodeError as e:
                         logger.warning(f"Encoding error in manifest {manifest_path}: {e}")
                     except Exception as e:
-                        logger.warning(f"Unexpected error loading manifest from {item}: {type(e).__name__}: {e}")
+                        logger.warning(
+                            f"Unexpected error loading manifest from {item}: {type(e).__name__}: {e}"
+                        )
 
                 # Also check for __init__.py with glider_plugin info
                 elif (item / "__init__.py").exists():
@@ -296,8 +299,7 @@ class PluginManager:
                 if info.path:
                     # Load from file path
                     spec = importlib.util.spec_from_file_location(
-                        module_name,
-                        Path(info.path) / "__init__.py"
+                        module_name, Path(info.path) / "__init__.py"
                     )
                     if spec and spec.loader:
                         module = importlib.util.module_from_spec(spec)
@@ -373,6 +375,7 @@ class PluginManager:
         # Register board drivers
         if hasattr(module, "BOARD_DRIVERS"):
             from glider.core.hardware_manager import HardwareManager
+
             for driver_name, driver_class in module.BOARD_DRIVERS.items():
                 HardwareManager.register_driver(driver_name, driver_class)
                 logger.debug(f"Registered driver from plugin {info.name}: {driver_name}")
@@ -380,6 +383,7 @@ class PluginManager:
         # Register device types
         if hasattr(module, "DEVICE_TYPES"):
             from glider.hal.base_device import DEVICE_REGISTRY
+
             for device_name, device_class in module.DEVICE_TYPES.items():
                 DEVICE_REGISTRY[device_name] = device_class
                 logger.debug(f"Registered device from plugin {info.name}: {device_name}")
@@ -387,6 +391,7 @@ class PluginManager:
         # Register node types
         if hasattr(module, "NODE_TYPES"):
             from glider.core.flow_engine import FlowEngine
+
             for node_name, node_class in module.NODE_TYPES.items():
                 FlowEngine.register_node(node_name, node_class)
                 logger.debug(f"Registered node from plugin {info.name}: {node_name}")
@@ -479,6 +484,7 @@ class PluginManager:
 
         try:
             import subprocess
+
             result = subprocess.run(
                 [sys.executable, "-m", "pip", "install"] + info.requirements,
                 capture_output=True,

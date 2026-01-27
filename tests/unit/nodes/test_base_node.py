@@ -55,7 +55,7 @@ class TestPortDefinition:
             port_type=PortType.DATA,
             data_type=float,
             default_value=0.0,
-            description="An input port"
+            description="An input port",
         )
 
         assert port.name == "input_1"
@@ -85,7 +85,7 @@ class TestNodeDefinition:
             description="A test node",
             inputs=[PortDefinition(name="in_1")],
             outputs=[PortDefinition(name="out_1")],
-            color="#FF0000"
+            color="#FF0000",
         )
 
         assert definition.name == "TestNode"
@@ -97,10 +97,7 @@ class TestNodeDefinition:
 
     def test_default_values(self):
         """Test NodeDefinition default values."""
-        definition = NodeDefinition(
-            name="MinimalNode",
-            category=NodeCategory.LOGIC
-        )
+        definition = NodeDefinition(name="MinimalNode", category=NodeCategory.LOGIC)
 
         assert definition.description == ""
         assert definition.inputs == []
@@ -120,7 +117,7 @@ class ConcreteGliderNode(GliderNode):
         ],
         outputs=[
             PortDefinition(name="output"),
-        ]
+        ],
     )
 
     def update_event(self) -> None:
@@ -290,7 +287,7 @@ class ConcreteDataNode(DataNode):
         ],
         outputs=[
             PortDefinition(name="result"),
-        ]
+        ],
     )
 
     def process(self) -> None:

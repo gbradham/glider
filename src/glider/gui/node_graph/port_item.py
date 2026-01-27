@@ -12,14 +12,16 @@ from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsItem
 
 class PortSignals(QObject):
     """Signals for PortItem (QGraphicsItem can't have signals directly)."""
+
     connection_started = pyqtSignal(object)  # port item
     connection_finished = pyqtSignal(object)  # port item
 
 
 class PortType(Enum):
     """Types of ports."""
-    DATA = auto()    # Data flow port
-    EXEC = auto()    # Execution flow port
+
+    DATA = auto()  # Data flow port
+    EXEC = auto()  # Execution flow port
 
 
 class PortItem(QGraphicsEllipseItem):
@@ -34,8 +36,8 @@ class PortItem(QGraphicsEllipseItem):
 
     # Port colors by type
     PORT_COLORS = {
-        PortType.DATA: QColor(100, 180, 255),    # Blue
-        PortType.EXEC: QColor(255, 255, 255),    # White
+        PortType.DATA: QColor(100, 180, 255),  # Blue
+        PortType.EXEC: QColor(255, 255, 255),  # White
     }
 
     def __init__(
@@ -151,6 +153,7 @@ class PortItem(QGraphicsEllipseItem):
             painter.setBrush(QBrush(color.darker(150)))
 
         from PyQt6.QtGui import QPolygonF
+
         painter.drawPolygon(QPolygonF(points))
 
     def hoverEnterEvent(self, event) -> None:

@@ -26,15 +26,17 @@ logger = logging.getLogger(__name__)
 
 class DetectionBackend(Enum):
     """Available detection backends."""
+
     BACKGROUND_SUBTRACTION = auto()  # Fast, no model required
-    YOLO_V8 = auto()                 # Requires ultralytics (detection only)
-    YOLO_BYTETRACK = auto()          # YOLO + ByteTrack multi-object tracking
-    MOTION_ONLY = auto()             # Just motion detection
+    YOLO_V8 = auto()  # Requires ultralytics (detection only)
+    YOLO_BYTETRACK = auto()  # YOLO + ByteTrack multi-object tracking
+    MOTION_ONLY = auto()  # Just motion detection
 
 
 @dataclass
 class Detection:
     """Single detection result."""
+
     class_id: int
     class_name: str
     confidence: float
@@ -51,6 +53,7 @@ class Detection:
 @dataclass
 class TrackedObject:
     """Tracked object with persistent ID."""
+
     track_id: int
     class_name: str
     bbox: tuple[int, int, int, int]
@@ -73,6 +76,7 @@ class TrackedObject:
 @dataclass
 class MotionResult:
     """Motion detection result."""
+
     motion_detected: bool
     motion_area: float  # Percentage of frame with motion (0.0 to 1.0)
     motion_contours: list[np.ndarray] = field(default_factory=list)
@@ -82,6 +86,7 @@ class MotionResult:
 @dataclass
 class CVSettings:
     """Computer vision processing settings."""
+
     enabled: bool = True
     backend: DetectionBackend = DetectionBackend.BACKGROUND_SUBTRACTION
     model_path: Optional[str] = None  # For YOLO
@@ -120,7 +125,11 @@ class CVSettings:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "CVSettings":
         backend_name = data.get("backend", "BACKGROUND_SUBTRACTION")
-        backend = DetectionBackend[backend_name] if isinstance(backend_name, str) else DetectionBackend.BACKGROUND_SUBTRACTION
+        backend = (
+            DetectionBackend[backend_name]
+            if isinstance(backend_name, str)
+            else DetectionBackend.BACKGROUND_SUBTRACTION
+        )
 
         return cls(
             enabled=data.get("enabled", True),
@@ -225,7 +234,7 @@ class ObjectTracker:
         used_rows = set()
         used_cols = set()
 
-        for (row, col) in zip(rows, cols):
+        for row, col in zip(rows, cols):
             if row in used_rows or col in used_cols:
                 continue
 
@@ -326,6 +335,7 @@ class CVProcessor:
             config: ZoneConfiguration instance
         """
         from glider.vision.zones import ZoneTracker
+
         self._zone_config = config
         if config and config.zones:
             if self._zone_tracker is None:
@@ -362,24 +372,25 @@ class CVProcessor:
                 # Initialize background subtractor
                 if self._settings.backend in (
                     DetectionBackend.BACKGROUND_SUBTRACTION,
-                    DetectionBackend.MOTION_ONLY
+                    DetectionBackend.MOTION_ONLY,
                 ):
                     self._bg_subtractor = cv2.createBackgroundSubtractorMOG2(
                         history=500,
                         varThreshold=self._settings.motion_threshold,
-                        detectShadows=True
+                        detectShadows=True,
                     )
                     logger.info("Initialized background subtractor")
 
                 # Initialize YOLO if selected
-                elif self._settings.backend in (DetectionBackend.YOLO_V8, DetectionBackend.YOLO_BYTETRACK):
+                elif self._settings.backend in (
+                    DetectionBackend.YOLO_V8,
+                    DetectionBackend.YOLO_BYTETRACK,
+                ):
                     self._load_yolo_model()
 
                 # Initialize tracker
                 if self._settings.tracking_enabled:
-                    self._tracker = ObjectTracker(
-                        max_disappeared=self._settings.max_disappeared
-                    )
+                    self._tracker = ObjectTracker(max_disappeared=self._settings.max_disappeared)
                     logger.info("Initialized object tracker")
 
                 self._initialized = True
@@ -393,6 +404,7 @@ class CVProcessor:
         """Load YOLO model for detection."""
         try:
             from ultralytics import YOLO
+
             model_path = self._settings.model_path or "yolov8n.pt"
             self._yolo_model = YOLO(model_path)
             logger.info(f"Loaded YOLO model: {model_path}")
@@ -403,9 +415,7 @@ class CVProcessor:
             )
             self._settings.backend = DetectionBackend.BACKGROUND_SUBTRACTION
             self._bg_subtractor = cv2.createBackgroundSubtractorMOG2(
-                history=500,
-                varThreshold=self._settings.motion_threshold,
-                detectShadows=True
+                history=500, varThreshold=self._settings.motion_threshold, detectShadows=True
             )
         except Exception as e:
             logger.error(f"Failed to load YOLO model: {e}")
@@ -413,9 +423,7 @@ class CVProcessor:
             self._bg_subtractor = cv2.createBackgroundSubtractorMOG2()
 
     def process_frame(
-        self,
-        frame: np.ndarray,
-        timestamp: float
+        self, frame: np.ndarray, timestamp: float
     ) -> tuple[list[Detection], list[TrackedObject], MotionResult]:
         """
         Process a frame for detections, tracking, and motion.
@@ -516,23 +524,21 @@ class CVProcessor:
         if self._yolo_model is None:
             return []
 
-        results = self._yolo_model(
-            frame,
-            conf=self._settings.confidence_threshold,
-            verbose=False
-        )
+        results = self._yolo_model(frame, conf=self._settings.confidence_threshold, verbose=False)
 
         detections = []
         for r in results:
             for box in r.boxes:
                 x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
                 class_id = int(box.cls)
-                detections.append(Detection(
-                    class_id=class_id,
-                    class_name=r.names[class_id],
-                    confidence=float(box.conf),
-                    bbox=(int(x1), int(y1), int(x2 - x1), int(y2 - y1))
-                ))
+                detections.append(
+                    Detection(
+                        class_id=class_id,
+                        class_name=r.names[class_id],
+                        confidence=float(box.conf),
+                        bbox=(int(x1), int(y1), int(x2 - x1), int(y2 - y1)),
+                    )
+                )
         return detections
 
     def _bytetrack_to_tracked(self, detections: list[Detection]) -> list[TrackedObject]:
@@ -550,15 +556,17 @@ class CVProcessor:
                     self._bytetrack_ages[det.track_id] = 0
                 self._bytetrack_ages[det.track_id] += 1
 
-                tracked.append(TrackedObject(
-                    track_id=det.track_id,
-                    class_name=det.class_name,
-                    bbox=det.bbox,
-                    confidence=det.confidence,
-                    centroid=det.centroid,
-                    age=self._bytetrack_ages[det.track_id],
-                    disappeared=0
-                ))
+                tracked.append(
+                    TrackedObject(
+                        track_id=det.track_id,
+                        class_name=det.class_name,
+                        bbox=det.bbox,
+                        confidence=det.confidence,
+                        centroid=det.centroid,
+                        age=self._bytetrack_ages[det.track_id],
+                        disappeared=0,
+                    )
+                )
         return tracked
 
     def _detect_yolo_bytetrack(self, frame: np.ndarray) -> list[Detection]:
@@ -577,7 +585,7 @@ class CVProcessor:
             conf=self._settings.confidence_threshold,
             persist=True,  # Persist tracks across frames
             tracker="bytetrack.yaml",  # Use ByteTrack
-            verbose=False
+            verbose=False,
         )
 
         detections = []
@@ -598,7 +606,7 @@ class CVProcessor:
                     class_name=r.names[class_id],
                     confidence=float(box.conf),
                     bbox=(int(x1), int(y1), int(x2 - x1), int(y2 - y1)),
-                    track_id=track_id
+                    track_id=track_id,
                 )
                 detections.append(detection)
 
@@ -621,11 +629,7 @@ class CVProcessor:
         thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
 
         # Find contours
-        contours, _ = cv2.findContours(
-            thresh,
-            cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         detections = []
         for contour in contours:
@@ -634,12 +638,11 @@ class CVProcessor:
                 x, y, w, h = cv2.boundingRect(contour)
                 # Confidence based on contour area
                 confidence = min(1.0, area / 10000)
-                detections.append(Detection(
-                    class_id=0,
-                    class_name="object",
-                    confidence=confidence,
-                    bbox=(x, y, w, h)
-                ))
+                detections.append(
+                    Detection(
+                        class_id=0, class_name="object", confidence=confidence, bbox=(x, y, w, h)
+                    )
+                )
 
         return detections
 
@@ -658,17 +661,13 @@ class CVProcessor:
 
         # Find motion contours
         _, thresh = cv2.threshold(fg_mask, 200, 255, cv2.THRESH_BINARY)
-        contours, _ = cv2.findContours(
-            thresh,
-            cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         return MotionResult(
             motion_detected=motion_area > self._settings.motion_area_threshold,
             motion_area=motion_area,
             motion_contours=contours,
-            motion_mask=fg_mask
+            motion_mask=fg_mask,
         )
 
     def _update_trails(self, tracked: list[TrackedObject]) -> None:
@@ -693,7 +692,7 @@ class CVProcessor:
         frame: np.ndarray,
         detections: list[Detection],
         tracked: list[TrackedObject],
-        motion: Optional[MotionResult] = None
+        motion: Optional[MotionResult] = None,
     ) -> np.ndarray:
         """
         Draw detection/tracking overlays on frame.
@@ -722,19 +721,12 @@ class CVProcessor:
 
                 if self._settings.show_labels:
                     label = f"ID:{obj.track_id} {obj.class_name}"
-                    label_size, _ = cv2.getTextSize(
-                        label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1
-                    )
+                    label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
                     cv2.rectangle(
-                        output,
-                        (x, y - label_size[1] - 10),
-                        (x + label_size[0], y),
-                        color,
-                        -1
+                        output, (x, y - label_size[1] - 10), (x + label_size[0], y), color, -1
                     )
                     cv2.putText(
-                        output, label, (x, y - 5),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1
+                        output, label, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1
                     )
 
                 # Draw trail
@@ -755,8 +747,7 @@ class CVProcessor:
                 if self._settings.show_labels:
                     label = f"{det.class_name} {det.confidence:.2f}"
                     cv2.putText(
-                        output, label, (x, y - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness
+                        output, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness
                     )
 
         return output
@@ -809,7 +800,5 @@ class CVProcessor:
         if self._bg_subtractor:
             # Recreate background subtractor to reset learning
             self._bg_subtractor = cv2.createBackgroundSubtractorMOG2(
-                history=500,
-                varThreshold=self._settings.motion_threshold,
-                detectShadows=True
+                history=500, varThreshold=self._settings.motion_threshold, detectShadows=True
             )

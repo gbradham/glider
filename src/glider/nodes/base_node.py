@@ -22,20 +22,23 @@ logger = logging.getLogger(__name__)
 
 class NodeCategory(Enum):
     """Categories of nodes in GLIDER."""
-    HARDWARE = "hardware"   # Green border
-    LOGIC = "logic"         # Blue border
-    INTERFACE = "interface" # Orange border
+
+    HARDWARE = "hardware"  # Green border
+    LOGIC = "logic"  # Blue border
+    INTERFACE = "interface"  # Orange border
 
 
 class PortType(Enum):
     """Types of node ports."""
-    DATA = auto()      # Data flow
-    EXEC = auto()      # Execution flow
+
+    DATA = auto()  # Data flow
+    EXEC = auto()  # Execution flow
 
 
 @dataclass
 class PortDefinition:
     """Definition of a node port."""
+
     name: str
     port_type: PortType = PortType.DATA
     data_type: type = object
@@ -46,6 +49,7 @@ class PortDefinition:
 @dataclass
 class NodeDefinition:
     """Definition of a node type."""
+
     name: str
     category: NodeCategory
     description: str = ""
@@ -185,7 +189,11 @@ class GliderNode(ABC):
         if 0 <= index < len(self._outputs):
             self._outputs[index] = value
             # Notify callbacks
-            output_name = self.definition.outputs[index].name if index < len(self.definition.outputs) else str(index)
+            output_name = (
+                self.definition.outputs[index].name
+                if index < len(self.definition.outputs)
+                else str(index)
+            )
             for callback in self._update_callbacks:
                 try:
                     callback(output_name, value)

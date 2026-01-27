@@ -100,7 +100,7 @@ class DataRecorder:
         """Get list of device column names."""
         columns = []
         for device_id, device in self._hardware_manager.devices.items():
-            device_type = getattr(device, 'device_type', 'unknown')
+            device_type = getattr(device, "device_type", "unknown")
             columns.append(f"{device_id}:{device_type}")
         return columns
 
@@ -114,17 +114,17 @@ class DataRecorder:
         """Read the current state of a device."""
         try:
             # Try different methods to get device state
-            if hasattr(device, '_state'):
+            if hasattr(device, "_state"):
                 return device._state
-            if hasattr(device, 'get_state'):
+            if hasattr(device, "get_state"):
                 return await device.get_state()
-            if hasattr(device, 'read'):
+            if hasattr(device, "read"):
                 return await device.read()
-            if hasattr(device, '_angle'): # For ServoDevice
+            if hasattr(device, "_angle"):  # For ServoDevice
                 return device._angle
-            if hasattr(device, '_position'): # For MotorGovernorDevice
+            if hasattr(device, "_position"):  # For MotorGovernorDevice
                 return device._position
-            if hasattr(device, '_value'):
+            if hasattr(device, "_value"):
                 return device._value
             return None
         except Exception as e:
@@ -139,7 +139,9 @@ class DataRecorder:
             states[device_id] = state
         return states
 
-    def _write_metadata(self, experiment_name: str, session: Optional["ExperimentSession"] = None) -> None:
+    def _write_metadata(
+        self, experiment_name: str, session: Optional["ExperimentSession"] = None
+    ) -> None:
         """Write metadata header to the CSV file."""
         if self._writer is None:
             return
@@ -147,25 +149,29 @@ class DataRecorder:
         # Write metadata section
         self._writer.writerow(["# GLIDER Experiment Data"])
         self._writer.writerow(["# Experiment Name", experiment_name])
-        self._writer.writerow(["# Start Time", self._start_time.isoformat() if self._start_time else ""])
+        self._writer.writerow(
+            ["# Start Time", self._start_time.isoformat() if self._start_time else ""]
+        )
         self._writer.writerow(["# Sample Interval (s)", self._sample_interval])
         self._writer.writerow([])
 
         # Write board info
         self._writer.writerow(["# Boards"])
         for board_id, board in self._hardware_manager.boards.items():
-            board_type = getattr(board, 'board_type', 'unknown')
-            connected = getattr(board, 'is_connected', False)
-            self._writer.writerow(["#", board_id, board_type, "Connected" if connected else "Disconnected"])
+            board_type = getattr(board, "board_type", "unknown")
+            connected = getattr(board, "is_connected", False)
+            self._writer.writerow(
+                ["#", board_id, board_type, "Connected" if connected else "Disconnected"]
+            )
         self._writer.writerow([])
 
         # Write device info
         self._writer.writerow(["# Devices"])
         for device_id, device in self._hardware_manager.devices.items():
-            device_type = getattr(device, 'device_type', 'unknown')
-            board = getattr(device, 'board', None)
+            device_type = getattr(device, "device_type", "unknown")
+            board = getattr(device, "board", None)
             board_id = board.id if board else "none"
-            config = getattr(device, '_config', None)
+            config = getattr(device, "_config", None)
             pins = config.pins if config else {}
             pin_str = ", ".join(f"{k}={v}" for k, v in pins.items())
             self._writer.writerow(["#", device_id, device_type, f"board={board_id}", pin_str])
@@ -202,7 +208,7 @@ class DataRecorder:
         self._start_time = datetime.now()
 
         # Open file and create CSV writer
-        self._file = open(self._file_path, 'w', newline='', encoding='utf-8')
+        self._file = open(self._file_path, "w", newline="", encoding="utf-8")
         self._writer = csv.writer(self._file)
 
         # Write metadata and headers
@@ -239,7 +245,7 @@ class DataRecorder:
         states = await self._sample_devices()
 
         # Build row
-        row = [now.isoformat(timespec='milliseconds'), f"{elapsed_ms:.1f}"]
+        row = [now.isoformat(timespec="milliseconds"), f"{elapsed_ms:.1f}"]
 
         # Add device states in column order
         for col in self._device_columns:

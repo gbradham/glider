@@ -448,11 +448,19 @@ class FlowEngine:
         try:
             if hasattr(to_node, 'execute') and callable(to_node.execute):
                 logger.info(f"Executing node: {to_node_id} (type: {type(to_node).__name__})")
-                if asyncio.iscoroutinefunction(to_node.execute):
-                    await to_node.execute()
-                else:
-                    to_node.execute()
-                logger.info(f"Node {to_node_id} execution complete")
+                try:
+                    if asyncio.iscoroutinefunction(to_node.execute):
+                        await to_node.execute()
+                    else:
+                        to_node.execute()
+                    logger.info(f"Node {to_node_id} execution complete")
+                except Exception as e:
+                    # User-facing error handling for node execution failures
+                    error_msg = f"Error executing node '{to_node_id}' ({type(to_node).__name__}): {str(e)}"
+                    logger.error(error_msg, exc_info=True)
+                    self._notify_error(to_node_id, e)
+                    # Don't propagate execution further on error
+                    return
 
                 # Check if this was EndExperiment - signal flow completion
                 if hasattr(to_node, 'definition') and to_node.definition.name == "EndExperiment":
@@ -460,8 +468,9 @@ class FlowEngine:
             else:
                 logger.warning(f"Node {to_node_id} has no execute method")
         except Exception as e:
-            logger.error(f"Error executing node {to_node_id}: {e}")
-            self._notify_error(to_node_id, e)
+            # Catch-all for unexpected framework errors
+            logger.critical(f"Critical framework error during execution propagation: {e}", exc_info=True)
+            self._notify_error("Framework", e)
 
     def remove_connection(self, connection_id: str) -> None:
         """Remove a connection."""

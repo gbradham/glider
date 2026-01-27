@@ -173,6 +173,35 @@ class AgentController:
             custom_instructions=self._config.custom_instructions,
         )
 
+    def _sanitize_input(self, text: str) -> str:
+        """
+        Sanitize user input to mitigate prompt injection.
+        
+        Args:
+            text: Raw user input
+            
+        Returns:
+            Sanitized input
+        """
+        if not text:
+            return ""
+            
+        # Basic sanitization:
+        # 1. Remove any potential control characters
+        # 2. Escape common markdown delimiters that might be used for injection
+        # 3. Limit length to reasonable maximum
+        
+        # Remove null bytes and other non-printable characters
+        sanitized = "".join(char for char in text if char.isprintable() or char in "\n\r\t")
+        
+        # Limit length (e.g., 4000 characters)
+        MAX_INPUT_LENGTH = 4000
+        if len(sanitized) > MAX_INPUT_LENGTH:
+            logger.warning(f"Input truncated from {len(sanitized)} to {MAX_INPUT_LENGTH} chars")
+            sanitized = sanitized[:MAX_INPUT_LENGTH]
+            
+        return sanitized.strip()
+
     async def process_message(self, user_message: str) -> AsyncIterator[AgentResponse]:
         """
         Process a user message and yield streaming responses.
@@ -194,6 +223,12 @@ class AgentController:
         self._is_processing = True
 
         try:
+            # Sanitize user input
+            user_message = self._sanitize_input(user_message)
+            if not user_message:
+                yield AgentResponse(content="No message provided", is_complete=True)
+                return
+
             # Add user message to conversation
             self._conversation.append(Message(role="user", content=user_message))
 

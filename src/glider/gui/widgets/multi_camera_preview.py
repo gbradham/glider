@@ -26,6 +26,10 @@ class CameraPreviewTile(QFrame):
 
     Shows camera feed with label, primary indicator,
     and recording status.
+
+    Thread Safety:
+    - All methods must be called from the main Qt thread
+    - update_frame() creates QPixmap which is not thread-safe
     """
 
     clicked = pyqtSignal(str)  # camera_id when clicked
@@ -197,6 +201,10 @@ class MultiCameraPreviewWidget(QWidget):
     - 3-4 cameras: 2x2 grid
     - 5-6 cameras: 2x3 grid
     - 7+ cameras: 3x3 grid
+
+    Thread Safety:
+    - All methods must be called from the main Qt thread
+    - Frame updates from CameraPanel are marshaled to main thread via signals
     """
 
     primary_changed = pyqtSignal(str)  # camera_id of new primary

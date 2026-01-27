@@ -58,6 +58,8 @@ from glider.gui.commands import (
 )
 from glider.gui.dialogs.calibration_dialog import CalibrationDialog
 from glider.gui.dialogs.camera_settings_dialog import CameraSettingsDialog
+from glider.gui.dialogs.experiment_dialog import ExperimentDialog
+from glider.gui.dialogs.subject_dialog import SubjectDialog
 from glider.gui.dialogs.zone_dialog import ZoneDialog
 from glider.gui.node_graph.graph_view import NodeGraphView
 from glider.gui.panels.camera_panel import CameraPanel
@@ -769,6 +771,9 @@ class MainWindow(QMainWindow):
         if not self._view_manager.is_runner_mode:
             self._files_dock.setVisible(False)
 
+        # Experiment dialog (opened from menu)
+        self._experiment_dialog: ExperimentDialog | None = None
+
         # Refresh hardware tree (which also refreshes the device combo)
         self._refresh_hardware_tree()
 
@@ -825,6 +830,19 @@ class MainWindow(QMainWindow):
         self._redo_action.triggered.connect(self._on_redo)
         self._redo_action.setEnabled(False)
         edit_menu.addAction(self._redo_action)
+
+        # Experiment menu
+        experiment_menu = menubar.addMenu("E&xperiment")
+
+        experiment_settings_action = QAction("Experiment &Settings...", self)
+        experiment_settings_action.triggered.connect(self._on_open_experiment_dialog)
+        experiment_menu.addAction(experiment_settings_action)
+
+        experiment_menu.addSeparator()
+
+        add_subject_action = QAction("&Add Subject...", self)
+        add_subject_action.triggered.connect(lambda: self._on_edit_subject(""))
+        experiment_menu.addAction(add_subject_action)
 
         # View menu
         view_menu = menubar.addMenu("&View")
@@ -1578,6 +1596,8 @@ class MainWindow(QMainWindow):
             self._refresh_custom_devices()
             self._refresh_flow_functions()
             self._refresh_zones()
+            if self._experiment_dialog:
+                self._experiment_dialog.set_session(self._core.session)
 
     def _on_open(self) -> None:
         """Open experiment file."""
@@ -1613,6 +1633,8 @@ class MainWindow(QMainWindow):
                 self._refresh_custom_devices()
                 self._refresh_flow_functions()
                 self._refresh_zones()
+                if self._experiment_dialog:
+                    self._experiment_dialog.set_session(self._core.session)
                 self.statusBar().showMessage(f"Opened: {file_path}")
             except Exception as e:
                 logger.exception(f"Failed to open file: {e}")
@@ -2565,6 +2587,64 @@ class MainWindow(QMainWindow):
             self._refresh_zones()
 
             logger.info(f"Zone configuration updated: {len(self._zone_config.zones)} zones")
+
+    def _on_experiment_metadata_changed(self) -> None:
+        """Handle experiment metadata changes from the experiment dialog."""
+        # Mark session as dirty so changes are saved
+        self._core.session._dirty = True
+        logger.debug("Experiment metadata changed")
+
+    def _on_open_experiment_dialog(self) -> None:
+        """Open the experiment settings dialog."""
+        if self._experiment_dialog is None:
+            self._experiment_dialog = ExperimentDialog(
+                session=self._core.session,
+                parent=self,
+                is_touch_mode=self._view_manager.is_runner_mode,
+            )
+            self._experiment_dialog.metadata_changed.connect(self._on_experiment_metadata_changed)
+            self._experiment_dialog.edit_subject_requested.connect(self._on_edit_subject)
+        else:
+            # Refresh dialog with current session
+            self._experiment_dialog.set_session(self._core.session)
+
+        self._experiment_dialog.show()
+        self._experiment_dialog.raise_()
+        self._experiment_dialog.activateWindow()
+
+    def _on_edit_subject(self, subject_id: str) -> None:
+        """Handle subject edit request from experiment dialog."""
+
+        subject = None
+        if subject_id:
+            subject = self._core.session.metadata.get_subject(subject_id)
+
+        dialog = SubjectDialog(
+            subject=subject,
+            parent=self._experiment_dialog if self._experiment_dialog else self,
+            is_touch_mode=self._view_manager.is_runner_mode,
+        )
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            new_subject = dialog.get_subject()
+            if subject_id and subject:
+                # Update existing subject
+                metadata = self._core.session.metadata
+                for i, s in enumerate(metadata.subjects):
+                    if s.id == new_subject.id:
+                        metadata.subjects[i] = new_subject
+                        self._core.session._dirty = True
+                        break
+                logger.info(f"Updated subject: {new_subject.subject_id}")
+            else:
+                # Add new subject
+                self._core.session.metadata.add_subject(new_subject)
+                self._core.session._dirty = True
+                logger.info(f"Added subject: {new_subject.subject_id}")
+
+            # Refresh the experiment dialog if it's open
+            if self._experiment_dialog:
+                self._experiment_dialog.refresh()
 
     def _load_zones_from_session(self) -> None:
         """Load zone configuration from the current session."""

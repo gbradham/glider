@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
+    from glider.core.experiment_session import ExperimentSession
     from glider.vision.calibration import CameraCalibration
     from glider.vision.cv_processor import TrackedObject
     from glider.vision.zones import ZoneConfiguration
@@ -146,12 +147,17 @@ class TrackingDataLogger:
         safe_name = safe_name.strip().replace(" ", "_") or "experiment"
         return f"{safe_name}_{timestamp}_tracking.csv"
 
-    async def start(self, experiment_name: str = "experiment") -> Path:
+    async def start(
+        self,
+        experiment_name: str = "experiment",
+        session: "ExperimentSession | None" = None,
+    ) -> Path:
         """
         Start logging tracking data.
 
         Args:
             experiment_name: Name for the log file
+            session: Optional experiment session for additional metadata
 
         Returns:
             Path to the log file being created
@@ -179,6 +185,47 @@ class TrackingDataLogger:
         self._writer.writerow(["# GLIDER Tracking Data"])
         self._writer.writerow(["# Experiment", experiment_name])
         self._writer.writerow(["# Start Time", self._start_time.isoformat()])
+
+        # Write experiment metadata if session available
+        if session and session.metadata:
+            metadata = session.metadata
+            if metadata.protocol:
+                self._writer.writerow(["# Protocol", metadata.protocol])
+            if metadata.experiment_type:
+                self._writer.writerow(["# Experiment Type", metadata.experiment_type])
+            if metadata.experimenter:
+                self._writer.writerow(["# Experimenter", metadata.experimenter])
+            if metadata.lab:
+                self._writer.writerow(["# Lab", metadata.lab])
+            if metadata.project:
+                self._writer.writerow(["# Project", metadata.project])
+
+            # Write active subject info
+            active_subject = metadata.get_active_subject()
+            if active_subject:
+                self._writer.writerow([])
+                self._writer.writerow(["# Active Subject"])
+                self._writer.writerow(["# Subject ID", active_subject.subject_id])
+                if active_subject.name:
+                    self._writer.writerow(["# Subject Name", active_subject.name])
+                if active_subject.group:
+                    self._writer.writerow(["# Group", active_subject.group])
+                if active_subject.sex:
+                    self._writer.writerow(["# Sex", active_subject.sex])
+                if active_subject.age:
+                    self._writer.writerow(["# Age", active_subject.age])
+                if active_subject.weight:
+                    self._writer.writerow(["# Weight", active_subject.weight])
+                if active_subject.strain:
+                    self._writer.writerow(["# Strain", active_subject.strain])
+                if active_subject.solution:
+                    self._writer.writerow(["# Solution", active_subject.solution])
+                if active_subject.concentration:
+                    self._writer.writerow(["# Concentration", active_subject.concentration])
+                if active_subject.dose:
+                    self._writer.writerow(["# Dose", active_subject.dose])
+                if active_subject.route:
+                    self._writer.writerow(["# Route", active_subject.route])
 
         # Write calibration info if available
         if self._calibration and self._calibration.is_calibrated:

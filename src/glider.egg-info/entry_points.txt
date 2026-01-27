@@ -1,6 +1,0 @@
-[console_scripts]
-glider = glider.__main__:main
-
-[glider.driver]
-arduino = glider.hal.boards.telemetrix_board:TelemetrixBoard
-raspberry_pi = glider.hal.boards.pi_gpio_board:PiGPIOBoard

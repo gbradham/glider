@@ -83,5 +83,17 @@ target-version = ["py38", "py39", "py310", "py311", "py312"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
-ignore = ["E501"]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "N802",  # function name should be lowercase (Qt method overrides use camelCase)
+    "N812",  # lowercase imported as non-lowercase (intentional for hardware libraries)
+    "B027",  # empty method in ABC without abstract decorator (intentional for optional overrides)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Hardware abstraction files use imports for availability checking
+"src/glider/hal/boards/*.py" = ["F401"]
+"src/glider/hal/base_device.py" = ["F401"]

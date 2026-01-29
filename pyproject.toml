@@ -40,6 +40,7 @@ dependencies = [
     "adafruit-circuitpython-ads1x15",
     "ryvencore>=0.4.0",
     "ultralytics>=8.0.0",
+    "pandas>=2.0.0",
 ]
 
 [project.optional-dependencies]

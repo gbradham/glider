@@ -1,7 +1,7 @@
 """
 LLM Backend
 
-Provides abstraction over different LLM providers with focus on Ollama.
+Provides abstraction over different LLM providers with focus on O3.
 """
 
 import json

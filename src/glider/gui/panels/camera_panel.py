@@ -360,7 +360,7 @@ class CameraPanel(QWidget):
         # CV options
         cv_layout = QHBoxLayout()
 
-        self._cv_enabled_cb = QCheckBox("Enable CV")
+        self._cv_enabled_cb = QCheckBox("CV")
         self._cv_enabled_cb.setChecked(True)
         self._cv_enabled_cb.toggled.connect(self._on_cv_toggle)
         cv_layout.addWidget(self._cv_enabled_cb)

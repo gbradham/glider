@@ -13,6 +13,8 @@ from datetime import datetime
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
+from glider.serialization.atomic import atomic_write_text
+
 if TYPE_CHECKING:
     pass
 
@@ -104,7 +106,7 @@ class SessionMetadata:
     version: str = "1.0.0"
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     modified_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    glider_version: str = "1.0.0"
+    glider_version: str = "0.3.0"
 
     # Experiment fields
     protocol: str = ""
@@ -151,7 +153,7 @@ class SessionMetadata:
             version=data.get("version", "1.0.0"),
             created_at=data.get("created_at", datetime.now().isoformat()),
             modified_at=data.get("modified_at", datetime.now().isoformat()),
-            glider_version=data.get("glider_version", "1.0.0"),
+            glider_version=data.get("glider_version", "0.3.0"),
             protocol=data.get("protocol", ""),
             experiment_type=data.get("experiment_type", ""),
             experimenter=data.get("experimenter", ""),
@@ -832,8 +834,7 @@ class ExperimentSession:
                 raise ValueError("No file path specified")
             file_path = self._file_path
 
-        with open(file_path, "w") as f:
-            f.write(self.to_json())
+        atomic_write_text(file_path, self.to_json())
 
         self._file_path = file_path
         self._mark_clean()

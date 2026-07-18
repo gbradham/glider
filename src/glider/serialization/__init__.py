@@ -5,6 +5,7 @@ Provides save/load functionality for experiment sessions with
 JSON schema validation.
 """
 
+from glider.serialization.atomic import atomic_write_bytes, atomic_write_text
 from glider.serialization.schema import (
     ConnectionSchema,
     DashboardConfigSchema,
@@ -24,4 +25,6 @@ __all__ = [
     "SchemaValidationError",
     "ExperimentSerializer",
     "get_serializer",
+    "atomic_write_text",
+    "atomic_write_bytes",
 ]

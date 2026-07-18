@@ -9,11 +9,29 @@ from typing import TYPE_CHECKING, Any
 
 from glider.agent.actions import ActionType, AgentAction
 from glider.agent.llm_backend import ToolDefinition
+from glider.core.types import SessionState
 
 if TYPE_CHECKING:
     from glider.core.glider_core import GliderCore
 
 logger = logging.getLogger(__name__)
+
+# Tools that only read state are safe to run during an active experiment.
+# Any tool NOT in this set mutates hardware or configuration and is rejected
+# while the session is RUNNING or PAUSED.
+READ_ONLY_HARDWARE_TOOLS: frozenset[str] = frozenset(
+    {
+        "list_boards",
+        "list_devices",
+        "scan_ports",
+        "get_pin_capabilities",
+    }
+)
+
+# States in which it is unsafe for the agent to mutate hardware config.
+_LOCKED_SESSION_STATES: frozenset[SessionState] = frozenset(
+    {SessionState.RUNNING, SessionState.PAUSED, SessionState.STOPPING}
+)
 
 
 # Tool Definitions
@@ -193,6 +211,25 @@ class HardwareToolExecutor:
         method = getattr(self, f"_execute_{tool_name}", None)
         if method is None:
             return {"success": False, "error": f"Unknown tool: {tool_name}"}
+
+        # Reject hardware-mutating calls while an experiment is in flight.
+        # Reconfiguring pins mid-run can leave outputs in undefined states
+        # and corrupts the data timeline.
+        if tool_name not in READ_ONLY_HARDWARE_TOOLS:
+            session = self._core.session
+            if session is not None and session.state in _LOCKED_SESSION_STATES:
+                logger.warning(
+                    "Rejecting hardware tool '%s' — session state is %s",
+                    tool_name,
+                    session.state.name,
+                )
+                return {
+                    "success": False,
+                    "error": (
+                        f"Cannot run '{tool_name}' while experiment is "
+                        f"{session.state.name}. Stop the experiment first."
+                    ),
+                }
 
         try:
             result = await method(args)

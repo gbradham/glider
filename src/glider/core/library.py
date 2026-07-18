@@ -12,6 +12,7 @@ from typing import Any, Optional
 
 from glider.core.custom_device import CustomDeviceDefinition
 from glider.core.flow_function import FlowFunctionDefinition
+from glider.serialization.atomic import atomic_write_text
 
 logger = logging.getLogger(__name__)
 
@@ -82,8 +83,7 @@ class DeviceLibrary:
             "definition": definition.to_dict(),
         }
 
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+        atomic_write_text(path, json.dumps(data, indent=2))
 
         logger.info(f"Exported custom device '{definition.name}' to {path}")
         return path
@@ -167,8 +167,7 @@ class DeviceLibrary:
             "definition": definition.to_dict(),
         }
 
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+        atomic_write_text(path, json.dumps(data, indent=2))
 
         logger.info(f"Exported flow function '{definition.name}' to {path}")
         return path
@@ -257,8 +256,7 @@ class DeviceLibrary:
         if not str(path).endswith(LIBRARY_EXTENSION):
             path = Path(str(path) + LIBRARY_EXTENSION)
 
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+        atomic_write_text(path, json.dumps(data, indent=2))
 
         logger.info(
             f"Exported library with {len(devices)} devices and {len(functions)} functions to {path}"

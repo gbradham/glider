@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QScroller,
@@ -1105,18 +1106,52 @@ class CameraSettingsDialog(QDialog):
             self._timeout_spin.setValue(10.0)
 
     def _on_led_power_changed(self, value: int):
-        """Handle LED power slider change - update label and apply live if streaming."""
+        """Handle LED power slider change - update label and apply live if streaming.
+
+        Surface I2C failures so the operator's slider position and the actual
+        LED state cannot drift apart silently.
+        """
         self._led_power_label.setText(f"{value}%")
-        # Apply live if camera manager is available and connected
-        if self._camera_manager is not None and self._camera_manager.is_connected:
-            self._camera_manager.set_led_power(value)
+        if self._camera_manager is None or not self._camera_manager.is_connected:
+            return
+        try:
+            ok = self._camera_manager.set_led_power(value)
+        except ValueError as e:
+            self._led_power_label.setText(f"{value}% (rejected)")
+            QMessageBox.warning(self, "LED Power Out of Range", str(e))
+            return
+        if not ok:
+            self._led_power_label.setText(f"{value}% (failed)")
+            QMessageBox.warning(
+                self,
+                "LED Command Failed",
+                f"Could not set LED power to {value}%. "
+                "Check camera connection and that miniscope mode is enabled.",
+            )
 
     def _on_ewl_focus_changed(self, value: int):
-        """Handle EWL focus slider change - update label and apply live if streaming."""
+        """Handle EWL focus slider change - update label and apply live if streaming.
+
+        Surface I2C failures so the recorded experiment focus matches the
+        operator's intent.
+        """
         self._ewl_focus_label.setText(str(value))
-        # Apply live if camera manager is available and connected
-        if self._camera_manager is not None and self._camera_manager.is_connected:
-            self._camera_manager.set_ewl_focus(value)
+        if self._camera_manager is None or not self._camera_manager.is_connected:
+            return
+        try:
+            ok = self._camera_manager.set_ewl_focus(value)
+        except ValueError as e:
+            self._ewl_focus_label.setText(f"{value} (rejected)")
+            QMessageBox.warning(self, "EWL Focus Out of Range", str(e))
+            return
+        if not ok:
+            self._ewl_focus_label.setText(f"{value} (failed)")
+            QMessageBox.warning(
+                self,
+                "EWL Focus Command Failed",
+                f"Could not set EWL focus to {value}. "
+                "Check camera connection and that miniscope mode is enabled.",
+            )
 
     def _browse_model(self):
         """Browse for YOLO model file."""

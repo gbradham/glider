@@ -343,6 +343,7 @@ class ConcreteExecNode(ExecNode):
     definition = NodeDefinition(
         name="DelayNode",
         category=NodeCategory.LOGIC,
+        outputs=[PortDefinition(name="next", port_type=PortType.EXEC)],
     )
 
     async def execute(self) -> None:
@@ -353,26 +354,26 @@ class ConcreteExecNode(ExecNode):
 class TestExecNode:
     """Tests for ExecNode class."""
 
-    def test_exec_callbacks(self):
-        """Test execution output callbacks."""
+    def test_exec_output_uses_standard_update_callbacks(self):
+        """Exec output uses the same callback channel as flow connections."""
         node = ConcreteExecNode()
         callback = MagicMock()
 
-        node.on_exec(callback)
+        node.on_output_update(callback)
         node.exec_output(0)
 
-        callback.assert_called_once_with(0)
+        callback.assert_called_once_with("next", True)
 
     @pytest.mark.asyncio
     async def test_execute(self):
         """Test async execute method."""
         node = ConcreteExecNode()
         callback = MagicMock()
-        node.on_exec(callback)
+        node.on_output_update(callback)
 
         await node.execute()
 
-        callback.assert_called_once_with(0)
+        callback.assert_called_once_with("next", True)
 
 
 class TestInterfaceNode:

@@ -12,6 +12,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
+from glider.serialization.atomic import atomic_write_text
+
 logger = logging.getLogger(__name__)
 
 
@@ -101,8 +103,7 @@ class AgentConfig:
             data["api_key_env"] = f"{self.provider.name}_API_KEY"
 
         try:
-            with open(config_path, "w") as f:
-                json.dump(data, f, indent=2)
+            atomic_write_text(config_path, json.dumps(data, indent=2))
             logger.info(f"Saved agent config to {config_path}")
         except Exception as e:
             logger.error(f"Failed to save agent config: {e}")

@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+title: "GLIDER: General Laboratory Interface for Design, Experimentation, and Recording"
+message: "If you use this software, please cite it using these metadata."
+type: software
+authors:
+  - family-names: "LaingLab"
+    name-particle: ""
+repository-code: "https://github.com/LaingLab/glider"
+url: "https://github.com/LaingLab/glider"
+abstract: >-
+  GLIDER is a visual-programming environment for designing, running, and
+  recording behavioral and physiological experiments. It connects directly
+  to Arduino, Raspberry Pi GPIO, I2C devices, USB cameras, and the UCLA
+  Miniscope V4, producing synchronized CSV and video output suitable for
+  scientific analysis.
+keywords:
+  - neuroscience
+  - behavior
+  - electrophysiology
+  - laboratory automation
+  - data acquisition
+  - miniscope
+  - arduino
+  - raspberry pi
+license: MIT
+version: 0.3.0
+date-released: "2026-07-18"

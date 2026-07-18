@@ -15,6 +15,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
 
+from glider.serialization.atomic import atomic_write_text
+
 import cv2
 import numpy as np
 
@@ -316,9 +318,8 @@ class ZoneConfiguration:
         return config
 
     def save(self, path: Path) -> None:
-        """Save configuration to JSON file."""
-        with open(path, "w") as f:
-            json.dump(self.to_dict(), f, indent=2)
+        """Save configuration to JSON file (atomic)."""
+        atomic_write_text(path, json.dumps(self.to_dict(), indent=2))
         logger.info(f"Saved zone configuration to {path}")
 
     def load(self, path: Path) -> bool:

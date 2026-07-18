@@ -627,8 +627,20 @@ class ADS1115Device(BaseDevice):
         return self.GAIN_RANGES.get(self._gain, 4.096)
 
     async def initialize(self) -> None:
-        """Initialize the ADS1115 via I2C."""
+        """Initialize the ADS1115 via I2C.
+
+        The I2C probe is wrapped in a timeout: if the chip is not on the bus
+        (loose wire, wrong address, power flicker) the underlying driver can
+        block for a long time, and because this runs on the qasync event loop
+        that freezes the UI. 3 s is generous for a real I2C bus scan and
+        short enough that the operator gets a clear failure.
+        """
         import asyncio
+
+        # Longer than DEVICE_IO_TIMEOUT_S (2s) because the very first I2C bus
+        # open on a Pi includes driver probe time; subsequent reads use the
+        # shorter bound enforced at the hardware-manager layer.
+        I2C_INIT_TIMEOUT_S = 3.0
 
         def _init_ads():
             try:
@@ -652,7 +664,15 @@ class ADS1115Device(BaseDevice):
                     "pip install adafruit-circuitpython-ads1x15"
                 ) from e
 
-        self._ads = await asyncio.to_thread(_init_ads)
+        try:
+            self._ads = await asyncio.wait_for(
+                asyncio.to_thread(_init_ads), timeout=I2C_INIT_TIMEOUT_S
+            )
+        except asyncio.TimeoutError as e:
+            raise RuntimeError(
+                f"ADS1115 at address 0x{self._i2c_address:02X} did not respond within "
+                f"{I2C_INIT_TIMEOUT_S}s. Check wiring, power, and i2cdetect output."
+            ) from e
         self._initialized = True
         logger.info(f"ADS1115 initialized at address 0x{self._i2c_address:02X}")
 

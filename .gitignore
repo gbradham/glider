@@ -179,3 +179,7 @@ pyrightconfig.json
 .claude/*
 *.cpython-313.pyc
 *.glider
+
+# Local agent instructions and generated documentation
+AGENTS.md
+docs/GLIDER_Technical_Documentation.pdf

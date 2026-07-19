@@ -549,11 +549,21 @@ class GliderCore:
 
     async def _ensure_devices_initialized(self) -> None:
         """Ensure all devices are initialized before starting experiment."""
+        from glider.core.hardware_manager import DEVICE_IO_TIMEOUT_S
+
         for device_id, device in self._hardware_manager.devices.items():
             if not getattr(device, "_initialized", False):
                 logger.info(f"Initializing device: {device_id}")
                 try:
-                    await device.initialize()
+                    await asyncio.wait_for(
+                        device.initialize(), timeout=DEVICE_IO_TIMEOUT_S
+                    )
+                except asyncio.TimeoutError:
+                    logger.error(
+                        "Timed out initializing device %s after %.1fs (board unresponsive?)",
+                        device_id,
+                        DEVICE_IO_TIMEOUT_S,
+                    )
                 except Exception as e:
                     logger.error(f"Failed to initialize device {device_id}: {e}")
 
@@ -681,19 +691,54 @@ class GliderCore:
                 logger.error(f"Failed to stop tracking logger: {e}")
 
         # Set all devices to LOW/safe state for safety
-        await self._set_all_devices_low()
+        safe_state_failures = await self._set_all_devices_low()
 
-        self._session.state = SessionState.READY
+        if safe_state_failures:
+            # At least one output device could not be driven to a safe state.
+            # Do NOT advance to READY — that signals "safe to power down" to the
+            # UI and downstream logic. Transition to ERROR so the operator is
+            # alerted and can manually verify hardware before the next run.
+            failure_summary = ", ".join(
+                f"{dev_id} ({err})" for dev_id, err in safe_state_failures
+            )
+            logger.critical(
+                "Experiment stopped but %d device(s) failed safe-state transition: %s. "
+                "Physical outputs may still be active. Session state -> ERROR.",
+                len(safe_state_failures),
+                failure_summary,
+            )
+            self._session.state = SessionState.ERROR
+        else:
+            self._session.state = SessionState.READY
 
-    async def _set_all_devices_low(self) -> None:
-        """Set all output devices to LOW/off state for safety."""
+    async def _set_all_devices_low(self) -> list[tuple[str, str]]:
+        """Set all output devices to LOW/off state for safety.
+
+        Returns a list of ``(device_id, error_message)`` tuples for every
+        device whose ``shutdown()`` raised. An empty list means every device
+        successfully reached its safe state.
+        """
+        from glider.core.hardware_manager import DEVICE_IO_TIMEOUT_S
+
+        failures: list[tuple[str, str]] = []
         for device_id, device in self._hardware_manager.devices.items():
+            if not hasattr(device, "shutdown"):
+                continue
             try:
-                if hasattr(device, "shutdown"):
-                    await device.shutdown()
-                    logger.debug(f"Set device {device_id} to safe state")
+                await asyncio.wait_for(device.shutdown(), timeout=DEVICE_IO_TIMEOUT_S)
+                logger.debug(f"Set device {device_id} to safe state")
+            except asyncio.TimeoutError:
+                msg = f"timed out after {DEVICE_IO_TIMEOUT_S}s"
+                logger.error(
+                    "Timed out setting device %s to safe state after %.1fs",
+                    device_id,
+                    DEVICE_IO_TIMEOUT_S,
+                )
+                failures.append((device_id, msg))
             except Exception as e:
                 logger.error(f"Error setting device {device_id} to safe state: {e}")
+                failures.append((device_id, str(e)))
+        return failures
 
     async def pause_experiment(self) -> None:
         """Pause the running experiment."""

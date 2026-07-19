@@ -64,7 +64,6 @@ class ZoneInputNode(InterfaceNode):
         self._zone_name: str = "Unnamed Zone"
         self._occupied = False
         self._object_count = 0
-        self._exec_callbacks: list[Callable[[int], None]] = []
 
         # Set outputs to initial values
         self._outputs = [False, 0, None, None]
@@ -96,18 +95,6 @@ class ZoneInputNode(InterfaceNode):
     def object_count(self) -> int:
         """Number of objects in the zone."""
         return self._object_count
-
-    def on_exec(self, callback: Callable[[int], None]) -> None:
-        """Register callback for execution output triggers."""
-        self._exec_callbacks.append(callback)
-
-    def exec_output(self, index: int = 0) -> None:
-        """Trigger execution flow output."""
-        for callback in self._exec_callbacks:
-            try:
-                callback(index)
-            except Exception as e:
-                logger.error(f"Exec callback error: {e}")
 
     def update_zone_state(
         self, occupied: bool, object_count: int, entered: bool, exited: bool

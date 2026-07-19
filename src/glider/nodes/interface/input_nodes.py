@@ -101,9 +101,10 @@ class ToggleSwitchNode(InterfaceNode):
         """Toggle the switch state."""
         self._state = not self._state
         self.set_output(0, self._state)
-        # Trigger changed exec output
-        for callback in getattr(self, "_exec_callbacks", []):
-            callback(1)
+        # Trigger Changed exec output (output index 1) — routes through
+        # _update_callbacks via the inherited exec_output, which is what
+        # flow_engine subscribes to.
+        self.exec_output(1)
 
     def set_state_value(self, value: bool) -> None:
         """Set the switch state directly."""
@@ -268,9 +269,9 @@ class NumericInputNode(InterfaceNode):
     def submit(self) -> None:
         """Called when value is submitted (e.g., Enter key)."""
         self.set_output(0, self._value)
-        # Trigger submitted exec output
-        for callback in getattr(self, "_exec_callbacks", []):
-            callback(1)
+        # Trigger Submitted exec output (output index 1) via the inherited
+        # dispatch path that flow_engine subscribes to.
+        self.exec_output(1)
 
     def update_event(self) -> None:
         """Numeric inputs update from UI interactions, not inputs."""

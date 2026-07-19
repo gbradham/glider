@@ -208,9 +208,31 @@ class GliderNode(ABC):
         """
         Trigger execution flow output.
 
-        Override in subclasses that support execution flow.
+        Dispatches through ``_update_callbacks`` with the output's name as the
+        first argument — the same channel ``flow_engine.create_connection``
+        subscribes to. This unifies the exec-flow and data-flow callback paths
+        so flow_engine sees both kinds of edges.
+
+        Subclasses generally do not need to override this; their concrete
+        ``execute()`` method fires ``self.exec_output(N)`` for whichever
+        output port should trigger downstream.
         """
-        pass
+        # Resolve output name from definition (flow_engine filters on name).
+        if 0 <= index < len(self.definition.outputs):
+            output_name = self.definition.outputs[index].name
+        else:
+            output_name = str(index)
+
+        # Iterate over a copy so a callback that mutates the list (e.g., a
+        # self-detaching fire-once subscriber) doesn't raise
+        # RuntimeError: list changed size during iteration.
+        for callback in list(self._update_callbacks):
+            try:
+                callback(output_name, True)
+            except Exception as e:
+                logger.error(
+                    f"Exec callback error on {self._glider_id}:{output_name}: {e}"
+                )
 
     def bind_device(self, device: "BaseDevice") -> None:
         """
@@ -317,23 +339,15 @@ class DataNode(GliderNode):
 
 
 class ExecNode(GliderNode):
-    """Base class for execution flow nodes."""
+    """Base class for execution flow nodes.
 
-    def __init__(self):
-        super().__init__()
-        self._exec_callbacks: list[Callable[[int], None]] = []
-
-    def on_exec(self, callback: Callable[[int], None]) -> None:
-        """Register callback for execution output triggers."""
-        self._exec_callbacks.append(callback)
-
-    def exec_output(self, index: int = 0) -> None:
-        """Trigger execution flow output."""
-        for callback in self._exec_callbacks:
-            try:
-                callback(index)
-            except Exception as e:
-                logger.error(f"Exec callback error: {e}")
+    Exec outputs are dispatched through the parent class's ``exec_output``
+    which uses ``_update_callbacks`` — the single channel ``flow_engine`` knows
+    about. The prior separate ``_exec_callbacks`` channel was never wired to
+    the engine (its ``on_exec`` registrar was never called from anywhere),
+    so nodes that relied on it produced no downstream effect. Subclasses
+    just call ``self.exec_output(N)`` from their ``execute()``.
+    """
 
     def update_event(self) -> None:
         """Data update event - may not trigger execution."""

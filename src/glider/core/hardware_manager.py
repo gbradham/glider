@@ -5,6 +5,7 @@ Maintains the registry of active Board instances and handles
 connection/disconnection, device initialization, and error recovery.
 """
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING, Callable, Optional
 
@@ -17,6 +18,10 @@ if TYPE_CHECKING:
     from glider.core.experiment_session import BoardConfig, DeviceConfig
 
 logger = logging.getLogger(__name__)
+
+# Upper bound on how long a single device.shutdown() or .initialize() may block
+# the event loop. A hung serial / I2C write must not freeze the UI.
+DEVICE_IO_TIMEOUT_S = 2.0
 
 
 class HardwareError(Exception):
@@ -206,11 +211,19 @@ class HardwareManager:
 
         logger.info(f"Disconnecting board: {board_id}")
 
-        # Shutdown all devices on this board first
+        # Shutdown all devices on this board first. Each call is bounded by
+        # DEVICE_IO_TIMEOUT_S so a hung serial write on one device cannot
+        # prevent the rest from being driven to a safe state.
         devices_to_shutdown = [d for d in self._devices.values() if d.board.id == board_id]
         for device in devices_to_shutdown:
             try:
-                await device.shutdown()
+                await asyncio.wait_for(device.shutdown(), timeout=DEVICE_IO_TIMEOUT_S)
+            except asyncio.TimeoutError:
+                logger.error(
+                    "Timed out shutting down device %s after %.1fs; pin may be in undefined state",
+                    device.id,
+                    DEVICE_IO_TIMEOUT_S,
+                )
             except Exception as e:
                 logger.warning(f"Error shutting down device {device.id}: {e}")
 
@@ -305,7 +318,13 @@ class HardwareManager:
             raise HardwareError(f"Board not connected: {device.board.id}")
 
         logger.info(f"Initializing device: {device_id}")
-        await device.initialize()
+        try:
+            await asyncio.wait_for(device.initialize(), timeout=DEVICE_IO_TIMEOUT_S)
+        except asyncio.TimeoutError as e:
+            raise HardwareError(
+                f"Timed out initializing device {device_id} after {DEVICE_IO_TIMEOUT_S}s "
+                f"(board may be unresponsive)"
+            ) from e
 
     async def shutdown_device(self, device_id: str) -> None:
         """
@@ -320,7 +339,13 @@ class HardwareManager:
 
         logger.info(f"Shutting down device: {device_id}")
         try:
-            await device.shutdown()
+            await asyncio.wait_for(device.shutdown(), timeout=DEVICE_IO_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            logger.error(
+                "Timed out shutting down device %s after %.1fs",
+                device_id,
+                DEVICE_IO_TIMEOUT_S,
+            )
         except Exception as e:
             logger.error(f"Error shutting down device {device_id}: {e}")
 
@@ -550,10 +575,17 @@ class HardwareManager:
         """
         logger.warning("EMERGENCY STOP triggered!")
 
-        # Shutdown all devices
+        # Shutdown all devices. Timeout each one so a single hung device
+        # does not prevent the rest from being driven to a safe state.
         for device in self._devices.values():
             try:
-                await device.shutdown()
+                await asyncio.wait_for(device.shutdown(), timeout=DEVICE_IO_TIMEOUT_S)
+            except asyncio.TimeoutError:
+                logger.error(
+                    "Emergency shutdown timed out for device %s after %.1fs",
+                    device.id,
+                    DEVICE_IO_TIMEOUT_S,
+                )
             except Exception as e:
                 logger.error(f"Emergency shutdown error for device {device.id}: {e}")
 

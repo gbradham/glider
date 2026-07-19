@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
+from glider.serialization.atomic import atomic_write_text
+
 logger = logging.getLogger(__name__)
 
 
@@ -296,8 +298,7 @@ class CameraCalibration:
             "lines": [line.to_dict() for line in self.lines],
         }
 
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2)
+        atomic_write_text(path, json.dumps(data, indent=2))
 
         logger.info(f"Saved calibration to {path}")
 

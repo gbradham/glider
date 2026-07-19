@@ -1023,10 +1023,28 @@ class MainWindow(QMainWindow):
         # Connect session changed to update runner view
         self.session_changed.connect(self._update_runner_experiment_name)
 
+        # Surface core errors to the operator via dialog (in addition to logging).
+        # error_occurred is emitted by _on_core_error; without a subscriber it was
+        # invisible to the operator.
+        self.error_occurred.connect(self._show_error_dialog)
+
+        # Track last state to detect transitions INTO ERROR (avoid modal spam on
+        # repeated state callbacks for the same state).
+        self._last_session_state: Optional[str] = None
+
     def _on_core_state_change(self, state) -> None:
         """Handle core state changes."""
         state_name = state.name
         self.state_changed.emit(state_name)
+
+        # Detect ERROR transitions and surface an unmissable modal. ERROR after
+        # STOP can mean "transient" or "hardware-output-still-driving" (Section 1
+        # C1) — the operator cannot tell from a status-bar color alone. Show a
+        # modal the first time we land in ERROR; do not re-show on repeated
+        # callbacks for the same state.
+        if state_name == "ERROR" and self._last_session_state != "ERROR":
+            self._show_unsafe_state_modal()
+        self._last_session_state = state_name
 
         # Update runner view status label - uses property for color (defined in QSS)
         if hasattr(self, "_status_label"):
@@ -1317,6 +1335,57 @@ class MainWindow(QMainWindow):
         """Handle core errors."""
         self.error_occurred.emit(source, str(error))
         logger.error(f"Error from {source}: {error}")
+
+    def _show_unsafe_state_modal(self) -> None:
+        """
+        Show an unmissable modal when the session enters ERROR state.
+
+        ERROR after a STOP attempt may mean at least one device failed its
+        safe-state transition — physical outputs (heaters, relays, valves)
+        may still be active. The operator must verify hardware manually
+        before powering down.
+        """
+        failures = getattr(self._core, "last_shutdown_failures", None)
+        if failures:
+            detail = "\n".join(f"  • {dev_id}: {err}" for dev_id, err in failures)
+            body = (
+                "One or more devices failed to enter their safe state during "
+                "shutdown.\n\nAffected devices:\n"
+                f"{detail}\n\n"
+                "Physical outputs may still be active. Do NOT power down the "
+                "hardware. Reconnect the affected device(s) and manually "
+                "verify each output is in the expected state."
+            )
+        else:
+            body = (
+                "The experiment session entered an ERROR state.\n\n"
+                "If this occurred during or immediately after STOP, one or "
+                "more hardware outputs may still be active. Verify the "
+                "physical state of every output device before powering down.\n\n"
+                "Check the log for diagnostic details."
+            )
+        QMessageBox.critical(
+            self,
+            "UNSAFE STATE — Hardware may still be active",
+            body,
+            QMessageBox.StandardButton.Ok,
+        )
+
+    def _show_error_dialog(self, source: str, message: str) -> None:
+        """
+        Surface a core error to the operator via a non-blocking warning.
+
+        Distinct from _show_unsafe_state_modal: this is for errors that do
+        NOT necessarily indicate a hardware-safety problem (network blips,
+        transient I/O errors, plugin failures). The user sees a warning
+        rather than a critical alert.
+        """
+        QMessageBox.warning(
+            self,
+            f"GLIDER Error: {source}",
+            message,
+            QMessageBox.StandardButton.Ok,
+        )
 
     def _on_hardware_connection_change(self, board_id: str, state: BoardConnectionState) -> None:
         """
@@ -2740,7 +2809,7 @@ class MainWindow(QMainWindow):
             "About GLIDER",
             "GLIDER - General Laboratory Interface for Design, "
             "Experimentation, and Recording\n\n"
-            "Version 1.0.0\n\n"
+            "Version 0.3.0\n\n"
             "A modular experimental orchestration platform.",
         )
 

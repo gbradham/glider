@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
+from glider.serialization.atomic import atomic_write_text
+
 logger = logging.getLogger(__name__)
 
 
@@ -179,9 +181,7 @@ class GliderConfig:
         if path is None:
             path = self.paths.user_config_dir / "config.json"
 
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w") as f:
-            json.dump(self.to_dict(), f, indent=2)
+        atomic_write_text(path, json.dumps(self.to_dict(), indent=2))
 
         logger.info(f"Configuration saved to {path}")
 

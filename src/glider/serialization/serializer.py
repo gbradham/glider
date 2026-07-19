@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
+from glider.serialization.atomic import atomic_write_text
 from glider.serialization.schema import (
     SCHEMA_VERSION,
     BoardConfigSchema,
@@ -81,12 +82,15 @@ class ExperimentSerializer:
         schema.update_modified()
 
         # Ensure .glider extension
-        if not path.suffix == self.FILE_EXTENSION:
+        if path.suffix != self.FILE_EXTENSION:
             path = path.with_suffix(self.FILE_EXTENSION)
 
-        # Write JSON file
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(schema.to_json(indent=2))
+        # Atomic write: temp file + fsync + os.replace. A crash mid-write
+        # leaves either the prior version or the new one — never a truncated
+        # file. The .glider file is the experiment's design notebook;
+        # corrupting it on power loss is the worst failure mode for a
+        # scientific tool.
+        atomic_write_text(path, schema.to_json(indent=2))
 
         logger.info(f"Saved experiment to {path}")
 
@@ -311,20 +315,52 @@ class ExperimentSerializer:
         return FlowConfigSchema(nodes=nodes, connections=connections)
 
     def _extract_node_properties(self, node: "GliderNode") -> dict[str, Any]:
-        """Extract serializable properties from a node."""
-        properties = {}
+        """Extract serializable properties from a node.
 
-        # Get properties from node's property definitions
-        for prop_name in getattr(node, "property_names", []):
-            if hasattr(node, prop_name):
-                value = getattr(node, prop_name)
-                # Only include serializable values
-                if isinstance(value, (str, int, float, bool, list, dict, type(None))):
-                    properties[prop_name] = value
+        Properties are sourced from the node's ``get_state()`` method (returns
+        the per-node ``_state`` dict, plus any typed-attribute mixins
+        subclasses include in their override) **plus** a small set of common
+        attributes (``visible_in_runner``, ``enabled``) that live outside
+        ``_state``.
 
-        # Common properties
+        The state payload is stored under the ``"state"`` key. Loaders that
+        understand this key pass it through to ``flow_engine.create_node(...,
+        state=...)`` which calls ``node.set_state(state)``. Older saves that
+        used flat top-level properties continue to load because
+        ``create_node`` falls back to setting ``self._state`` directly when
+        ``set_state`` is absent.
+
+        This fixes the prior bug where ``getattr(node, "property_names", [])``
+        always returned ``[]`` (no node class defined ``property_names``), so
+        every node-local property was silently dropped on every save.
+        """
+        properties: dict[str, Any] = {}
+
+        # Common attributes that live outside the per-node state dict.
         if hasattr(node, "visible_in_runner"):
-            properties["visible_in_runner"] = node.visible_in_runner
+            properties["visible_in_runner"] = bool(node.visible_in_runner)
+        elif hasattr(node, "_visible_in_runner"):
+            # Third-party and older built-in nodes may expose only the
+            # backing attribute. Preserve runner-dashboard visibility for
+            # those nodes as well.
+            properties["visible_in_runner"] = bool(node._visible_in_runner)
+        if hasattr(node, "_enabled"):
+            properties["enabled"] = bool(node._enabled)
+
+        # The node's authoritative serializable state. Use get_state() rather
+        # than to_dict() so we only embed what's actually needed to restore
+        # the node — the ID, title, position are owned by the NodeSchema.
+        if hasattr(node, "get_state") and callable(node.get_state):
+            try:
+                state = node.get_state()
+            except Exception as e:
+                logger.warning(
+                    "get_state() raised on %s (%s); node state will be empty",
+                    getattr(node, "_glider_id", "?"), type(node).__name__, exc_info=e,
+                )
+                state = {}
+            if isinstance(state, dict) and state:
+                properties["state"] = state
 
         return properties
 
@@ -360,29 +396,62 @@ class ExperimentSerializer:
         # Clear existing flow
         flow_engine.clear()
 
-        # Create nodes
+        # Create nodes. The persisted node state lives under
+        # node_schema.properties["state"] (written by _extract_node_properties).
+        # We pass it through to create_node which calls node.set_state(state)
+        # internally; this is the round-trip path that restores camera
+        # indices, GPIO pins, thresholds, ITI durations, etc. — every node
+        # parameter is preserved.
+        #
+        # Other keys in properties (visible_in_runner, enabled) are applied to
+        # the constructed node directly.
         for node_schema in config.nodes:
-            node_class = self._node_registry.get(node_schema.type)
-            if node_class:
+            node_type = node_schema.type
+            props = dict(node_schema.properties or {})
+            state = props.pop("state", None)
+            visible_in_runner = props.pop("visible_in_runner", None)
+            enabled = props.pop("enabled", None)
+
+            try:
                 node = flow_engine.create_node(
-                    node_class,
                     node_id=node_schema.id,
-                    **node_schema.properties,
+                    node_type=node_type,
+                    position=(
+                        node_schema.position.get("x", 0.0),
+                        node_schema.position.get("y", 0.0),
+                    ),
+                    state=state,
                 )
-                # Set position for GUI
-                if node:
-                    node.gui_position = node_schema.position
-            else:
-                logger.warning(f"Unknown node type: {node_schema.type}")
+            except (ValueError, KeyError) as e:
+                logger.warning(f"Skipping node {node_schema.id} ({node_type}): {e}")
+                continue
+
+            if node is None:
+                continue
+
+            if visible_in_runner is not None and hasattr(node, "_visible_in_runner"):
+                node._visible_in_runner = bool(visible_in_runner)
+            if enabled is not None and hasattr(node, "_enabled"):
+                node._enabled = bool(enabled)
+
+            # Preserve GUI position metadata as dict for downstream consumers.
+            node.gui_position = node_schema.position
 
         # Create connections
         for conn_schema in config.connections:
-            flow_engine.connect(
-                from_node_id=conn_schema.from_node,
-                from_port=conn_schema.from_port,
-                to_node_id=conn_schema.to_node,
-                to_port=conn_schema.to_port,
-            )
+            try:
+                flow_engine.create_connection(
+                    connection_id=conn_schema.id,
+                    from_node_id=conn_schema.from_node,
+                    from_output=conn_schema.from_port,
+                    to_node_id=conn_schema.to_node,
+                    to_input=conn_schema.to_port,
+                    connection_type=conn_schema.connection_type,
+                )
+            except (AttributeError, ValueError, KeyError) as e:
+                logger.warning(
+                    f"Skipping connection {conn_schema.from_node}->{conn_schema.to_node}: {e}"
+                )
 
     def _validate_and_migrate(self, schema: ExperimentSchema) -> ExperimentSchema:
         """
